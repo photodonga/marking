@@ -609,14 +609,14 @@
     return base * ratio * largeFaceBoost;
   }
   function mosaicBlockNatural(rect){
-    // 모자이크는 큰 블록으로 얼굴을 뭉개기보다 작은 블록을 촘촘하게 유지한다.
-    // 강도는 블록 크기 + 아래 privacyMosaicCanvas()의 약한 사전 블러로 만든다.
-    // → 눈/입만 유난히 검게 튀는 '좀비' 느낌을 줄이면서도 익명화 효과는 유지한다.
+    // 모자이크는 블러보다 '강도' 변화가 눈에 확실히 보여야 한다.
+    // 50에서도 얼굴 식별 디테일이 충분히 깨지고, 100에서는 블록이 확실히 커지도록 범위를 넓힌다.
+    // 단, 아래 privacyMosaicCanvas()에서 약한 사전 블러를 넣어 눈/입이 검은 블록으로 튀는 현상은 억제한다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 1;
-    const ratio = 0.012 + 0.025 * (1 - Math.exp(-2.2*t)); // 50≈2.9%, 100≈3.4%
-    return Math.max(2, Math.min(base*0.036, base*ratio));
+    const ratio = 0.018 + 0.064 * Math.pow(t,0.82); // 50≈5.4%, 100≈8.2%
+    return Math.max(2, Math.min(base*0.085, base*ratio));
   }
   function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
@@ -2044,8 +2044,9 @@
     }
 
     const b=Math.max(2, blockSize);
-    // 강도가 높아져도 블록을 키우기보다는 블록 한 칸의 절반보다 작은 범위만 부드럽게 섞는다.
-    const preRadius=Math.max(0.8, b*(0.18 + 0.28*t));
+    // 블록을 키운 만큼 사전 블러는 과해지지 않게 제한한다.
+    // 픽셀 경계는 선명하게 남기면서 눈·입 같은 고대비 디테일만 살짝 평균화한다.
+    const preRadius=Math.max(0.7, Math.min(b*0.32, b*(0.14 + 0.16*t)));
     const prepared=cpuBoxBlurCanvas(srcCanvas, preRadius, 1);
 
     const smallW=Math.max(1, Math.ceil(w/b));
