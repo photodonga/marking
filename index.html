@@ -531,7 +531,8 @@
   let pendingEffect = null;  // 아직 확정되지 않은 가림 효과: {rect, canvas, sx, sy}
   let strokeMultCurrent = 1; // 새 객체 생성 시 두께 배율
   let strokeColorCurrent = DEFAULT_COLOR; // 새 객체 생성 시 색상
-  let circleLocked = true;   // 원/타원 도형은 기본적으로 정원(1:1) 유지
+  let circleLocked = true;   // 원/타원은 기본적으로 정원(1:1) 유지
+  let rectLocked = false;    // 네모는 기본적으로 자유 비율
   let shapeKind = "circle";    // circle | rect
 
   let scale = 1;             // base display / natural (export coordinates are unaffected)
@@ -622,8 +623,9 @@
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 1;
-    const ratio = 0.018 + 0.064 * Math.pow(t,0.82); // 50≈5.4%, 100≈8.2%
-    return Math.max(2, Math.min(base*0.085, base*ratio));
+    // 이전 값보다 약 18% 큰 블록을 사용해 작은 얼굴에서도 식별 단서가 남지 않게 한다.
+    const ratio = (0.018 + 0.064 * Math.pow(t,0.82)) * 1.18; // 50≈6.4%, 100≈9.7%
+    return Math.max(2, Math.min(base*0.10, base*ratio));
   }
   function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
@@ -855,14 +857,35 @@
     return {x:Math.min(o.x1,o.x2), y:Math.min(o.y1,o.y2), w:Math.abs(o.x2-o.x1), h:Math.abs(o.y2-o.y1)};
   }
 
+  function rotatePoint(p, c, angle){
+    const cos=Math.cos(angle||0), sin=Math.sin(angle||0);
+    const dx=p.x-c.x, dy=p.y-c.y;
+    return {x:c.x+dx*cos-dy*sin, y:c.y+dx*sin+dy*cos};
+  }
+  function rectCenter(o){ return {x:o.x+o.w/2,y:o.y+o.h/2}; }
+  function rectCornerNatural(o,k){
+    const c=rectCenter(o), sx=k.includes("e")?1:-1, sy=k.includes("s")?1:-1;
+    return rotatePoint({x:c.x+sx*o.w/2,y:c.y+sy*o.h/2},c,o.rotation||0);
+  }
+  function rotateHandleDisplay(o,s){
+    if(o.type!=="rect") return null;
+    const c=rectCenter(o), a=o.rotation||0;
+    // 오른쪽 변 중앙에서 화면상 26px 바깥에 회전 손잡이를 둔다.
+    const edge=rotatePoint({x:c.x+o.w/2,y:c.y},c,a);
+    const outward={x:Math.cos(a),y:Math.sin(a)};
+    return {x:edge.x*s+outward.x*26,y:edge.y*s+outward.y*26,edgeX:edge.x*s,edgeY:edge.y*s,k:"rotate"};
+  }
+
   function drawObjectOnCtx(ctx, o, s){
     const sw = strokeWidthNatural(o.strokeMult) * s;
     const col = o.color || DEFAULT_COLOR;
     if(o.type==="circle"){
       drawCircleShape(ctx, o.cx*s, o.cy*s, o.rx*s, o.ry*s, sw, col);
     } else if(o.type==="rect"){
-      ctx.save(); ctx.lineWidth=sw; ctx.strokeStyle=col; ctx.lineJoin="round";
-      ctx.strokeRect(o.x*s,o.y*s,o.w*s,o.h*s); ctx.restore();
+      const c=rectCenter(o);
+      ctx.save(); ctx.translate(c.x*s,c.y*s); ctx.rotate(o.rotation||0);
+      ctx.lineWidth=sw; ctx.strokeStyle=col; ctx.lineJoin="round";
+      ctx.strokeRect(-o.w*s/2,-o.h*s/2,o.w*s,o.h*s); ctx.restore();
     } else {
       drawArrowShape(ctx, o.x1*s, o.y1*s, o.x2*s, o.y2*s, sw, col);
     }
@@ -881,6 +904,13 @@
       ctx.fill();
       ctx.stroke();
     });
+    const rp=rotateHandleDisplay(o,s);
+    if(rp){
+      ctx.beginPath(); ctx.moveTo(rp.edgeX,rp.edgeY); ctx.lineTo(rp.x,rp.y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(rp.x,rp.y,7,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle=var_accent_blue(); ctx.font="bold 11px system-ui"; ctx.textAlign="center"; ctx.textBaseline="middle";
+      ctx.fillText("↻",rp.x,rp.y+.3);
+    }
     ctx.restore();
   }
   function closeButtonMetrics(w,h){
@@ -903,12 +933,20 @@
     }
     const b=objectBoundsNatural(o), x=b.x*scale, y=b.y*scale, w=b.w*scale, h=b.h*scale;
     const m=closeButtonMetrics(w,h);
+    if(o.type==="rect" && o.rotation){
+      const c=rectCenter(o), p=rotatePoint({x:o.x+o.w-m.inset/scale,y:o.y+m.inset/scale},c,o.rotation);
+      return {x:clamp(p.x*scale,m.r+3,dispW-m.r-3),y:clamp(p.y*scale,m.r+3,dispH-m.r-3),...m};
+    }
     return {x:clamp(x+w-m.inset,m.r+3,dispW-m.r-3), y:clamp(y+m.inset,m.r+3,dispH-m.r-3), ...m};
   }
   function drawObjectSelection(ctx,o){
     const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
     ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1.0; ctx.strokeStyle='rgba(255,255,255,.46)';
-    ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
+    if(o.type==="rect" && o.rotation){
+      const pts=["nw","ne","se","sw"].map(k=>rectCornerNatural(o,k));
+      ctx.beginPath();ctx.moveTo(pts[0].x*scale,pts[0].y*scale);pts.slice(1).forEach(p=>ctx.lineTo(p.x*scale,p.y*scale));ctx.closePath();ctx.stroke();
+    }else ctx.strokeRect(x,y,w,h);
+    ctx.setLineDash([]);
     const cp=objectClosePoint(o),cx=cp.x,cy=cp.y,r=cp.r,a=cp.arm;
     ctx.fillStyle='rgba(28,28,30,.78)'; ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=Math.max(1.2,r*0.16);ctx.beginPath();ctx.moveTo(cx-a,cy-a);ctx.lineTo(cx+a,cy+a);ctx.moveTo(cx+a,cy-a);ctx.lineTo(cx-a,cy+a);ctx.stroke();ctx.restore();
@@ -918,7 +956,9 @@
   function var_accent_blue(){ return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0a6cff"; }
 
   function handlePointsDisplay(o, s){
-    if(o.type==="circle" || o.type==="rect"){
+    if(o.type==="rect"){
+      return ["nw","ne","sw","se"].map(k=>{const p=rectCornerNatural(o,k);return {x:p.x*s,y:p.y*s,k};});
+    } else if(o.type==="circle"){
       const b = objectBoundsNatural(o);
       return [
         {x:b.x*s, y:b.y*s, k:"nw"},
@@ -1001,7 +1041,8 @@
         }
       } else if(activeTool==="circle"){
         let r;
-        if(circleLocked){
+        const shapeLocked=shapeKind==="rect"?rectLocked:circleLocked;
+        if(shapeLocked){
           const ddx = drag.curDisp.x-drag.startDisp.x, ddy = drag.curDisp.y-drag.startDisp.y;
           const size = Math.max(Math.abs(ddx),Math.abs(ddy));
           const signX = ddx>=0?1:-1, signY = ddy>=0?1:-1;
@@ -1137,6 +1178,8 @@
     if(selectedId==null) return null;
     const o = objects.find(x=>x.id===selectedId);
     if(!o) return null;
+    const rp=rotateHandleDisplay(o,scale);
+    if(rp && Math.hypot(dispPt.x-rp.x,dispPt.y-rp.y)<=14) return {obj:o,handle:"rotate"};
     const pts = handlePointsDisplay(o, scale);
     for(const p of pts){
       if(Math.hypot(dispPt.x-p.x, dispPt.y-p.y) <= HANDLE_SCREEN_SIZE){
@@ -1161,8 +1204,10 @@
         if(q<=1) return o;
       } else if(o.type==="rect"){
         // 네모는 테두리뿐 아니라 내부를 눌러도 선택/이동할 수 있게 한다.
-        const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
-        const inside=dispPt.x>=x-HIT_TOLERANCE&&dispPt.x<=x+w+HIT_TOLERANCE&&dispPt.y>=y-HIT_TOLERANCE&&dispPt.y<=y+h+HIT_TOLERANCE;
+        const c=rectCenter(o), nat={x:dispPt.x/scale,y:dispPt.y/scale};
+        const local=rotatePoint(nat,c,-(o.rotation||0));
+        const t=HIT_TOLERANCE/Math.max(scale,.001);
+        const inside=local.x>=o.x-t&&local.x<=o.x+o.w+t&&local.y>=o.y-t&&local.y<=o.y+o.h+t;
         if(inside) return o;
       }
     }
@@ -1291,8 +1336,8 @@
 
       if(activeTool==="circle"){
         const gl = document.createElement("label"); gl.className="opt-group check-opt";
-        const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=circleLocked;
-        lockCheck.onchange=()=>{ circleLocked=lockCheck.checked; };
+        const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=shapeKind==="rect"?rectLocked:circleLocked;
+        lockCheck.onchange=()=>{ if(shapeKind==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
         const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지";
         gl.appendChild(lockCheck); gl.appendChild(lockText);
         optionsBar.appendChild(gl);
@@ -1332,8 +1377,8 @@
 
         if(sel.type==="circle" || sel.type==="rect"){
           const gl = document.createElement("label"); gl.className="opt-group check-opt";
-          const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=circleLocked;
-          lockCheck.onchange=()=>{ circleLocked=lockCheck.checked; };
+          const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=sel.type==="rect"?rectLocked:circleLocked;
+          lockCheck.onchange=()=>{ if(sel.type==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
           const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형 유지":"정원 유지";
           gl.appendChild(lockCheck); gl.appendChild(lockText);
           optionsBar.appendChild(gl);
@@ -1467,7 +1512,14 @@
     const selectedObject = objects.find(x=>x.id===selectedId);
     if(selectedObject && objectCloseHit(dp, selectedObject)){ deleteSelected(); return; }
     const handleHit = findHandleAt(dp);
-    if(handleHit){ selectedId=handleHit.obj.id; drag={mode:"resize",obj:handleHit.obj,handle:handleHit.handle,startNat:dispToNat(dp)}; buildOptionsBar(); redraw(); return; }
+    if(handleHit){
+      selectedId=handleHit.obj.id;
+      if(handleHit.handle==="rotate"){
+        const c=rectCenter(handleHit.obj), nat=dispToNat(dp);
+        drag={mode:"rotate",obj:handleHit.obj,center:c,startAngle:Math.atan2(nat.y-c.y,nat.x-c.x),startRotation:handleHit.obj.rotation||0};
+      }else drag={mode:"resize",obj:handleHit.obj,handle:handleHit.handle,startNat:dispToNat(dp),snapshot:Object.assign({},handleHit.obj)};
+      buildOptionsBar(); redraw(); return;
+    }
     const objHit = findObjectAt(dp);
     if(objHit){ selectedId=objHit.id; strokeMultCurrent=objHit.strokeMult||1; drag={mode:"move",obj:objHit,last:dispToNat(dp),snapshot:Object.assign({},objHit)}; buildOptionsBar(); redraw(); return; }
     const eh=findEffectAt(dp);
@@ -1532,10 +1584,27 @@
       if(eff.faceRects&&eff.faceRects.length) eff.faceRects.forEach(r=>{r.x+=mdx;r.y+=mdy;});
       drag.last={x:nat.x-(dx-mdx),y:nat.y-(dy-mdy)};
       redraw();
+    } else if(drag.mode==="rotate"){
+      const nat=dispToNat(dp), c=drag.center;
+      let angle=drag.startRotation+Math.atan2(nat.y-c.y,nat.x-c.x)-drag.startAngle;
+      if(e.shiftKey){ const step=Math.PI/12; angle=Math.round(angle/step)*step; }
+      drag.obj.rotation=angle;
+      redraw();
     } else if(drag.mode==="resize"){
       const nat = dispToNat(dp);
       const o = drag.obj;
-      if(o.type==="circle" || o.type==="rect"){
+      if(o.type==="rect" && (o.rotation||0)!==0){
+        const snap=drag.snapshot, opposite={nw:"se",ne:"sw",sw:"ne",se:"nw"}[drag.handle];
+        const anchor=rectCornerNatural(snap,opposite), a=snap.rotation||0;
+        let local=rotatePoint(nat,anchor,-a);
+        local={x:local.x-anchor.x,y:local.y-anchor.y};
+        const sx=drag.handle.includes("e")?1:-1, sy=drag.handle.includes("s")?1:-1;
+        let lw=sx*Math.max(4,sx*local.x), lh=sy*Math.max(4,sy*local.y);
+        if(rectLocked){ const size=Math.max(Math.abs(lw),Math.abs(lh)); lw=sx*size; lh=sy*size; }
+        const localCenter={x:anchor.x+lw/2,y:anchor.y+lh/2};
+        const worldCenter=rotatePoint(localCenter,anchor,a);
+        o.w=Math.abs(lw);o.h=Math.abs(lh);o.x=worldCenter.x-o.w/2;o.y=worldCenter.y-o.h/2;
+      } else if(o.type==="circle" || o.type==="rect"){
         const b = objectBoundsNatural(o);
         const x0=b.x, y0=b.y, x1=b.x+b.w, y1=b.y+b.h;
         let ax, ay, mx=nat.x, my=nat.y;
@@ -1544,7 +1613,8 @@
         else if(drag.handle==="sw"){ ax=x1; ay=y0; }
         else { ax=x0; ay=y0; } // se
         let mvx=mx, mvy=my;
-        if(circleLocked){
+        const shapeLocked=o.type==="rect"?rectLocked:circleLocked;
+        if(shapeLocked){
           const size = Math.max(Math.abs(mx-ax), Math.abs(my-ay), 4);
           const signX = mx>=ax?1:-1, signY = my>=ay?1:-1;
           mvx = ax+signX*size; mvy = ay+signY*size;
@@ -1625,7 +1695,8 @@
         if(moved){
           const n0 = dispToNat(dp0), n1 = dispToNat(dp1);
           let r;
-          if(circleLocked){
+          const shapeLocked=shapeKind==="rect"?rectLocked:circleLocked;
+          if(shapeLocked){
             const size = Math.max(Math.abs(n1.x-n0.x), Math.abs(n1.y-n0.y));
             const signX = n1.x>=n0.x?1:-1, signY = n1.y>=n0.y?1:-1;
             r = normRect(n0, {x:n0.x+signX*size, y:n0.y+signY*size});
@@ -1634,7 +1705,7 @@
           }
           if(r.w>3 && r.h>3){
             const obj = shapeKind==="rect"
-              ? {id:genId(), type:"rect", x:r.x, y:r.y, w:r.w, h:r.h, strokeMult:strokeMultCurrent, color:strokeColorCurrent}
+              ? {id:genId(), type:"rect", x:r.x, y:r.y, w:r.w, h:r.h, rotation:0, strokeMult:strokeMultCurrent, color:strokeColorCurrent}
               : {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokeMult:strokeMultCurrent, color:strokeColorCurrent};
             objects.push(obj);
             selectedId = obj.id;
@@ -1658,7 +1729,7 @@
         redraw();
         return;
       }
-    } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize" || finishedDrag.mode==="effectMove"){
+    } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize" || finishedDrag.mode==="rotate" || finishedDrag.mode==="effectMove"){
       pushHistory(false);
     }
   }
