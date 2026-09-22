@@ -1083,11 +1083,18 @@
     return {x:x1,y:y1,w:x2-x1,h:y2-y1};
   }
 
+  function effectCenter(eff){ const b=effectBounds(eff);return {x:b.x+b.w/2,y:b.y+b.h/2}; }
+  function effectRotatedPoint(eff,x,y){ return rotatePoint({x,y},effectCenter(eff),eff.rotation||0); }
+
   function effectClosePoint(eff){
     const b=effectBounds(eff);
     const x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
     const m=closeButtonMetrics(w,h);
     // 작은 얼굴에서는 X 자체도 작아지고, 우상단 모서리 안쪽에 비례해서 붙는다.
+    if(eff.rotation){
+      const p=effectRotatedPoint(eff,b.x+b.w-m.inset/scale,b.y+m.inset/scale);
+      return {x:clamp(p.x*scale,m.r+3,dispW-m.r-3),y:clamp(p.y*scale,m.r+3,dispH-m.r-3),...m};
+    }
     return {x:clamp(x+w-m.inset,m.r+3,dispW-m.r-3), y:clamp(y+m.inset,m.r+3,dispH-m.r-3), ...m};
   }
   function drawEffectGuide(ctx, eff){
@@ -1096,14 +1103,32 @@
     ctx.setLineDash([4,3]);
     ctx.lineWidth=1.05;
     ctx.strokeStyle='rgba(255,255,255,.42)';
-    rs.forEach(r=>ctx.strokeRect(r.x*scale,r.y*scale,r.w*scale,r.h*scale));
+    rs.forEach(r=>{
+      const c={x:r.x+r.w/2,y:r.y+r.h/2};
+      ctx.save();ctx.translate(c.x*scale,c.y*scale);ctx.rotate(eff.rotation||0);
+      ctx.strokeRect(-r.w*scale/2,-r.h*scale/2,r.w*scale,r.h*scale);ctx.restore();
+    });
     ctx.restore();
   }
 
   function drawEffectSelection(ctx, eff){
     const b=effectBounds(eff), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
     ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1.05; ctx.strokeStyle='rgba(255,255,255,.56)';
-    ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
+    if(eff.rotation){
+      const pts=[[b.x,b.y],[b.x+b.w,b.y],[b.x+b.w,b.y+b.h],[b.x,b.y+b.h]].map(([px,py])=>effectRotatedPoint(eff,px,py));
+      ctx.beginPath();ctx.moveTo(pts[0].x*scale,pts[0].y*scale);pts.slice(1).forEach(p=>ctx.lineTo(p.x*scale,p.y*scale));ctx.closePath();ctx.stroke();
+    }else ctx.strokeRect(x,y,w,h);
+    ctx.setLineDash([]);
+    // 가림 영역은 네 변의 중앙 손잡이로 크기를 조절한다. 어느 손잡이를 잡아도 원래 비율은 유지된다.
+    const hs=HANDLE_SCREEN_SIZE;
+    ctx.fillStyle='#fff';ctx.strokeStyle=var_accent_blue();ctx.lineWidth=1.5;
+    effectSideHandlePointsDisplay(eff).forEach(p=>{
+      ctx.beginPath();ctx.rect(p.x-hs/2,p.y-hs/2,hs,hs);ctx.fill();ctx.stroke();
+    });
+    const rp=effectRotateHandleDisplay(eff);
+    ctx.beginPath();ctx.moveTo(rp.edgeX,rp.edgeY);ctx.lineTo(rp.x,rp.y);ctx.stroke();
+    ctx.beginPath();ctx.arc(rp.x,rp.y,7,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle=var_accent_blue();ctx.font='bold 11px system-ui';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('↻',rp.x,rp.y+.3);
     const cp=effectClosePoint(eff), cx=cp.x, cy=cp.y, r=cp.r, a=cp.arm;
     ctx.fillStyle='rgba(28,28,30,.78)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.lineWidth=Math.max(1.2,r*0.16);
@@ -1116,6 +1141,32 @@
     return Math.hypot(dp.x-cp.x,dp.y-cp.y)<=cp.hit;
   }
 
+  function effectSideHandlePointsDisplay(eff){
+    const b=effectBounds(eff);
+    return [
+      {px:b.x+b.w/2,py:b.y,k:'n'},{px:b.x+b.w,py:b.y+b.h/2,k:'e'},
+      {px:b.x+b.w/2,py:b.y+b.h,k:'s'},{px:b.x,py:b.y+b.h/2,k:'w'}
+    ].map(q=>{const p=effectRotatedPoint(eff,q.px,q.py);return {x:p.x*scale,y:p.y*scale,k:q.k};});
+  }
+
+  function effectRotateHandleDisplay(eff){
+    const b=effectBounds(eff),c=effectCenter(eff),a=eff.rotation||0;
+    const edge=effectRotatedPoint(eff,b.x+b.w,b.y+b.h/2);
+    return {x:edge.x*scale+Math.cos(a)*26,y:edge.y*scale+Math.sin(a)*26,edgeX:edge.x*scale,edgeY:edge.y*scale,k:'rotate'};
+  }
+
+  function findEffectHandleAt(dp){
+    if(selectedId==null) return null;
+    const eff=effects.find(e=>e.id===selectedId);
+    if(!eff) return null;
+    const rp=effectRotateHandleDisplay(eff);
+    if(Math.hypot(dp.x-rp.x,dp.y-rp.y)<=14) return {effect:eff,handle:'rotate'};
+    for(const p of effectSideHandlePointsDisplay(eff)){
+      if(Math.hypot(dp.x-p.x,dp.y-p.y)<=14) return {effect:eff,handle:p.k};
+    }
+    return null;
+  }
+
   function findEffectAt(dp){
     // 모바일 재선택 여유는 주되, 타원형 가림의 빈 모서리까지 잡히지는 않게 한다.
     const tolPx = 18, x=dp.x/scale, y=dp.y/scale;
@@ -1123,14 +1174,16 @@
       const e=effects[i];
       const rs=e.faceRects&&e.faceRects.length?e.faceRects:[e.rect];
       for(const r of rs){
+        const c={x:r.x+r.w/2,y:r.y+r.h/2};
+        const unrot=rotatePoint({x:dp.x/scale,y:dp.y/scale},c,-(e.rotation||0));
         if((e.shape||"ellipse")==="ellipse"){
           const rx=Math.max(1,r.w*scale/2+tolPx), ry=Math.max(1,r.h*scale/2+tolPx);
           const cx=(r.x+r.w/2)*scale, cy=(r.y+r.h/2)*scale;
-          const dx=(dp.x-cx)/rx, dy=(dp.y-cy)/ry;
+          const dx=(unrot.x*scale-cx)/rx, dy=(unrot.y*scale-cy)/ry;
           if(dx*dx+dy*dy<=1) return e;
         }else{
           const t=tolPx/Math.max(scale,.001);
-          if(x>=r.x-t&&x<=r.x+r.w+t&&y>=r.y-t&&y<=r.y+r.h+t) return e;
+          if(unrot.x>=r.x-t&&unrot.x<=r.x+r.w+t&&unrot.y>=r.y-t&&unrot.y<=r.y+r.h+t) return e;
         }
       }
     }
@@ -1511,6 +1564,16 @@
     if(selectedEffect && effectCloseHit(dp, selectedEffect)){ deleteSelected(); return; }
     const selectedObject = objects.find(x=>x.id===selectedId);
     if(selectedObject && objectCloseHit(dp, selectedObject)){ deleteSelected(); return; }
+    const effectHandleHit=findEffectHandleAt(dp);
+    if(effectHandleHit){
+      const eff=effectHandleHit.effect,c=effectCenter(eff),nat=dispToNat(dp);
+      if(effectHandleHit.handle==='rotate'){
+        drag={mode:'effectRotate',effect:eff,center:c,startAngle:Math.atan2(nat.y-c.y,nat.x-c.x),startRotation:eff.rotation||0};
+      }else{
+        drag={mode:'effectResize',effect:eff,handle:effectHandleHit.handle,snapshot:deepCloneObjects([eff])[0],bounds:effectBounds(eff)};
+      }
+      redraw();return;
+    }
     const handleHit = findHandleAt(dp);
     if(handleHit){
       selectedId=handleHit.obj.id;
@@ -1584,6 +1647,33 @@
       if(eff.faceRects&&eff.faceRects.length) eff.faceRects.forEach(r=>{r.x+=mdx;r.y+=mdy;});
       drag.last={x:nat.x-(dx-mdx),y:nat.y-(dy-mdy)};
       redraw();
+    } else if(drag.mode==='effectRotate'){
+      const nat=dispToNat(dp),c=drag.center;
+      let angle=drag.startRotation+Math.atan2(nat.y-c.y,nat.x-c.x)-drag.startAngle;
+      if(e.shiftKey){const step=Math.PI/12;angle=Math.round(angle/step)*step;}
+      drag.effect.rotation=angle;redraw();
+    } else if(drag.mode==='effectResize'){
+      const nat=dispToNat(dp),snap=drag.snapshot,b=drag.bounds,c={x:b.x+b.w/2,y:b.y+b.h/2},a=snap.rotation||0;
+      const local=rotatePoint(nat,c,-a);
+      let factor;
+      if(drag.handle==='e') factor=(local.x-b.x)/Math.max(1,b.w);
+      else if(drag.handle==='w') factor=(b.x+b.w-local.x)/Math.max(1,b.w);
+      else if(drag.handle==='s') factor=(local.y-b.y)/Math.max(1,b.h);
+      else factor=(b.y+b.h-local.y)/Math.max(1,b.h);
+      factor=clamp(factor,Math.max(0.08,4/Math.max(4,Math.min(b.w,b.h))),12);
+
+      const anchorLocal=drag.handle==='e'?{x:b.x,y:c.y}:drag.handle==='w'?{x:b.x+b.w,y:c.y}:drag.handle==='s'?{x:c.x,y:b.y}:{x:c.x,y:b.y+b.h};
+      const anchorWorld=rotatePoint(anchorLocal,c,a);
+      const centerOffset=drag.handle==='e'?{x:b.w*factor/2,y:0}:drag.handle==='w'?{x:-b.w*factor/2,y:0}:drag.handle==='s'?{x:0,y:b.h*factor/2}:{x:0,y:-b.h*factor/2};
+      const newCenter=rotatePoint({x:anchorWorld.x+centerOffset.x,y:anchorWorld.y+centerOffset.y},anchorWorld,a);
+      const scaleRect=(src)=>{
+        const srcCenter={x:src.x+src.w/2,y:src.y+src.h/2};
+        const rel={x:(srcCenter.x-c.x)*factor,y:(srcCenter.y-c.y)*factor};
+        return {x:newCenter.x+rel.x-src.w*factor/2,y:newCenter.y+rel.y-src.h*factor/2,w:src.w*factor,h:src.h*factor};
+      };
+      drag.effect.rect=scaleRect(snap.rect);
+      drag.effect.faceRects=(snap.faceRects||[]).map(scaleRect);
+      redraw();
     } else if(drag.mode==="rotate"){
       const nat=dispToNat(dp), c=drag.center;
       let angle=drag.startRotation+Math.atan2(nat.y-c.y,nat.x-c.x)-drag.startAngle;
@@ -1649,7 +1739,7 @@
             if(blurShape==="rect"){
               const eff={
                 id:genId(), type:'effect', rect:Object.assign({},r), faceRects:[],
-                autoFace:false, mode:blurMode, shape:'rect', intensity:intensity, feather:feather
+                autoFace:false, mode:blurMode, shape:'rect', rotation:0, intensity:intensity, feather:feather
               };
               effects.push(eff); selectedId=eff.id; pendingEffect=null;
               pushHistory(false); buildOptionsBar(); redraw();
@@ -1672,7 +1762,7 @@
                 rect:Object.assign({}, faceRects.length ? faceRects[0] : r),
                 faceRects:faceRects.map(fr=>Object.assign({},fr)),
                 autoFace:!!faceRects.length, mode:blurMode,
-                shape:'ellipse',
+                shape:'ellipse', rotation:0,
                 intensity:intensity, feather:feather
               };
               effects.push(eff);
@@ -1729,7 +1819,7 @@
         redraw();
         return;
       }
-    } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize" || finishedDrag.mode==="rotate" || finishedDrag.mode==="effectMove"){
+    } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize" || finishedDrag.mode==="rotate" || finishedDrag.mode==="effectMove" || finishedDrag.mode==="effectResize" || finishedDrag.mode==="effectRotate"){
       pushHistory(false);
     }
   }
@@ -2144,7 +2234,8 @@
 
   // natRect 영역에 대해 현재 shape/mode/intensity 기준으로 처리된 결과 조각을 계산만 하고,
   // 원본 rasterCanvas에는 아직 반영하지 않는다 (실시간 미리보기/재조정을 위해 분리).
-  function computeEffectRegion(natRect, shape, mode){
+  function computeEffectRegion(natRect, shape, mode, rotation){
+    rotation=rotation||0;
     const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect) : mosaicBlockNatural(natRect);
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(feather/100,0,1);
@@ -2154,10 +2245,14 @@
     const featherRatio = mode==="mosaic" ? 0.07 : 0.20;
     const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.05) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
-    const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
-    const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
-    const ex = clamp(Math.ceil(natRect.x+natRect.w+pad),0,naturalW);
-    const ey = clamp(Math.ceil(natRect.y+natRect.h+pad),0,naturalH);
+    const center={x:natRect.x+natRect.w/2,y:natRect.y+natRect.h/2};
+    const corners=[[natRect.x,natRect.y],[natRect.x+natRect.w,natRect.y],[natRect.x+natRect.w,natRect.y+natRect.h],[natRect.x,natRect.y+natRect.h]].map(([x,y])=>rotatePoint({x,y},center,rotation));
+    const bx1=Math.min(...corners.map(p=>p.x)),by1=Math.min(...corners.map(p=>p.y));
+    const bx2=Math.max(...corners.map(p=>p.x)),by2=Math.max(...corners.map(p=>p.y));
+    const sx = clamp(Math.floor(bx1-pad),0,naturalW);
+    const sy = clamp(Math.floor(by1-pad),0,naturalH);
+    const ex = clamp(Math.ceil(bx2+pad),0,naturalW);
+    const ey = clamp(Math.ceil(by2+pad),0,naturalH);
     const sw = Math.max(1, ex-sx), sh = Math.max(1, ey-sy);
 
     const src = document.createElement("canvas"); src.width=sw; src.height=sh;
@@ -2176,14 +2271,15 @@
     const mctx = mask.getContext("2d");
     const rx0 = natRect.x-sx, ry0 = natRect.y-sy;
     mctx.fillStyle = "#fff";
+    mctx.save();
+    mctx.translate(center.x-sx,center.y-sy);
+    mctx.rotate(rotation);
     if(shape==="ellipse"){
       // 얼굴 중앙은 항상 100% 효과. 페더는 외곽의 얇은 링에서만 작동한다.
       // 타원은 원형 radialGradient를 비율 변환해서 정확한 타원 그라데이션으로 만든다.
-      const cx=rx0+natRect.w/2, cy=ry0+natRect.h/2;
       const rx=Math.max(1,natRect.w/2), ry=Math.max(1,natRect.h/2);
       const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.45) : 0;
-      mctx.save();
-      mctx.translate(cx,cy); mctx.scale(rx,ry);
+      mctx.save();mctx.scale(rx,ry);
       if(edgeFrac>0){
         const g=mctx.createRadialGradient(0,0,0,0,0,1);
         g.addColorStop(0,"rgba(255,255,255,1)");
@@ -2194,8 +2290,9 @@
       mctx.beginPath(); mctx.arc(0,0,1,0,Math.PI*2); mctx.fill();
       mctx.restore();
     } else {
-      mctx.fillRect(rx0, ry0, natRect.w, natRect.h);
+      mctx.fillRect(-natRect.w/2,-natRect.h/2,natRect.w,natRect.h);
     }
+    mctx.restore();
     let finalMask = mask;
     // 사각형만 기존 방식의 좁은 경계 페더를 사용한다. 타원은 위에서 불투명 중심을 보장했다.
     if(shape!=="ellipse" && featherPx>0.5){
@@ -2218,10 +2315,10 @@
     const oldI=intensity, oldF=feather; intensity=eff.intensity; feather=eff.feather;
     const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
     let result;
-    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'ellipse':eff.shape, eff.mode); }
+    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'ellipse':eff.shape, eff.mode, eff.rotation||0); }
     else {
       const overlay=document.createElement('canvas'); overlay.width=naturalW; overlay.height=naturalH;
-      const oc=overlay.getContext('2d'); rs.forEach(r=>{const z=computeEffectRegion(r,'ellipse',eff.mode);oc.drawImage(z.canvas,z.sx,z.sy);});
+      const oc=overlay.getContext('2d'); rs.forEach(r=>{const z=computeEffectRegion(r,'ellipse',eff.mode,eff.rotation||0);oc.drawImage(z.canvas,z.sx,z.sy);});
       result={canvas:overlay,sx:0,sy:0};
     }
     intensity=oldI; feather=oldF; return result;
