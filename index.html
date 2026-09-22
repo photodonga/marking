@@ -394,6 +394,7 @@
   let rasterCtx = rasterCanvas.getContext("2d");
 
   let objects = [];          // {id,type:'circle'|'arrow', ...coords, strokeMult}
+  let effects = [];          // 비파괴 가림 효과 {id,type:'effect',rect,faceRects,autoFace,mode,shape,intensity,feather}
   let selectedId = null;
   let nextObjId = 1;
 
@@ -454,7 +455,7 @@
     const ls = longSide();
     return Math.max(3, lerp(ls*0.004, ls*0.065, intensity/100));
   }
-  function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o)); }
+  function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
   function showToast(msg, ms){
     toastEl.textContent = msg;
@@ -476,7 +477,7 @@
       rasterStateIndex = history[historyIndex] ? history[historyIndex].rasterStateIndex : 0;
     }
     history = history.slice(0, historyIndex+1);
-    history.push({ rasterStateIndex, objects: deepCloneObjects(objects) });
+    history.push({ rasterStateIndex, objects: deepCloneObjects(objects), effects: deepCloneObjects(effects) });
     if(history.length > MAX_HISTORY){ history.shift(); }
     historyIndex = history.length - 1;
     updateHistoryButtons();
@@ -491,6 +492,7 @@
       rasterCtx.clearRect(0,0,naturalW,naturalH);
       rasterCtx.drawImage(img,0,0);
       objects = deepCloneObjects(entry.objects);
+      effects = deepCloneObjects(entry.effects || []);
       selectedId = null;
       fitCanvas();
       redraw();
@@ -535,6 +537,7 @@
         rasterCtx.clearRect(0,0,naturalW,naturalH);
         rasterCtx.drawImage(img,0,0);
         objects = [];
+        effects = [];
         selectedId = null;
         rasterStates = [];
         history = [];
@@ -695,6 +698,16 @@
     vctx.clearRect(0,0,dispW,dispH);
     vctx.drawImage(rasterCanvas, 0,0,naturalW,naturalH, 0,0,dispW,dispH);
 
+    // 저장 전까지 가림 효과는 원본에 합치지 않고 비파괴 객체로 렌더링한다.
+    effects.forEach(eff=>{
+      const rendered = renderEffectObject(eff);
+      if(rendered && rendered.canvas){
+        vctx.drawImage(rendered.canvas, 0,0,rendered.canvas.width,rendered.canvas.height,
+          rendered.sx*scale, rendered.sy*scale, rendered.canvas.width*scale, rendered.canvas.height*scale);
+      }
+      if(eff.id===selectedId) drawEffectSelection(vctx, eff);
+    });
+
     if(pendingEffect && pendingEffect.canvas){
       const pc = pendingEffect.canvas;
       vctx.drawImage(pc, 0,0,pc.width,pc.height,
@@ -778,6 +791,48 @@
       vctx.strokeRect(r.x,r.y,r.w,r.h);
       vctx.restore();
     }
+  }
+
+  function effectBounds(eff){
+    const rs = eff.faceRects && eff.faceRects.length ? eff.faceRects : [eff.rect];
+    const x1=Math.min(...rs.map(r=>r.x)), y1=Math.min(...rs.map(r=>r.y));
+    const x2=Math.max(...rs.map(r=>r.x+r.w)), y2=Math.max(...rs.map(r=>r.y+r.h));
+    return {x:x1,y:y1,w:x2-x1,h:y2-y1};
+  }
+
+  function drawEffectSelection(ctx, eff){
+    const b=effectBounds(eff), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
+    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,.95)';
+    ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
+    const r=11, cx=x+w, cy=y;
+    ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#fff'; ctx.lineWidth=1.8;
+    ctx.beginPath(); ctx.moveTo(cx-4,cy-4);ctx.lineTo(cx+4,cy+4);ctx.moveTo(cx+4,cy-4);ctx.lineTo(cx-4,cy+4);ctx.stroke();
+    ctx.restore();
+  }
+
+  function effectCloseHit(dp, eff){
+    const b=effectBounds(eff), cx=(b.x+b.w)*scale, cy=b.y*scale;
+    return Math.hypot(dp.x-cx,dp.y-cy)<=18;
+  }
+
+  function findEffectAt(dp){
+    for(let i=effects.length-1;i>=0;i--){
+      const e=effects[i], b=effectBounds(e);
+      const x=dp.x/scale,y=dp.y/scale;
+      if(x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h) return e;
+    }
+    return null;
+  }
+
+  function deleteSelected(){
+    if(selectedId==null) return false;
+    const before=objects.length+effects.length;
+    objects=objects.filter(o=>o.id!==selectedId);
+    effects=effects.filter(o=>o.id!==selectedId);
+    if(objects.length+effects.length===before) return false;
+    selectedId=null; pushHistory(false); buildOptionsBar(); redraw();
+    showToast('선택 항목을 삭제했습니다.',900); return true;
   }
 
   function normRect(a,b){
@@ -1006,6 +1061,15 @@
     e.preventDefault();
     viewCanvas.setPointerCapture && viewCanvas.setPointerCapture(e.pointerId);
     const dp = getDispPoint(e);
+
+    // 선택된 가림 효과의 우측 상단 ×는 터치/클릭 즉시 삭제
+    const selectedEffect = effects.find(x=>x.id===selectedId);
+    if(selectedEffect && effectCloseHit(dp, selectedEffect)){ deleteSelected(); return; }
+    // 선택 모드에서는 가림 효과도 일반 마킹처럼 선택 가능
+    if(activeTool===null){
+      const eh=findEffectAt(dp);
+      if(eh){ selectedId=eh.id; buildOptionsBar(); redraw(); return; }
+    }
 
     if(activeTool==="crop"){
       if(pendingEffect) commitPendingEffect();
@@ -1343,6 +1407,19 @@
     return { canvas: processed, sx, sy };
   }
 
+  function renderEffectObject(eff){
+    const oldI=intensity, oldF=feather; intensity=eff.intensity; feather=eff.feather;
+    const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
+    let result;
+    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'ellipse':eff.shape, eff.mode); }
+    else {
+      const overlay=document.createElement('canvas'); overlay.width=naturalW; overlay.height=naturalH;
+      const oc=overlay.getContext('2d'); rs.forEach(r=>{const z=computeEffectRegion(r,'ellipse',eff.mode);oc.drawImage(z.canvas,z.sx,z.sy);});
+      result={canvas:overlay,sx:0,sy:0};
+    }
+    intensity=oldI; feather=oldF; return result;
+  }
+
   // 아직 확정되지 않은 가림 효과의 미리보기를 현재 강도/모드/모양으로 다시 계산
   function recomputePendingPreview(){
     if(!pendingEffect) return;
@@ -1375,9 +1452,14 @@
   // 확정: 미리보기 결과를 실제 rasterCanvas 픽셀에 합성하고 히스토리에 기록
   function commitPendingEffect(){
     if(!pendingEffect) return;
-    rasterCtx.drawImage(pendingEffect.canvas, pendingEffect.sx, pendingEffect.sy);
-    pendingEffect = null;
-    pushHistory(true);
+    const eff={
+      id:genId(), type:'effect', rect:Object.assign({},pendingEffect.rect),
+      faceRects:(pendingEffect.faceRects||[]).map(r=>Object.assign({},r)),
+      autoFace:!!pendingEffect.autoFace, mode:blurMode, shape:pendingEffect.autoFace?'ellipse':blurShape,
+      intensity:intensity, feather:feather
+    };
+    effects.push(eff); selectedId=eff.id; pendingEffect=null;
+    pushHistory(false); buildOptionsBar(); redraw();
   }
 
   // 취소: 확정하지 않고 미리보기를 버림
@@ -1406,6 +1488,9 @@
       if(o.type==="circle"){ o.cx-=x; o.cy-=y; }
       else { o.x1-=x; o.y1-=y; o.x2-=x; o.y2-=y; }
     });
+    effects.forEach(e=>{
+      const shift=r=>{r.x-=x;r.y-=y;}; shift(e.rect); (e.faceRects||[]).forEach(shift);
+    });
 
     closeCropIfActive(false);
     pushHistory(true);
@@ -1429,7 +1514,7 @@
   function clearPhoto(){
     if(!naturalW) return;
     if(!confirm("현재 사진과 모든 마킹을 지울까요?")) return;
-    discardPendingEffect(); naturalW=0; naturalH=0; objects=[]; selectedId=null; cropRect=null; drag=null;
+    discardPendingEffect(); naturalW=0; naturalH=0; objects=[]; effects=[]; selectedId=null; cropRect=null; drag=null;
     rasterCanvas=document.createElement("canvas"); rasterCtx=rasterCanvas.getContext("2d");
     rasterStates=[]; history=[]; historyIndex=-1;
     viewCanvas.width=1; viewCanvas.height=1; viewCanvas.classList.remove("ready");
@@ -1456,11 +1541,7 @@
       const tag = document.activeElement && document.activeElement.tagName;
       if(tag==="INPUT" || tag==="SELECT") return;
       e.preventDefault();
-      objects = objects.filter(o=>o.id!==selectedId);
-      selectedId = null;
-      pushHistory(false);
-      buildOptionsBar();
-      redraw();
+      deleteSelected();
       return;
     }
     if(e.key==="Escape"){
@@ -1491,6 +1572,7 @@
     outCanvas.width = naturalW; outCanvas.height = naturalH;
     const octx = outCanvas.getContext("2d");
     octx.drawImage(rasterCanvas,0,0);
+    effects.forEach(eff=>{ const r=renderEffectObject(eff); if(r&&r.canvas) octx.drawImage(r.canvas,r.sx,r.sy); });
     objects.forEach(o=> drawObjectOnCtx(octx, o, 1));
 
     const mime = format==="png" ? "image/png" : "image/jpeg";
