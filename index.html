@@ -3,9 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 v0.6</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
+<title>마킹 v0.7</title>
+
 <style>
   :root{
     --bg-1:#e9edf5;
@@ -500,13 +499,19 @@
   function lerp(a,b,t){ return a + (b-a)*t; }
   function longSide(){ return Math.max(naturalW, naturalH); }
   function strokeWidthNatural(mult){ return longSide() * STROKE_RATIO * (mult||1); }
-  function blurRadiusNatural(){
-    const ls = longSide();
-    return lerp(ls*0.02, ls*0.09, intensity/100);
+  // 가림 강도는 사진 전체 크기가 아니라 현재 가림 영역 크기를 기준으로 계산한다.
+  // 0은 거의 변화 없음, 50은 일반적인 익명화, 100은 강한 익명화가 되도록 비선형 매핑.
+  function blurRadiusNatural(rect){
+    const base = Math.max(8, Math.min(rect.w, rect.h));
+    const t = clamp(intensity/100, 0, 1);
+    if(t<=0) return 0.35;
+    return base * (0.008 + 0.22*Math.pow(t, 1.35));
   }
-  function mosaicBlockNatural(){
-    const ls = longSide();
-    return Math.max(3, lerp(ls*0.004, ls*0.065, intensity/100));
+  function mosaicBlockNatural(rect){
+    const base = Math.max(8, Math.min(rect.w, rect.h));
+    const t = clamp(intensity/100, 0, 1);
+    if(t<=0) return 1;
+    return Math.max(2, base * (0.008 + 0.12*Math.pow(t, 1.25)));
   }
   function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
@@ -1377,17 +1382,8 @@
               clearTimeout(faceDebugTimer);
               faceDebugTimer = setTimeout(()=>{ faceDebugPoints=[]; redraw(); }, 1100);
               // 조건을 통과한 얼굴만 이목구비 중심으로 자동 가림한다. 조건을 못 넘으면 사용자가 그린 위치를 그대로 가린다.
-              // tracking.js의 face box를 기준으로 중앙 88% × 78%만 사용하고,
-              // 타원 + 강한 페더로 뉴스 사진에서 흔히 쓰는 자연스러운 익명화 느낌을 만든다.
-              const faceRects=(faces||[]).map(face=>{
-                const fw = face.w * 0.88;
-                const fh = face.h * 0.78;
-                const cx = face.x + face.w * 0.50;
-                const cy = face.y + face.h * 0.50;
-                const fx = cx - fw/2, fy = cy - fh/2;
-                const x=clamp(fx,0,naturalW), y=clamp(fy,0,naturalH);
-                return {x,y,w:Math.max(4,Math.min(fw,naturalW-x)),h:Math.max(4,Math.min(fh,naturalH-y))};
-              });
+              // MediaPipe가 반환한 눈·코·입 랜드마크 기반 영역을 그대로 사용한다.
+              const faceRects=(faces||[]).map(face=>({x:face.x,y:face.y,w:face.w,h:face.h}));
               pendingEffect = faceRects.length
                 ? { rect: faceRects[0], faceRects, autoFace:true }
                 : { rect:r, autoFace:false };
@@ -1444,73 +1440,86 @@
   }
 
   // ---------------- 박스 안 얼굴 자동 인식 ----------------
-  // 드래그한 영역(natRect, 원본 좌표) 안에서 얼굴을 찾아 콜백으로 넘긴다.
-  // 찾으면 [{x,y,w,h}, ...](원본 좌표), 못 찾거나 라이브러리가 없으면 빈 배열.
-  function runFaceDetectionInBox(natRect, cb){
-    if(typeof tracking === "undefined" || !tracking.ObjectTracker){ cb([],[]); return; }
-
-    // 사용자 지정 영역이 절대 기준이다.
-    // 얼굴 탐지를 위해 주변 영역을 넓히지 않는다. 따라서 범위 밖 사람은 애초에 탐지 입력에 들어오지 않는다.
-    const sx = clamp(Math.floor(natRect.x),0,naturalW);
-    const sy = clamp(Math.floor(natRect.y),0,naturalH);
-    const ex = clamp(Math.ceil(natRect.x+natRect.w),0,naturalW);
-    const ey = clamp(Math.ceil(natRect.y+natRect.h),0,naturalH);
-    const cw = Math.max(1, ex-sx), ch = Math.max(1, ey-sy);
-    if(cw<24 || ch<24){ cb([],[]); return; }
-
-    // 탐지용 이미지만 축소한다. 실제 마킹 좌표와 저장 해상도에는 영향을 주지 않는다.
-    const detectMax = 960;
-    const ds = Math.min(1, detectMax/Math.max(cw,ch));
-    const dw = Math.max(24, Math.round(cw*ds)), dh = Math.max(24, Math.round(ch*ds));
-    const crop = document.createElement("canvas"); crop.width=dw; crop.height=dh;
-    const cctx=crop.getContext("2d"); cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality="high";
-    cctx.drawImage(rasterCanvas, sx,sy,cw,ch, 0,0,dw,dh);
-
-    let settled = false, task = null;
-    const finish = (result, points)=>{
-      if(settled) return; settled = true;
-      try{ if(task) task.stop(); }catch(e){}
-      cb(result, points||[]);
-    };
-    try{
-      const tracker = new tracking.ObjectTracker("face");
-      tracker.setInitialScale(2.0);
-      tracker.setStepSize(1.12);
-      tracker.setEdgesDensity(0.07);
-      tracker.on("track", function(ev){
-        const data = (ev && ev.data) || [];
-        if(!data.length){ finish([],[]); return; }
-        const inv=1/ds;
-        const selCx=natRect.x+natRect.w/2, selCy=natRect.y+natRect.h/2;
-        const selDiag=Math.max(1,Math.hypot(natRect.w,natRect.h));
-        const selArea=Math.max(1,natRect.w*natRect.h);
-
-        // 자동 얼굴 인식은 '위치 결정'이 아니라 사용자가 그린 영역을 살짝 정렬하는 보조 기능이다.
-        // 1) 얼굴 중심이 지정 영역 안에 있고
-        // 2) 지정 영역 중심과 충분히 가깝고
-        // 3) 얼굴 크기와 지정 영역 크기가 지나치게 다르지 않을 때만 채택한다.
-        let candidates=data.map(rr=>({
-          x:sx+rr.x*inv, y:sy+rr.y*inv, w:rr.width*inv, h:rr.height*inv
-        })).filter(f=>{
-          const cx=f.x+f.w/2, cy=f.y+f.h/2;
-          const faceArea=Math.max(1,f.w*f.h);
-          const centerInside = cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h;
-          const centerNear = Math.hypot(cx-selCx,cy-selCy) <= selDiag*0.28;
-          const sizeRatio = selArea/faceArea;
-          return centerInside && centerNear && sizeRatio>=0.55 && sizeRatio<=3.2;
-        });
-
-        candidates.sort((a,b)=>
-          Math.hypot(a.x+a.w/2-selCx,a.y+a.h/2-selCy)-
-          Math.hypot(b.x+b.w/2-selCx,b.y+b.h/2-selCy)
+  // MediaPipe Face Landmarker로 눈·코·입 랜드마크를 찾는다.
+  // 자동 인식은 위치를 새로 결정하지 않고, 사용자가 그린 범위 안에서만 이목구비 영역을 미세 보정한다.
+  let faceLandmarkerPromise = null;
+  function ensureFaceLandmarker(){
+    if(faceLandmarkerPromise) return faceLandmarkerPromise;
+    faceLandmarkerPromise = (async()=>{
+      try{
+        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
+        const fileset = await vision.FilesetResolver.forVisionTasks(
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
         );
-        const chosen=candidates.length?candidates[0]:null;
-        // 파란 점도 실제 채택된 얼굴에만 표시한다. 실패한 후보나 범위 밖 얼굴은 표시하지 않는다.
-        finish(chosen?[chosen]:[], chosen?[{x:chosen.x+chosen.w/2,y:chosen.y+chosen.h/2}]:[]);
-      });
-      task = tracking.track(crop, tracker);
-    }catch(e){ finish([],[]); return; }
-    setTimeout(function(){ finish([],[]); }, 2200);
+        return await vision.FaceLandmarker.createFromOptions(fileset,{
+          baseOptions:{
+            modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+            delegate:"GPU"
+          },
+          runningMode:"IMAGE",
+          numFaces:4,
+          minFaceDetectionConfidence:0.55,
+          minFacePresenceConfidence:0.55,
+          minTrackingConfidence:0.5
+        });
+      }catch(err){
+        console.warn("Face Landmarker unavailable; manual region will be used.", err);
+        return null;
+      }
+    })();
+    return faceLandmarkerPromise;
+  }
+
+  function runFaceDetectionInBox(natRect, cb){
+    (async()=>{
+      const sx=clamp(Math.floor(natRect.x),0,naturalW), sy=clamp(Math.floor(natRect.y),0,naturalH);
+      const ex=clamp(Math.ceil(natRect.x+natRect.w),0,naturalW), ey=clamp(Math.ceil(natRect.y+natRect.h),0,naturalH);
+      const cw=Math.max(1,ex-sx), ch=Math.max(1,ey-sy);
+      if(cw<24||ch<24){ cb([],[]); return; }
+
+      const detectMax=1024, ds=Math.min(1,detectMax/Math.max(cw,ch));
+      const dw=Math.max(24,Math.round(cw*ds)), dh=Math.max(24,Math.round(ch*ds));
+      const crop=document.createElement("canvas"); crop.width=dw; crop.height=dh;
+      const cctx=crop.getContext("2d"); cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality="high";
+      cctx.drawImage(rasterCanvas,sx,sy,cw,ch,0,0,dw,dh);
+
+      const landmarker=await ensureFaceLandmarker();
+      if(!landmarker){ cb([],[]); return; }
+      let result;
+      try{ result=landmarker.detect(crop); }catch(err){ console.warn(err); cb([],[]); return; }
+      const faces=(result&&result.faceLandmarks)||[];
+      if(!faces.length){ cb([],[]); return; }
+
+      // 눈·코·입의 대표 랜드마크. 머리/귀가 아니라 실제 이목구비를 기준으로 가림 영역을 만든다.
+      const featureIdx=[33,133,159,145,362,263,386,374,1,2,98,327,61,291,13,14,78,308];
+      const selCx=natRect.x+natRect.w/2, selCy=natRect.y+natRect.h/2;
+      const selDiag=Math.max(1,Math.hypot(natRect.w,natRect.h));
+      const candidates=[];
+      for(const lm of faces){
+        const pts=featureIdx.map(i=>lm[i]).filter(Boolean).map(pt=>({x:sx+pt.x*cw,y:sy+pt.y*ch}));
+        if(pts.length<8) continue;
+        let x1=Math.min(...pts.map(p=>p.x)), y1=Math.min(...pts.map(p=>p.y));
+        let x2=Math.max(...pts.map(p=>p.x)), y2=Math.max(...pts.map(p=>p.y));
+        const fw=Math.max(8,x2-x1), fh=Math.max(8,y2-y1);
+        // 랜드마크 자체보다 약간 넓혀 눈썹·입 주변까지 자연스럽게 포함한다.
+        const padX=fw*0.18, padY=fh*0.18;
+        x1-=padX; x2+=padX; y1-=padY; y2+=padY;
+        const cx=(x1+x2)/2, cy=(y1+y2)/2;
+        const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
+        const centerNear=Math.hypot(cx-selCx,cy-selCy)<=selDiag*0.34;
+        if(!centerInside||!centerNear) continue;
+        const ix1=Math.max(x1,natRect.x), iy1=Math.max(y1,natRect.y);
+        const ix2=Math.min(x2,natRect.x+natRect.w), iy2=Math.min(y2,natRect.y+natRect.h);
+        const overlap=Math.max(0,ix2-ix1)*Math.max(0,iy2-iy1);
+        const featureArea=Math.max(1,(x2-x1)*(y2-y1));
+        if(overlap/featureArea<0.72) continue;
+        candidates.push({x:clamp(x1,0,naturalW),y:clamp(y1,0,naturalH),w:Math.min(x2-x1,naturalW-clamp(x1,0,naturalW)),h:Math.min(y2-y1,naturalH-clamp(y1,0,naturalH)),cx,cy});
+      }
+      candidates.sort((a,b)=>Math.hypot(a.cx-selCx,a.cy-selCy)-Math.hypot(b.cx-selCx,b.cy-selCy));
+      const chosen=candidates[0];
+      if(!chosen){ cb([],[]); return; }
+      cb([{x:chosen.x,y:chosen.y,w:chosen.w,h:chosen.h}],[{x:chosen.cx,y:chosen.cy}]);
+    })();
   }
 
   // ---------------- blur / mosaic engine ----------------
@@ -1551,7 +1560,7 @@
   // natRect 영역에 대해 현재 shape/mode/intensity 기준으로 처리된 결과 조각을 계산만 하고,
   // 원본 rasterCanvas에는 아직 반영하지 않는다 (실시간 미리보기/재조정을 위해 분리).
   function computeEffectRegion(natRect, shape, mode){
-    const radiusOrBlock = mode==="blur" ? blurRadiusNatural() : mosaicBlockNatural();
+    const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect) : mosaicBlockNatural(natRect);
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2 : 2) + 6);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
@@ -1596,7 +1605,9 @@
     let finalMask = mask;
     // 모양의 딱딱한 경계를 줄이는 페더. 블러/모자이크 모두 적용.
     if(feather>0){
-      const featherPx = Math.max(2, longSide() * (0.002 + 0.018*(feather/100)));
+      const base = Math.max(8, Math.min(natRect.w, natRect.h));
+      const ft = clamp(feather/100,0,1);
+      const featherPx = Math.max(1, base * 0.16 * Math.pow(ft,1.15));
       finalMask = boxBlurCanvas(mask, featherPx);
     }
 
