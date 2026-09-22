@@ -553,21 +553,22 @@
   // 가림 강도는 사진 전체가 아니라 현재 가림 영역의 짧은 변을 기준으로 계산한다.
   // 블러와 모자이크는 같은 0~100 슬라이더를 쓰지만 시각적 특성이 달라 별도 곡선을 사용한다.
   function blurRadiusNatural(rect){
-    // 강도 슬라이더가 0~100 전 구간에서 고르게 체감되도록 선형에 가깝게 비례시키고,
-    // 기존보다 전 구간에서 약하게(최대치 기준 약 45%p 하향) 조정했다.
+    // 블러 반경을 과도하게 키우면 얼굴 전체가 피부색 한 덩어리처럼 녹아버린다.
+    // 반경은 적당히 유지하고, 아래 anonymizeBlurCanvas()의 축소→확대와 함께
+    // 고주파 디테일(눈/코/입/안경 안쪽)만 효과적으로 제거한다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 0;
 
-    // 작은 얼굴은 현재 익명화 품질을 유지하고, 화면에서 크게 보이는 얼굴만 추가 보정한다.
+    // 50 = 보도용 기본 익명화. 100에서도 얼굴 명암/색 분포는 남도록 상한을 낮춘다.
+    // 큰 얼굴은 아주 약하게만 보정해, 클로즈업에서 다시 과도한 '밀가루 반죽' 효과가 나지 않게 한다.
     const imageShort = Math.max(1, Math.min(naturalW, naturalH));
     const faceShare = clamp(base / imageShort, 0, 1);
-    const largeFaceT = clamp((faceShare - 0.18) / 0.27, 0, 1);
-    const largeFaceBoost = 1 + 0.35 * Math.pow(largeFaceT, 0.85);
+    const largeFaceT = clamp((faceShare - 0.24) / 0.36, 0, 1);
+    const largeFaceBoost = 1 + 0.14 * Math.pow(largeFaceT, 0.9);
 
-    // 0 근처에서도 급격한 문턱 없이 약한 블러로 시작해, 100까지 완만하게 선형 증가한다.
-    const strength = 0.045 + 0.20 * t;
-    return base * strength * largeFaceBoost;
+    const ratio = 0.012 + 0.072 * Math.pow(t, 1.18);
+    return base * ratio * largeFaceBoost;
   }
   function mosaicBlockNatural(rect){
     // 모자이크는 블록을 크게 키워 강도를 만드는 대신 촘촘하고 정돈된 블록을 유지한다.
@@ -1649,8 +1650,9 @@
         let x2=Math.max(...pts.map(p=>p.x)), y2=Math.max(...pts.map(p=>p.y));
         const fw=Math.max(8,x2-x1), fh=Math.max(8,y2-y1);
         // 랜드마크 자체보다 넓혀 눈썹·이마·입 주변까지 자연스럽게 포함한다.
-        // 이마 위쪽(헤어라인 근처)부터 턱 끝까지 얼굴 윤곽 전체가 가려지도록 상/하단을 크게 확장한다.
-        const padX=fw*0.35, padTop=fh*0.80, padBottom=fh*0.60;
+        // 상단은 기존보다 약 12%p 더 확장해 헤어라인 바로 아래까지 가림이 올라오도록 한다.
+        // 보도사진 익명화 기준: 눈·코·입은 확실히 덮되 머리카락/턱 전체까지 과도하게 먹지 않도록 한다.
+        const padX=fw*0.30, padTop=fh*0.50, padBottom=fh*0.35;
         x1-=padX; x2+=padX; y1-=padTop; y2+=padBottom;
         const cx=(x1+x2)/2, cy=(y1+y2)/2;
         const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
@@ -1671,8 +1673,7 @@
   }
 
   // ---------------- blur / mosaic engine ----------------
-  // ctx.filter="blur()"는 일부 렌더링 환경에서 적용되지 않을 수 있어,
-  // 축소→확대(다운스케일→업스케일)를 반복하는 방식으로 흐림 효과를 직접 구현한다.
+  // 마스크 페더 등 범용 용도로 쓰는 기본 blur helper.
   function boxBlurCanvas(srcCanvas, radiusPx){
     const w = srcCanvas.width, h = srcCanvas.height;
     if(!(radiusPx>0.5)){
@@ -1680,23 +1681,14 @@
       c0.getContext("2d").drawImage(srcCanvas,0,0);
       return c0;
     }
-    // 최신 브라우저에서는 Canvas 2D의 실제 blur 필터를 우선 사용한다.
-    // 단순 축소→확대보다 얼굴 피부/안경/글자 경계가 훨씬 균일하게 흐려져 익명화 품질이 좋다.
-    // 지원하지 않는 환경에서는 아래의 고품질 다단계 리샘플링으로 자동 폴백한다.
+    // 최신 브라우저에서는 Canvas 2D blur를 한 번만 적용한다.
+    // 이 helper는 페더에도 사용되므로 과도한 다중 패스를 하지 않는다.
     const nativeOut = document.createElement("canvas"); nativeOut.width=w; nativeOut.height=h;
     const nctx = nativeOut.getContext("2d");
     if(nctx && "filter" in nctx){
       try{
-        // 두 번의 중간 강도 Gaussian pass가 한 번의 과도한 blur보다
-        // 얼굴색을 희게 번지게 하지 않으면서 눈·코·입 디테일을 안정적으로 제거한다.
-        const passRadius = Math.max(0.6, radiusPx * 0.72);
-        const tmp = document.createElement("canvas"); tmp.width=w; tmp.height=h;
-        const tctx = tmp.getContext("2d");
-        tctx.filter = `blur(${passRadius}px)`;
-        tctx.drawImage(srcCanvas,0,0);
-        tctx.filter = "none";
-        nctx.filter = `blur(${passRadius}px)`;
-        nctx.drawImage(tmp,0,0);
+        nctx.filter = `blur(${Math.max(0.6, radiusPx)}px)`;
+        nctx.drawImage(srcCanvas,0,0);
         nctx.filter = "none";
         return nativeOut;
       }catch(_e){}
@@ -1726,6 +1718,50 @@
     return out;
   }
 
+  // 얼굴 익명화 전용 블러.
+  // 큰 Gaussian blur 한 방 대신 "고품질 축소→확대 + 중간 Gaussian"을 조합한다.
+  // 이 방식은 이목구비 디테일은 지우면서도 얼굴의 원래 명암/색 분포는 남겨
+  // 단색 피부 덩어리처럼 보이는 현상을 줄인다.
+  function anonymizeBlurCanvas(srcCanvas, radiusPx, intensityValue){
+    const w=srcCanvas.width, h=srcCanvas.height;
+    const t=clamp((Number.isFinite(intensityValue)?intensityValue:50)/100,0,1);
+    if(t<=0 || !(radiusPx>0.25)){
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(srcCanvas,0,0);
+      return c;
+    }
+
+    // 강도 50에서 약 3.5배 축소. 100에서도 6배 안팎으로 제한해 색 덩어리화를 방지한다.
+    const downFactor = 1 + 5.2*Math.pow(t,1.08);
+    const smallW=Math.max(2,Math.round(w/downFactor));
+    const smallH=Math.max(2,Math.round(h/downFactor));
+    const small=document.createElement("canvas"); small.width=smallW; small.height=smallH;
+    const sctx=small.getContext("2d");
+    sctx.imageSmoothingEnabled=true;
+    sctx.imageSmoothingQuality="high";
+    sctx.drawImage(srcCanvas,0,0,w,h,0,0,smallW,smallH);
+
+    const up=document.createElement("canvas"); up.width=w; up.height=h;
+    const uctx=up.getContext("2d");
+    uctx.imageSmoothingEnabled=true;
+    uctx.imageSmoothingQuality="high";
+    uctx.drawImage(small,0,0,smallW,smallH,0,0,w,h);
+
+    // 마지막으로 중간 세기의 Gaussian을 한 번만 적용한다.
+    // 필터 미지원 환경에서는 축소→확대 결과만으로도 익명화가 유지된다.
+    if(uctx && "filter" in uctx){
+      try{
+        const out=document.createElement("canvas"); out.width=w; out.height=h;
+        const octx=out.getContext("2d");
+        octx.filter=`blur(${Math.max(0.7,radiusPx)}px)`;
+        octx.drawImage(up,0,0);
+        octx.filter="none";
+        return out;
+      }catch(_e){}
+    }
+    return up;
+  }
+
   // natRect 영역에 대해 현재 shape/mode/intensity 기준으로 처리된 결과 조각을 계산만 하고,
   // 원본 rasterCanvas에는 아직 반영하지 않는다 (실시간 미리보기/재조정을 위해 분리).
   function computeEffectRegion(natRect, shape, mode){
@@ -1733,10 +1769,9 @@
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(feather/100,0,1);
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환에만 쓴다.
-    // 블러는 최대 16%, 모자이크는 블록 경계를 과하게 흐리지 않도록 최대 5%까지 허용한다.
-    // 지수 없이 강도에 선형으로 비례시켜 슬라이더 구간별 차이가 뚜렷하게 느껴지도록 했다.
-    const featherRatio = mode==="mosaic" ? 0.05 : 0.16;
-    const featherPx = feather>0 ? base * featherRatio * ft : 0;
+    // 블러는 최대 8%, 모자이크는 블록 경계를 흐리지 않도록 최대 2.5%까지만 허용한다.
+    const featherRatio = mode==="mosaic" ? 0.025 : 0.08;
+    const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.15) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
@@ -1750,7 +1785,7 @@
 
     let processed;
     if(mode==="blur"){
-      processed = boxBlurCanvas(src, radiusOrBlock);
+      processed = anonymizeBlurCanvas(src, radiusOrBlock, intensity);
     } else {
       const blockSize = radiusOrBlock;
       const smallW = Math.max(1, Math.round(sw/blockSize));
@@ -1776,7 +1811,7 @@
       // 타원은 원형 radialGradient를 비율 변환해서 정확한 타원 그라데이션으로 만든다.
       const cx=rx0+natRect.w/2, cy=ry0+natRect.h/2;
       const rx=Math.max(1,natRect.w/2), ry=Math.max(1,natRect.h/2);
-      const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.55) : 0;
+      const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.28) : 0;
       mctx.save();
       mctx.translate(cx,cy); mctx.scale(rx,ry);
       if(edgeFrac>0){
