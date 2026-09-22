@@ -554,7 +554,16 @@
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 0;
-    return base * (0.085 + 0.195*Math.pow(t, 0.72));
+
+    // 작은 얼굴은 현재 익명화 품질을 유지하고, 화면에서 크게 보이는 얼굴만 추가 보정한다.
+    // 단순 선형 비례만 쓰면 클로즈업 얼굴에서 눈·코·입 구조가 상대적으로 더 남아 보일 수 있다.
+    const imageShort = Math.max(1, Math.min(naturalW, naturalH));
+    const faceShare = clamp(base / imageShort, 0, 1);
+    // 짧은 변의 18% 이하는 보정 없음. 45% 이상이면 최대 1.55배.
+    const largeFaceT = clamp((faceShare - 0.18) / 0.27, 0, 1);
+    const largeFaceBoost = 1 + 0.55 * Math.pow(largeFaceT, 0.85);
+
+    return base * (0.085 + 0.195*Math.pow(t, 0.72)) * largeFaceBoost;
   }
   function mosaicBlockNatural(rect){
     // 모자이크는 블록을 크게 키워 강도를 만드는 대신 촘촘하고 정돈된 블록을 유지한다.
