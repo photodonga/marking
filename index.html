@@ -609,13 +609,14 @@
     return base * ratio * largeFaceBoost;
   }
   function mosaicBlockNatural(rect){
-    // 모자이크는 블록을 크게 키워 강도를 만드는 대신 촘촘하고 정돈된 블록을 유지한다.
-    // 강도가 높아질수록 증가폭을 줄이고, 최대 블록 크기를 얼굴 짧은 변의 4.6%로 제한한다.
+    // 모자이크는 큰 블록으로 얼굴을 뭉개기보다 작은 블록을 촘촘하게 유지한다.
+    // 강도는 블록 크기 + 아래 privacyMosaicCanvas()의 약한 사전 블러로 만든다.
+    // → 눈/입만 유난히 검게 튀는 '좀비' 느낌을 줄이면서도 익명화 효과는 유지한다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 1;
-    const ratio = 0.012 + 0.036 * (1 - Math.exp(-2.7*t));
-    return Math.max(2, Math.min(base*0.046, base*ratio));
+    const ratio = 0.012 + 0.025 * (1 - Math.exp(-2.2*t)); // 50≈2.9%, 100≈3.4%
+    return Math.max(2, Math.min(base*0.036, base*ratio));
   }
   function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
@@ -1981,6 +1982,37 @@
     return out;
   }
 
+  // 보도사진용 모자이크: 블록을 과도하게 키우지 않고, 픽셀화 직전에 아주 약한
+  // 사전 블러를 넣어 눈/입/콧구멍 같은 고대비 부분이 검은 사각형으로 튀는 현상을 줄인다.
+  function privacyMosaicCanvas(srcCanvas, blockSize, intensityValue){
+    const w=srcCanvas.width, h=srcCanvas.height;
+    const t=clamp((Number.isFinite(intensityValue)?intensityValue:50)/100,0,1);
+    if(t<=0){
+      const c=document.createElement("canvas"); c.width=w; c.height=h;
+      c.getContext("2d").drawImage(srcCanvas,0,0);
+      return c;
+    }
+
+    const b=Math.max(2, blockSize);
+    // 강도가 높아져도 블록을 키우기보다는 블록 한 칸의 절반보다 작은 범위만 부드럽게 섞는다.
+    const preRadius=Math.max(0.8, b*(0.18 + 0.28*t));
+    const prepared=cpuBoxBlurCanvas(srcCanvas, preRadius, 1);
+
+    const smallW=Math.max(1, Math.ceil(w/b));
+    const smallH=Math.max(1, Math.ceil(h/b));
+    const small=document.createElement("canvas"); small.width=smallW; small.height=smallH;
+    const smctx=small.getContext("2d");
+    smctx.imageSmoothingEnabled=true;
+    smctx.imageSmoothingQuality="high";
+    smctx.drawImage(prepared,0,0,w,h,0,0,smallW,smallH);
+
+    const out=document.createElement("canvas"); out.width=w; out.height=h;
+    const octx=out.getContext("2d");
+    octx.imageSmoothingEnabled=false;
+    octx.drawImage(small,0,0,smallW,smallH,0,0,w,h);
+    return out;
+  }
+
   // natRect 영역에 대해 현재 shape/mode/intensity 기준으로 처리된 결과 조각을 계산만 하고,
   // 원본 rasterCanvas에는 아직 반영하지 않는다 (실시간 미리보기/재조정을 위해 분리).
   function computeEffectRegion(natRect, shape, mode){
@@ -2006,18 +2038,7 @@
     if(mode==="blur"){
       processed = anonymizeBlurCanvas(src, radiusOrBlock, intensity);
     } else {
-      const blockSize = radiusOrBlock;
-      const smallW = Math.max(1, Math.round(sw/blockSize));
-      const smallH = Math.max(1, Math.round(sh/blockSize));
-      const small = document.createElement("canvas"); small.width=smallW; small.height=smallH;
-      const smctx = small.getContext("2d");
-      smctx.imageSmoothingEnabled = true;
-      smctx.drawImage(src,0,0,sw,sh,0,0,smallW,smallH);
-      const out = document.createElement("canvas"); out.width=sw; out.height=sh;
-      const octx = out.getContext("2d");
-      octx.imageSmoothingEnabled = false;
-      octx.drawImage(small,0,0,smallW,smallH,0,0,sw,sh);
-      processed = out;
+      processed = privacyMosaicCanvas(src, radiusOrBlock, intensity);
     }
 
     // 마스크 생성 (선택 영역 모양 + 블러는 가장자리 페더)
