@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 v0.5</title>
+<title>마킹 v0.6</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
 <style>
@@ -1392,8 +1392,8 @@
                 ? { rect: faceRects[0], faceRects, autoFace:true }
                 : { rect:r, autoFace:false };
               recomputePendingPreview();
-              if(faceRects.length) showToast(faceRects.length+"명 얼굴 자동 인식",1200);
-              else showToast("얼굴을 찾지 못해 선택 영역을 가립니다.",1500);
+              if(faceRects.length) showToast("얼굴 위치 보정",1000);
+              else showToast("지정한 영역 그대로 가림",1100);
             });
           }
         }
@@ -1448,17 +1448,17 @@
   // 찾으면 [{x,y,w,h}, ...](원본 좌표), 못 찾거나 라이브러리가 없으면 빈 배열.
   function runFaceDetectionInBox(natRect, cb){
     if(typeof tracking === "undefined" || !tracking.ObjectTracker){ cb([],[]); return; }
-    const padFrac = 0.18;
-    const padX = natRect.w*padFrac, padY = natRect.h*padFrac;
-    const sx = clamp(Math.floor(natRect.x-padX),0,naturalW);
-    const sy = clamp(Math.floor(natRect.y-padY),0,naturalH);
-    const ex = clamp(Math.ceil(natRect.x+natRect.w+padX),0,naturalW);
-    const ey = clamp(Math.ceil(natRect.y+natRect.h+padY),0,naturalH);
+
+    // 사용자 지정 영역이 절대 기준이다.
+    // 얼굴 탐지를 위해 주변 영역을 넓히지 않는다. 따라서 범위 밖 사람은 애초에 탐지 입력에 들어오지 않는다.
+    const sx = clamp(Math.floor(natRect.x),0,naturalW);
+    const sy = clamp(Math.floor(natRect.y),0,naturalH);
+    const ex = clamp(Math.ceil(natRect.x+natRect.w),0,naturalW);
+    const ey = clamp(Math.ceil(natRect.y+natRect.h),0,naturalH);
     const cw = Math.max(1, ex-sx), ch = Math.max(1, ey-sy);
     if(cw<24 || ch<24){ cb([],[]); return; }
 
-    // 큰 원본을 그대로 추적하면 모바일에서 느리거나 1.5초 타임아웃에 걸릴 수 있어
-    // 탐지용 이미지만 긴 변 960px 이하로 축소한다. 실제 가림은 원본 해상도 좌표로 되돌린다.
+    // 탐지용 이미지만 축소한다. 실제 마킹 좌표와 저장 해상도에는 영향을 주지 않는다.
     const detectMax = 960;
     const ds = Math.min(1, detectMax/Math.max(cw,ch));
     const dw = Math.max(24, Math.round(cw*ds)), dh = Math.max(24, Math.round(ch*ds));
@@ -1481,29 +1481,36 @@
         const data = (ev && ev.data) || [];
         if(!data.length){ finish([],[]); return; }
         const inv=1/ds;
-        let faces=data.map(rr=>({ x:sx+rr.x*inv, y:sy+rr.y*inv, w:rr.width*inv, h:rr.height*inv }));
-        // 사용자가 지정한 위치를 최우선한다. 단순히 얼굴 중심이 박스 안에 있다는 이유만으로
-        // 주변 얼굴로 마킹이 점프하지 않도록, 얼굴과 지정 영역이 충분히 겹치고
-        // 지정 영역의 크기도 얼굴에 비해 지나치게 크지 않을 때만 자동 얼굴 스냅한다.
         const selCx=natRect.x+natRect.w/2, selCy=natRect.y+natRect.h/2;
-        const centered=faces.filter(f=>{
+        const selDiag=Math.max(1,Math.hypot(natRect.w,natRect.h));
+        const selArea=Math.max(1,natRect.w*natRect.h);
+
+        // 자동 얼굴 인식은 '위치 결정'이 아니라 사용자가 그린 영역을 살짝 정렬하는 보조 기능이다.
+        // 1) 얼굴 중심이 지정 영역 안에 있고
+        // 2) 지정 영역 중심과 충분히 가깝고
+        // 3) 얼굴 크기와 지정 영역 크기가 지나치게 다르지 않을 때만 채택한다.
+        let candidates=data.map(rr=>({
+          x:sx+rr.x*inv, y:sy+rr.y*inv, w:rr.width*inv, h:rr.height*inv
+        })).filter(f=>{
           const cx=f.x+f.w/2, cy=f.y+f.h/2;
-          return cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h;
+          const faceArea=Math.max(1,f.w*f.h);
+          const centerInside = cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h;
+          const centerNear = Math.hypot(cx-selCx,cy-selCy) <= selDiag*0.28;
+          const sizeRatio = selArea/faceArea;
+          return centerInside && centerNear && sizeRatio>=0.55 && sizeRatio<=3.2;
         });
-        const points=centered.map(f=>({x:f.x+f.w/2,y:f.y+f.h/2}));
-        faces=centered.filter(f=>{
-          const ix=Math.max(0, Math.min(f.x+f.w,natRect.x+natRect.w)-Math.max(f.x,natRect.x));
-          const iy=Math.max(0, Math.min(f.y+f.h,natRect.y+natRect.h)-Math.max(f.y,natRect.y));
-          const faceArea=Math.max(1,f.w*f.h), selArea=Math.max(1,natRect.w*natRect.h);
-          return (ix*iy)/faceArea>=0.62 && selArea/faceArea<=5.0;
-        });
-        // 여러 얼굴 중심이 범위 안에 있으면 사용자가 그린 범위의 중심과 가장 가까운 한 명만 선택한다.
-        faces.sort((a,b)=>Math.hypot(a.x+a.w/2-selCx,a.y+a.h/2-selCy)-Math.hypot(b.x+b.w/2-selCx,b.y+b.h/2-selCy));
-        finish(faces.length?[faces[0]]:[], points);
+
+        candidates.sort((a,b)=>
+          Math.hypot(a.x+a.w/2-selCx,a.y+a.h/2-selCy)-
+          Math.hypot(b.x+b.w/2-selCx,b.y+b.h/2-selCy)
+        );
+        const chosen=candidates.length?candidates[0]:null;
+        // 파란 점도 실제 채택된 얼굴에만 표시한다. 실패한 후보나 범위 밖 얼굴은 표시하지 않는다.
+        finish(chosen?[chosen]:[], chosen?[{x:chosen.x+chosen.w/2,y:chosen.y+chosen.h/2}]:[]);
       });
       task = tracking.track(crop, tracker);
-    }catch(e){ finish([]); return; }
-    setTimeout(function(){ finish([]); }, 2200);
+    }catch(e){ finish([],[]); return; }
+    setTimeout(function(){ finish([],[]); }, 2200);
   }
 
   // ---------------- blur / mosaic engine ----------------
