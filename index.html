@@ -1197,10 +1197,11 @@
       g1.appendChild(seg1);
 
       const g2 = document.createElement("div"); g2.className="opt-group";
-      const label2 = document.createElement("span"); label2.textContent="강도";
+      const label2 = document.createElement("span"); label2.textContent=`강도 ${Math.round(intensity)}`;
       const slider = document.createElement("input"); slider.type="range"; slider.min="0"; slider.max="100"; slider.value=String(intensity);
       slider.oninput = ()=>{
         intensity = Number(slider.value);
+        label2.textContent=`강도 ${Math.round(intensity)}`;
         const selEff=effects.find(e=>e.id===selectedId);
         if(selEff){ selEff.intensity=intensity; redraw(); }
         recomputePendingPreview();
@@ -1209,10 +1210,11 @@
       g2.appendChild(label2); g2.appendChild(slider);
 
       const gf = document.createElement("div"); gf.className="opt-group";
-      const featherLabel = document.createElement("span"); featherLabel.textContent="페더";
+      const featherLabel = document.createElement("span"); featherLabel.textContent=`페더 ${Math.round(feather)}`;
       const featherSlider = document.createElement("input"); featherSlider.type="range"; featherSlider.min="0"; featherSlider.max="100"; featherSlider.value=String(feather);
       featherSlider.oninput=()=>{
         feather=Number(featherSlider.value);
+        featherLabel.textContent=`페더 ${Math.round(feather)}`;
         const selEff=effects.find(e=>e.id===selectedId);
         if(selEff){ selEff.feather=feather; redraw(); }
         recomputePendingPreview();
@@ -2055,10 +2057,11 @@
     const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect) : mosaicBlockNatural(natRect);
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(feather/100,0,1);
-    // 페더는 익명화 강도를 낮추지 않고 가장자리 전환에만 쓴다.
-    // 블러는 최대 8%, 모자이크는 블록 경계를 흐리지 않도록 최대 2.5%까지만 허용한다.
-    const featherRatio = mode==="mosaic" ? 0.025 : 0.08;
-    const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.15) : 0;
+    // 페더는 익명화 강도를 낮추지 않고 가장자리 전환 폭만 넓힌다.
+    // 기존 값은 변화가 너무 미세해 얼굴 타원의 경계가 보였으므로,
+    // 블러는 최대 20%, 모자이크는 최대 7%까지 넓게 퍼지도록 조정한다.
+    const featherRatio = mode==="mosaic" ? 0.07 : 0.20;
+    const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.05) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
@@ -2087,7 +2090,7 @@
       // 타원은 원형 radialGradient를 비율 변환해서 정확한 타원 그라데이션으로 만든다.
       const cx=rx0+natRect.w/2, cy=ry0+natRect.h/2;
       const rx=Math.max(1,natRect.w/2), ry=Math.max(1,natRect.h/2);
-      const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.28) : 0;
+      const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.45) : 0;
       mctx.save();
       mctx.translate(cx,cy); mctx.scale(rx,ry);
       if(edgeFrac>0){
