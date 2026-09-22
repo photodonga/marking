@@ -1581,6 +1581,7 @@
               buildOptionsBar();
               redraw();
               if(faceRects.length) showToast("얼굴 위치 보정",1000);
+              else if(faceDetectorLoadError) showToast("얼굴 인식 모듈 로드 실패 · 지정 영역 사용",1600);
               else showToast("지정한 영역 그대로 가림",1100);
             });
           }
@@ -1637,6 +1638,7 @@
   // delegate별 인스턴스를 따로 유지한다. iOS에서는 WebGL/GPU 경로가 불안정할 수 있어 CPU를 우선 사용하고,
   // 그 외 환경에서는 GPU를 먼저 시도한 뒤 실패/미검출 시 CPU로 자동 폴백한다.
   const faceLandmarkerPromises = { CPU:null, GPU:null };
+  let faceDetectorLoadError = false;
   function isIOSDevice(){
     const ua = navigator.userAgent || "";
     return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
@@ -1650,11 +1652,11 @@
     if(faceLandmarkerPromises[d]) return faceLandmarkerPromises[d];
     faceLandmarkerPromises[d] = (async()=>{
       try{
-        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
+        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/+esm");
         const fileset = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
         );
-        return await vision.FaceLandmarker.createFromOptions(fileset,{
+        const instance = await vision.FaceLandmarker.createFromOptions(fileset,{
           baseOptions:{
             modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
             delegate:d
@@ -1667,8 +1669,11 @@
           outputFaceBlendshapes:false,
           outputFacialTransformationMatrixes:false
         });
+        faceDetectorLoadError = false;
+        return instance;
       }catch(err){
         console.warn(`Face Landmarker ${d} unavailable; another delegate/manual region will be used.`, err);
+        faceDetectorLoadError = true;
         // 네트워크/CDN/초기화 실패를 영구 캐시하지 않는다. 다음 작업 때 다시 시도할 수 있게 비운다.
         faceLandmarkerPromises[d] = null;
         return null;
