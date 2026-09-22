@@ -1633,139 +1633,213 @@
   }
 
   // ---------------- 박스 안 얼굴 자동 인식 ----------------
-  // MediaPipe Face Landmarker로 눈·코·입 랜드마크를 찾는다.
-  // 자동 인식은 위치를 새로 결정하지 않고, 사용자가 그린 범위 안에서만 이목구비 영역을 미세 보정한다.
-  // delegate별 인스턴스를 따로 유지한다. iOS에서는 WebGL/GPU 경로가 불안정할 수 있어 CPU를 우선 사용하고,
-  // 그 외 환경에서는 GPU를 먼저 시도한 뒤 실패/미검출 시 CPU로 자동 폴백한다.
-  const faceLandmarkerPromises = { CPU:null, GPU:null };
+  // 얼굴 위치 보정은 Face Detector(BlazeFace full-range)를 1차로 사용한다.
+  // Face Landmarker보다 '얼굴이 있는지/어디 있는지' 찾는 목적에 맞고, 작은 얼굴·사선 얼굴에도 유리하다.
+  // 사용자가 직접 그린 영역이 항상 기준이며 자동 검출 실패 시 수동 영역을 그대로 사용한다.
+  const TASKS_VISION_VERSION = "0.10.35";
+  const TASKS_VISION_BUNDLE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/vision_bundle.mjs`;
+  const TASKS_VISION_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/wasm`;
+  const FACE_DETECTOR_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite";
+  const FACE_LANDMARKER_MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+
+  let visionRuntimePromise = null;
+  let faceDetectorPromise = null;
+  let faceLandmarkerPromise = null;
   let faceDetectorLoadError = false;
-  function isIOSDevice(){
-    const ua = navigator.userAgent || "";
-    return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  }
-  function resetFaceLandmarker(delegate, instance){
-    try{ if(instance && typeof instance.close === "function") instance.close(); }catch(_){ }
-    faceLandmarkerPromises[delegate] = null;
-  }
-  function ensureFaceLandmarker(delegate){
-    const d = delegate === "CPU" ? "CPU" : "GPU";
-    if(faceLandmarkerPromises[d]) return faceLandmarkerPromises[d];
-    faceLandmarkerPromises[d] = (async()=>{
+
+  function loadVisionRuntime(){
+    if(visionRuntimePromise) return visionRuntimePromise;
+    visionRuntimePromise = (async()=>{
       try{
-        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/+esm");
-        const fileset = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
-        );
-        const instance = await vision.FaceLandmarker.createFromOptions(fileset,{
-          baseOptions:{
-            modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-            delegate:d
-          },
-          runningMode:"IMAGE",
-          numFaces:12,
-          minFaceDetectionConfidence:0.35,
-          minFacePresenceConfidence:0.35,
-          minTrackingConfidence:0.50,
-          outputFaceBlendshapes:false,
-          outputFacialTransformationMatrixes:false
-        });
+        // jsDelivr의 +esm 변환본 대신 MediaPipe가 배포한 원본 ESM bundle을 직접 사용한다.
+        const vision = await import(TASKS_VISION_BUNDLE);
+        const fileset = await vision.FilesetResolver.forVisionTasks(TASKS_VISION_WASM);
         faceDetectorLoadError = false;
-        return instance;
+        return {vision, fileset};
       }catch(err){
-        console.warn(`Face Landmarker ${d} unavailable; another delegate/manual region will be used.`, err);
+        console.warn("MediaPipe runtime load failed.", err);
         faceDetectorLoadError = true;
-        // 네트워크/CDN/초기화 실패를 영구 캐시하지 않는다. 다음 작업 때 다시 시도할 수 있게 비운다.
-        faceLandmarkerPromises[d] = null;
+        visionRuntimePromise = null; // 다음 시도에서 재시도
         return null;
       }
     })();
-    return faceLandmarkerPromises[d];
+    return visionRuntimePromise;
   }
 
-  async function detectFaceLandmarksWithFallback(crop){
-    const order = isIOSDevice() ? ["CPU","GPU"] : ["GPU","CPU"];
-    for(const delegate of order){
-      const landmarker = await ensureFaceLandmarker(delegate);
-      if(!landmarker) continue;
+  function resetFaceDetector(instance){
+    try{ if(instance && typeof instance.close === "function") instance.close(); }catch(_){ }
+    faceDetectorPromise = null;
+  }
+  function resetFaceLandmarker(instance){
+    try{ if(instance && typeof instance.close === "function") instance.close(); }catch(_){ }
+    faceLandmarkerPromise = null;
+  }
+
+  function ensureFaceDetector(){
+    if(faceDetectorPromise) return faceDetectorPromise;
+    faceDetectorPromise = (async()=>{
+      const rt = await loadVisionRuntime();
+      if(!rt) return null;
       try{
-        const result = landmarker.detect(crop);
-        const faces = (result && result.faceLandmarks) || [];
-        // 0명도 단순 실패로 취급해 다른 delegate로 한 번 더 검사한다.
-        if(faces.length) return faces;
+        // 사진 한 장씩 처리하는 도구라 CPU 우선이 가장 예측 가능하다.
+        const detector = await rt.vision.FaceDetector.createFromOptions(rt.fileset,{
+          baseOptions:{ modelAssetPath:FACE_DETECTOR_MODEL, delegate:"CPU" },
+          runningMode:"IMAGE",
+          minDetectionConfidence:0.25,
+          minSuppressionThreshold:0.30
+        });
+        faceDetectorLoadError = false;
+        return detector;
       }catch(err){
-        console.warn(`Face Landmarker ${delegate} detect failed; retrying with fallback.`, err);
-        // detect 단계에서 깨진 인스턴스도 다음 호출 때 새로 만들 수 있도록 폐기한다.
-        resetFaceLandmarker(delegate, landmarker);
+        console.warn("Face Detector init failed.", err);
+        faceDetectorLoadError = true;
+        faceDetectorPromise = null;
+        return null;
       }
+    })();
+    return faceDetectorPromise;
+  }
+
+  function ensureFaceLandmarker(){
+    if(faceLandmarkerPromise) return faceLandmarkerPromise;
+    faceLandmarkerPromise = (async()=>{
+      const rt = await loadVisionRuntime();
+      if(!rt) return null;
+      try{
+        const landmarker = await rt.vision.FaceLandmarker.createFromOptions(rt.fileset,{
+          baseOptions:{ modelAssetPath:FACE_LANDMARKER_MODEL, delegate:"CPU" },
+          runningMode:"IMAGE",
+          // 수동으로 한 얼굴을 지정한 crop만 검사하므로 1명이 가장 안정적이고 빠르다.
+          numFaces:1,
+          minFaceDetectionConfidence:0.25,
+          minFacePresenceConfidence:0.25,
+          minTrackingConfidence:0.25,
+          outputFaceBlendshapes:false,
+          outputFacialTransformationMatrixes:false
+        });
+        return landmarker;
+      }catch(err){
+        console.warn("Face Landmarker fallback init failed.", err);
+        faceLandmarkerPromise = null;
+        return null;
+      }
+    })();
+    return faceLandmarkerPromise;
+  }
+
+  async function detectFacesPrimary(crop){
+    const detector = await ensureFaceDetector();
+    if(!detector) return [];
+    try{
+      const result = detector.detect(crop);
+      return (result && result.detections) || [];
+    }catch(err){
+      console.warn("Face Detector detect failed.", err);
+      resetFaceDetector(detector);
+      return [];
     }
-    return [];
+  }
+
+  async function detectLandmarksFallback(crop){
+    const landmarker = await ensureFaceLandmarker();
+    if(!landmarker) return [];
+    try{
+      const result = landmarker.detect(crop);
+      return (result && result.faceLandmarks) || [];
+    }catch(err){
+      console.warn("Face Landmarker fallback detect failed.", err);
+      resetFaceLandmarker(landmarker);
+      return [];
+    }
   }
 
   function runFaceDetectionInBox(natRect, cb){
     (async()=>{
-      // 얼굴 일부만 드래그해도 눈/입이 crop 경계에 잘리지 않도록 탐지용 crop만 넉넉히 확장한다.
-      // 최종 후보 판정은 아래에서 원래 사용자가 그린 natRect를 기준으로 하므로 다른 얼굴로 점프하지 않는다.
-      const marginX=natRect.w*0.35, marginY=natRect.h*0.35;
+      // 얼굴 일부만 대충 둘러도 detector가 머리 전체를 볼 수 있게 탐지용 crop만 크게 확장한다.
+      const marginX=natRect.w*0.55, marginY=natRect.h*0.55;
       const sx=clamp(Math.floor(natRect.x-marginX),0,naturalW), sy=clamp(Math.floor(natRect.y-marginY),0,naturalH);
       const ex=clamp(Math.ceil(natRect.x+natRect.w+marginX),0,naturalW), ey=clamp(Math.ceil(natRect.y+natRect.h+marginY),0,naturalH);
       const cw=Math.max(1,ex-sx), ch=Math.max(1,ey-sy);
-      if(cw<24||ch<24){ cb([],[]); return; }
+      if(cw<20||ch<20){ cb([],[]); return; }
 
-      // 작은 얼굴은 원본 crop 크기 그대로 넣으면 랜드마크 입력 해상도가 부족해질 수 있다.
-      // 긴 변을 최소 480px까지 업스케일(최대 3배)하고, 큰 crop은 1024px로 제한한다.
-      const detectMin=480, detectMax=1024, long=Math.max(cw,ch);
-      const ds=Math.min(3, detectMax/long, Math.max(1,detectMin/long));
-      const dw=Math.max(96,Math.round(cw*ds)), dh=Math.max(96,Math.round(ch*ds));
+      // 단체사진의 작은 얼굴은 충분히 크게 확대해 detector 입력에 전달한다.
+      const detectMin=640, detectMax=1280, long=Math.max(cw,ch);
+      const ds=Math.min(4, detectMax/long, Math.max(1,detectMin/long));
+      const dw=Math.max(128,Math.round(cw*ds)), dh=Math.max(128,Math.round(ch*ds));
       const crop=document.createElement("canvas"); crop.width=dw; crop.height=dh;
-      const cctx=crop.getContext("2d"); cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality="high";
+      const cctx=crop.getContext("2d",{willReadFrequently:true});
+      cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality="high";
       cctx.drawImage(rasterCanvas,sx,sy,cw,ch,0,0,dw,dh);
 
-      const faces=await detectFaceLandmarksWithFallback(crop);
-      if(!faces.length){ cb([],[]); return; }
-
-      // 눈·코·입의 대표 랜드마크. 머리/귀가 아니라 실제 이목구비를 기준으로 가림 영역을 만든다.
-      const featureIdx=[33,133,159,145,362,263,386,374,1,2,98,327,61,291,13,14,78,308];
       const selCx=natRect.x+natRect.w/2, selCy=natRect.y+natRect.h/2;
       const selDiag=Math.max(1,Math.hypot(natRect.w,natRect.h));
+
+      // 1) 얼굴 위치 전용 Face Detector를 우선 사용한다.
+      const detections=await detectFacesPrimary(crop);
       const candidates=[];
-      for(const lm of faces){
-        const pts=featureIdx.map(i=>lm[i]).filter(Boolean).map(pt=>({x:sx+pt.x*cw,y:sy+pt.y*ch}));
-        if(pts.length<8) continue;
+      for(const det of detections){
+        const b=det && det.boundingBox;
+        if(!b) continue;
+        // FaceDetector boundingBox는 입력 crop 픽셀 좌표이므로 원본 사진 좌표로 환산한다.
+        const bx=sx+(Number(b.originX)||0)/ds;
+        const by=sy+(Number(b.originY)||0)/ds;
+        const bw=Math.max(4,(Number(b.width)||0)/ds);
+        const bh=Math.max(4,(Number(b.height)||0)/ds);
+        const cx=bx+bw/2, cy=by+bh/2;
 
-        // 중요: 후보 판정은 확장 전 '실제 이목구비 박스'로 한다.
-        // 이전에는 이마/좌우 패딩까지 크게 확장한 뒤 overlap을 계산해서,
-        // 모자·안경·작은 얼굴처럼 사용자가 얼굴에 딱 맞춰 그린 경우 정상 검출도 탈락할 수 있었다.
-        const rawX1=Math.min(...pts.map(p=>p.x)), rawY1=Math.min(...pts.map(p=>p.y));
-        const rawX2=Math.max(...pts.map(p=>p.x)), rawY2=Math.max(...pts.map(p=>p.y));
-        const rawW=Math.max(8,rawX2-rawX1), rawH=Math.max(8,rawY2-rawY1);
-        const rawCx=(rawX1+rawX2)/2, rawCy=(rawY1+rawY2)/2;
-
-        const centerInside=rawCx>=natRect.x&&rawCx<=natRect.x+natRect.w&&rawCy>=natRect.y&&rawCy<=natRect.y+natRect.h;
-        const centerNear=Math.hypot(rawCx-selCx,rawCy-selCy)<=selDiag*0.55;
+        const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
+        const dist=Math.hypot(cx-selCx,cy-selCy);
+        const centerNear=dist<=selDiag*0.70;
         if(!centerInside && !centerNear) continue;
 
-        const ix1=Math.max(rawX1,natRect.x), iy1=Math.max(rawY1,natRect.y);
-        const ix2=Math.min(rawX2,natRect.x+natRect.w), iy2=Math.min(rawY2,natRect.y+natRect.h);
+        const ix1=Math.max(bx,natRect.x), iy1=Math.max(by,natRect.y);
+        const ix2=Math.min(bx+bw,natRect.x+natRect.w), iy2=Math.min(by+bh,natRect.y+natRect.h);
         const overlap=Math.max(0,ix2-ix1)*Math.max(0,iy2-iy1);
-        const rawArea=Math.max(1,rawW*rawH);
-        // 수동 지정 영역이 기준이므로 겹침 조건은 보수적이되 과도하게 탈락시키지 않는다.
-        if(!centerInside && overlap/rawArea<0.20) continue;
+        const overlapRatio=overlap/Math.max(1,bw*bh);
+        if(!centerInside && overlapRatio<0.08) continue;
 
-        // 후보를 고른 뒤에만 실제 익명화 영역을 넓힌다.
-        const padX=rawW*0.30, padTop=rawH*0.50, padBottom=rawH*0.35;
-        let x1=rawX1-padX, x2=rawX2+padX, y1=rawY1-padTop, y2=rawY2+padBottom;
-        x1=clamp(x1,0,naturalW); y1=clamp(y1,0,naturalH);
-        x2=clamp(x2,0,naturalW); y2=clamp(y2,0,naturalH);
-
-        const dist=Math.hypot(rawCx-selCx,rawCy-selCy);
-        const overlapRatio=overlap/rawArea;
-        candidates.push({x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1),cx:rawCx,cy:rawCy,score:dist/selDiag-overlapRatio*0.35});
+        const score=(det.categories&&det.categories[0]&&Number(det.categories[0].score))||0;
+        candidates.push({bx,by,bw,bh,cx,cy,score:dist/selDiag-overlapRatio*0.35-score*0.08});
       }
-      candidates.sort((a,b)=>(a.score??0)-(b.score??0));
-      const chosen=candidates[0];
-      if(!chosen){ cb([],[]); return; }
-      cb([{x:chosen.x,y:chosen.y,w:chosen.w,h:chosen.h}],[{x:chosen.cx,y:chosen.cy}]);
-    })();
+
+      candidates.sort((a,b)=>a.score-b.score);
+      if(candidates.length){
+        const f=candidates[0];
+        // detector의 얼굴 박스는 이미 얼굴 전체에 가깝다. 헤어라인·안경·턱이 빠지지 않을 정도만 확장한다.
+        const padX=f.bw*0.10, padTop=f.bh*0.18, padBottom=f.bh*0.10;
+        const x1=clamp(f.bx-padX,0,naturalW), y1=clamp(f.by-padTop,0,naturalH);
+        const x2=clamp(f.bx+f.bw+padX,0,naturalW), y2=clamp(f.by+f.bh+padBottom,0,naturalH);
+        cb([{x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1)}],[{x:f.cx,y:f.cy}]);
+        return;
+      }
+
+      // 2) Detector가 놓친 경우에만 Face Landmarker를 한 번 더 사용한다.
+      const faces=await detectLandmarksFallback(crop);
+      if(faces.length){
+        const featureIdx=[33,133,159,145,362,263,386,374,1,2,98,327,61,291,13,14,78,308];
+        const lm=faces[0];
+        const pts=featureIdx.map(i=>lm[i]).filter(Boolean).map(pt=>({x:sx+pt.x*cw,y:sy+pt.y*ch}));
+        if(pts.length>=8){
+          const rx1=Math.min(...pts.map(p=>p.x)), ry1=Math.min(...pts.map(p=>p.y));
+          const rx2=Math.max(...pts.map(p=>p.x)), ry2=Math.max(...pts.map(p=>p.y));
+          const rw=Math.max(8,rx2-rx1), rh=Math.max(8,ry2-ry1);
+          const rcx=(rx1+rx2)/2, rcy=(ry1+ry2)/2;
+          const near=Math.hypot(rcx-selCx,rcy-selCy)<=selDiag*0.75;
+          if(near){
+            const padX=rw*0.34, padTop=rh*0.58, padBottom=rh*0.40;
+            const x1=clamp(rx1-padX,0,naturalW), y1=clamp(ry1-padTop,0,naturalH);
+            const x2=clamp(rx2+padX,0,naturalW), y2=clamp(ry2+padBottom,0,naturalH);
+            cb([{x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1)}],[{x:rcx,y:rcy}]);
+            return;
+          }
+        }
+      }
+
+      cb([],[]);
+    })().catch(err=>{
+      console.warn("Face detection pipeline failed; manual region will be used.",err);
+      cb([],[]);
+    });
   }
 
   // ---------------- blur / mosaic engine ----------------
