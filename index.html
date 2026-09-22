@@ -1588,9 +1588,23 @@
       c0.getContext("2d").drawImage(srcCanvas,0,0);
       return c0;
     }
-    // 전체적으로 줄여야 하는 배율(경험적으로 강도에 비례). 단, 브라우저의 축소 리샘플링은
-    // 한 번에 2배를 넘게 줄이면 얼룩/줄무늬 아티팩트가 생기므로, 매 단계 최대 2배로 제한하고
-    // 그만큼 단계 수를 늘려서 원하는 총 축소 배율에 도달한다.
+    // 최신 브라우저에서는 Canvas 2D의 실제 blur 필터를 우선 사용한다.
+    // 단순 축소→확대보다 얼굴 피부/안경/글자 경계가 훨씬 균일하게 흐려져 익명화 품질이 좋다.
+    // 지원하지 않는 환경에서는 아래의 고품질 다단계 리샘플링으로 자동 폴백한다.
+    const nativeOut = document.createElement("canvas"); nativeOut.width=w; nativeOut.height=h;
+    const nctx = nativeOut.getContext("2d");
+    if(nctx && "filter" in nctx){
+      try{
+        nctx.filter = `blur(${Math.max(0.6, radiusPx)}px)`;
+        // 필터가 가장자리에서 잘리지 않도록 원본 전체 조각을 그대로 렌더링한다.
+        nctx.drawImage(srcCanvas,0,0);
+        nctx.filter = "none";
+        return nativeOut;
+      }catch(_e){}
+    }
+
+    // 폴백: 전체적으로 줄여야 하는 배율(강도에 비례). 한 번에 과도하게 축소하면
+    // 얼룩/줄무늬가 생기므로 단계별 최대 축소량을 제한한다.
     const totalFactor = Math.max(1.3, radiusPx/3.2);
     const passes = Math.max(1, Math.min(8, Math.ceil(Math.log2(totalFactor))));
     const perStep = Math.pow(totalFactor, 1/passes);
