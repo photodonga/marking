@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 v0.8</title>
+<title>마킹 v0.9</title>
 
 <style>
   :root{
@@ -1558,9 +1558,10 @@
         let x1=Math.min(...pts.map(p=>p.x)), y1=Math.min(...pts.map(p=>p.y));
         let x2=Math.max(...pts.map(p=>p.x)), y2=Math.max(...pts.map(p=>p.y));
         const fw=Math.max(8,x2-x1), fh=Math.max(8,y2-y1);
-        // 랜드마크 자체보다 약간 넓혀 눈썹·입 주변까지 자연스럽게 포함한다.
+        // 랜드마크 자체보다 넓혀 눈썹·이마·입 주변까지 자연스럽게 포함한다.
+        // 상단은 기존보다 약 12%p 더 확장해 헤어라인 바로 아래까지 가림이 올라오도록 한다.
         // 보도사진 익명화 기준: 눈·코·입은 확실히 덮되 머리카락/턱 전체까지 과도하게 먹지 않도록 한다.
-        const padX=fw*0.30, padTop=fh*0.30, padBottom=fh*0.30;
+        const padX=fw*0.30, padTop=fh*0.42, padBottom=fh*0.30;
         x1-=padX; x2+=padX; y1-=padTop; y2+=padBottom;
         const cx=(x1+x2)/2, cy=(y1+y2)/2;
         const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
