@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 v0.9</title>
+<title>마킹</title>
 
 <style>
   :root{
@@ -356,11 +356,11 @@
     .save-group{gap:5px;}
     #format-select{padding:6px 7px;font-size:12px;}
     .save-btn{padding:7px 12px;font-size:12.5px;}
-    #options-bar{gap:10px;padding:6px 9px;border-radius:14px;font-size:11.5px;}
-    #options-bar .opt-group{gap:5px;}
-    #options-bar .seg{padding:2px;gap:2px;}
-    #options-bar .seg button{padding:5px 9px;font-size:11.5px;}
-    #options-bar input[type="range"]{width:78px;}
+    #options-bar{gap:5px;padding:6px 6px;border-radius:14px;font-size:10.5px;max-width:100%;overflow-x:auto;}
+    #options-bar .opt-group{gap:4px;flex:0 0 auto;}
+    #options-bar .seg{padding:2px;gap:1px;}
+    #options-bar .seg button{padding:5px 6px;font-size:10.5px;}
+    #options-bar input[type="range"]{width:44px;min-width:44px;}
   }
   /* ---------- footer notice ---------- */
   #footer-note{
@@ -545,21 +545,25 @@
   function lerp(a,b,t){ return a + (b-a)*t; }
   function longSide(){ return Math.max(naturalW, naturalH); }
   function strokeWidthNatural(mult){ return longSide() * STROKE_RATIO * (mult||1); }
-  // 가림 강도는 사진 전체 크기가 아니라 현재 가림 영역 크기를 기준으로 계산한다.
-  // 0은 거의 변화 없음, 50은 일반적인 익명화, 100은 강한 익명화가 되도록 비선형 매핑.
+  // 가림 강도는 사진 전체가 아니라 현재 가림 영역의 짧은 변을 기준으로 계산한다.
+  // 블러와 모자이크는 같은 0~100 슬라이더를 쓰지만 시각적 특성이 달라 별도 곡선을 사용한다.
   function blurRadiusNatural(rect){
-    // 익명화용 블러: 낮은 슬라이더 값에서도 이목구비가 남지 않도록 최소 강도를 확보한다.
-    // 기준은 사진 전체가 아니라 가림 영역의 짧은 변. 10≈6.5%, 50≈11%, 100≈17%.
+    // 50을 보도사진용 기본 익명화 수준으로 설정한다.
+    // 50에서 눈·코·입/안경 안쪽 디테일이 거의 읽히지 않도록 반경을 충분히 확보하고,
+    // 75~100은 큰 얼굴·고해상도 원본을 위한 추가 여유로 둔다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 0;
-    return base * (0.052 + 0.118*Math.pow(t, 0.82));
+    return base * (0.085 + 0.195*Math.pow(t, 0.72));
   }
   function mosaicBlockNatural(rect){
+    // 모자이크는 블록을 크게 키워 강도를 만드는 대신 촘촘하고 정돈된 블록을 유지한다.
+    // 강도가 높아질수록 증가폭을 줄이고, 최대 블록 크기를 얼굴 짧은 변의 4.6%로 제한한다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 1;
-    return Math.max(2, base * (0.008 + 0.12*Math.pow(t, 1.25)));
+    const ratio = 0.012 + 0.036 * (1 - Math.exp(-2.7*t));
+    return Math.max(2, Math.min(base*0.046, base*ratio));
   }
   function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
@@ -1561,7 +1565,7 @@
         // 랜드마크 자체보다 넓혀 눈썹·이마·입 주변까지 자연스럽게 포함한다.
         // 상단은 기존보다 약 12%p 더 확장해 헤어라인 바로 아래까지 가림이 올라오도록 한다.
         // 보도사진 익명화 기준: 눈·코·입은 확실히 덮되 머리카락/턱 전체까지 과도하게 먹지 않도록 한다.
-        const padX=fw*0.30, padTop=fh*0.42, padBottom=fh*0.30;
+        const padX=fw*0.30, padTop=fh*0.50, padBottom=fh*0.35;
         x1-=padX; x2+=padX; y1-=padTop; y2+=padBottom;
         const cx=(x1+x2)/2, cy=(y1+y2)/2;
         const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
@@ -1644,8 +1648,9 @@
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(feather/100,0,1);
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환에만 쓴다.
-    // 기존 24%는 얼굴 전체가 반투명해 보일 정도로 과했다. 최대 약 8%로 제한한다.
-    const featherPx = feather>0 ? base * 0.08 * Math.pow(ft,1.15) : 0;
+    // 블러는 최대 8%, 모자이크는 블록 경계를 흐리지 않도록 최대 2.5%까지만 허용한다.
+    const featherRatio = mode==="mosaic" ? 0.025 : 0.08;
+    const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.15) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
