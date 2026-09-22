@@ -57,6 +57,7 @@
   html,body{
     height:100%;
     margin:0;
+    touch-action:none;
     background:var(--canvas-bg);
     color:var(--ink);
     font-family:var(--font);
@@ -66,6 +67,7 @@
   }
   #app{
     position:relative;
+    touch-action:none;
     height:100%;
     overflow:hidden;
     padding-left:var(--safe-l);
@@ -85,6 +87,7 @@
     pointer-events:none;
   }
   #toolbar, #options-bar{ pointer-events:auto; }
+  button, select, input, label{ touch-action:manipulation; }
 
   #toolbar{
     display:flex;
@@ -142,6 +145,41 @@
   .icon-btn:active{transform:scale(0.94);}
   .icon-btn:disabled{opacity:.32;cursor:default;}
   .icon-btn:disabled:hover{background:var(--chip-bg);color:var(--ink-soft);}
+
+  /* 상단 툴바는 다크모드에서도 밝은 Liquid Glass를 쓰므로
+     아이콘/텍스트 색은 시스템 테마와 분리해 충분한 대비를 유지한다. */
+  #toolbar .tool-btn:not(.active){color:#20283a;}
+  #toolbar .icon-btn{
+    color:#344054;
+    background:rgba(255,255,255,.52);
+    border-color:rgba(31,41,55,.12);
+  }
+  #toolbar .icon-btn:hover:not(:disabled){
+    color:#0a6cff;
+    background:rgba(10,108,255,.10);
+    border-color:rgba(10,108,255,.18);
+  }
+  #toolbar .icon-btn:disabled{
+    opacity:1;
+    color:rgba(32,40,58,.28);
+    background:rgba(255,255,255,.22);
+    border-color:rgba(32,40,58,.07);
+  }
+  #toolbar .icon-btn:disabled:hover{
+    color:rgba(32,40,58,.28);
+    background:rgba(255,255,255,.22);
+  }
+  #toolbar #btn-clear-photo:not(:disabled){
+    color:#c9362d;
+    background:rgba(255,69,58,.08);
+    border-color:rgba(201,54,45,.16);
+  }
+  #toolbar #btn-clear-photo:hover:not(:disabled){
+    color:#b52c24;
+    background:rgba(255,69,58,.14);
+    border-color:rgba(201,54,45,.22);
+  }
+  #toolbar #format-select{color:#20283a;background:rgba(255,255,255,.52);}
   .save-group{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
   #format-select{
     border:1px solid var(--chip-border);
@@ -454,7 +492,7 @@
     <div class="copyright">Copyright by 송은석. All Rights Reserved.</div>
   </div>
 
-  <input type="file" id="file-input" accept="image/png,image/jpeg,image/jpg" hidden>
+  <input type="file" id="file-input" accept="image/*" hidden>
 </div>
 
 <script>
@@ -646,7 +684,10 @@
 
   // ---------------- image loading ----------------
   function loadImageFile(file){
-    if(!file || !/^image\/(png|jpe?g)$/i.test(file.type)) return;
+    if(!file || !file.type || !file.type.startsWith("image/")){
+      showToast("지원하는 사진 파일을 선택해주세요.", 1600);
+      return;
+    }
     const reader = new FileReader();
     reader.onload = function(e){
       const img = new Image();
@@ -674,15 +715,28 @@
         fitCanvas();
         redraw();
       };
+      img.onerror = function(){
+        showToast("이 사진 형식은 브라우저에서 열 수 없습니다.", 1800);
+      };
       img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   }
 
-  placeholder.addEventListener("click", ()=> fileInput.click());
-  fileInput.addEventListener("change", ()=>{
-    if(fileInput.files && fileInput.files[0]) loadImageFile(fileInput.files[0]);
+  // iOS에서 이전 사진 선택 상태가 남지 않도록, 열기 직전에 항상 단일 선택 상태를 초기화한다.
+  // 이음의 '사진 교체' 입력과 같은 accept=image/* + 단일 파일 구조를 사용한다.
+  function openImagePicker(){
     fileInput.value = "";
+    fileInput.multiple = false;
+    fileInput.removeAttribute("multiple");
+    fileInput.click();
+  }
+
+  placeholder.addEventListener("click", openImagePicker);
+  fileInput.addEventListener("change", (e)=>{
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if(file) loadImageFile(file);
   });
   ["dragenter","dragover"].forEach(ev=>{
     workarea.addEventListener(ev, e=>{
@@ -1279,6 +1333,32 @@
       optionsBar.classList.add("hidden");
     }
   }
+
+  // ---------------- native zoom guard ----------------
+  // iOS Safari의 더블탭/페이지 확대는 편집 좌표와 어긋나므로 앱 안에서는 막고,
+  // 사진 확대/축소는 아래의 두 손가락 커스텀 제스처만 사용한다.
+  let lastTouchEndInfo = null;
+  document.addEventListener("touchend", function(e){
+    if(!e.changedTouches || !e.changedTouches.length) return;
+    const t=e.changedTouches[0], now=Date.now();
+    if(lastTouchEndInfo){
+      const dt=now-lastTouchEndInfo.time;
+      const dd=Math.hypot(t.clientX-lastTouchEndInfo.x, t.clientY-lastTouchEndInfo.y);
+      if(dt>0 && dt<320 && dd<28){
+        e.preventDefault();
+        // 확대된 사진에서의 더블탭은 원래 보기로 복귀만 시킨다.
+        if(naturalW && viewZoom>1.001){ resetView(); redraw(); }
+        lastTouchEndInfo=null;
+        return;
+      }
+    }
+    lastTouchEndInfo={time:now,x:t.clientX,y:t.clientY};
+  }, {passive:false});
+  document.addEventListener("dblclick", function(e){
+    if(!e.target.closest || !e.target.closest("#app")) return;
+    e.preventDefault();
+    if(naturalW && viewZoom>1.001){ resetView(); redraw(); }
+  }, {passive:false});
 
   // ---------------- pointer interaction ----------------
   // 한 손가락/좌클릭 = 편집, 두 손가락 = 보기(핀치 확대 + 이동).
@@ -1937,7 +2017,7 @@
     const meta = e.ctrlKey || e.metaKey;
     if(meta && e.key.toLowerCase()==="o"){
       e.preventDefault();
-      fileInput.click();
+      openImagePicker();
       return;
     }
     if(meta && !e.shiftKey && e.key.toLowerCase()==="z"){
