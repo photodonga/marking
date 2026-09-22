@@ -723,20 +723,18 @@
     reader.readAsDataURL(file);
   }
 
-  // iOS에서 이전 사진 선택 상태가 남지 않도록, 열기 직전에 항상 단일 선택 상태를 초기화한다.
-  // 이음의 '사진 교체' 입력과 같은 accept=image/* + 단일 파일 구조를 사용한다.
+  // 사진 선택은 이음의 '사진 교체' 입력과 동일하게 단순한 단일-file input으로 유지한다.
+  // iOS Photos picker는 input 상태를 열기 직전에 JS로 재설정하면 선택 UI가 달라질 수 있어,
+  // 클릭 전에는 속성을 건드리지 않고 선택 완료(change) 뒤에만 value를 비운다.
   function openImagePicker(){
-    fileInput.value = "";
-    fileInput.multiple = false;
-    fileInput.removeAttribute("multiple");
     fileInput.click();
   }
 
   placeholder.addEventListener("click", openImagePicker);
   fileInput.addEventListener("change", (e)=>{
     const file = e.target.files && e.target.files[0];
-    e.target.value = "";
     if(file) loadImageFile(file);
+    e.target.value = ""; // 같은 사진을 다시 고를 수 있도록 완료 후에만 초기화
   });
   ["dragenter","dragover"].forEach(ev=>{
     workarea.addEventListener(ev, e=>{
@@ -1888,10 +1886,66 @@
     return out;
   }
 
-  // 얼굴 익명화 전용 블러.
-  // 큰 Gaussian blur 한 방 대신 "고품질 축소→확대 + 중간 Gaussian"을 조합한다.
-  // 이 방식은 이목구비 디테일은 지우면서도 얼굴의 원래 명암/색 분포는 남겨
-  // 단색 피부 덩어리처럼 보이는 현상을 줄인다.
+  // Safari/iOS에서도 결과가 동일한 얼굴 익명화 블러.
+  // CanvasRenderingContext2D.filter 지원 여부에 기대지 않고, 작은 작업 캔버스에서
+  // 2-pass box blur를 여러 번 수행한 뒤 고품질로 확대한다.
+  // → 눈/코/입의 고주파 정보는 확실히 제거하면서 얼굴의 전체 명암/색 분포는 보존한다.
+  function cpuBoxBlurCanvas(srcCanvas, radiusPx, passes){
+    const w=srcCanvas.width, h=srcCanvas.height;
+    const r=Math.max(1, Math.round(radiusPx));
+    const count=r*2+1;
+    const ctx=srcCanvas.getContext("2d", {willReadFrequently:true});
+    const img=ctx.getImageData(0,0,w,h);
+    let a=new Uint8ClampedArray(img.data);
+    let b=new Uint8ClampedArray(a.length);
+
+    function horiz(input, output){
+      for(let y=0;y<h;y++){
+        const row=y*w*4;
+        let sr=0,sg=0,sb=0,sa=0;
+        for(let k=-r;k<=r;k++){
+          const x=Math.max(0,Math.min(w-1,k));
+          const i=row+x*4; sr+=input[i]; sg+=input[i+1]; sb+=input[i+2]; sa+=input[i+3];
+        }
+        for(let x=0;x<w;x++){
+          const o=row+x*4;
+          output[o]=sr/count; output[o+1]=sg/count; output[o+2]=sb/count; output[o+3]=sa/count;
+          const oldX=Math.max(0,x-r), newX=Math.min(w-1,x+r+1);
+          const oi=row+oldX*4, ni=row+newX*4;
+          sr+=input[ni]-input[oi]; sg+=input[ni+1]-input[oi+1];
+          sb+=input[ni+2]-input[oi+2]; sa+=input[ni+3]-input[oi+3];
+        }
+      }
+    }
+    function vert(input, output){
+      for(let x=0;x<w;x++){
+        let sr=0,sg=0,sb=0,sa=0;
+        for(let k=-r;k<=r;k++){
+          const y=Math.max(0,Math.min(h-1,k));
+          const i=(y*w+x)*4; sr+=input[i]; sg+=input[i+1]; sb+=input[i+2]; sa+=input[i+3];
+        }
+        for(let y=0;y<h;y++){
+          const o=(y*w+x)*4;
+          output[o]=sr/count; output[o+1]=sg/count; output[o+2]=sb/count; output[o+3]=sa/count;
+          const oldY=Math.max(0,y-r), newY=Math.min(h-1,y+r+1);
+          const oi=(oldY*w+x)*4, ni=(newY*w+x)*4;
+          sr+=input[ni]-input[oi]; sg+=input[ni+1]-input[oi+1];
+          sb+=input[ni+2]-input[oi+2]; sa+=input[ni+3]-input[oi+3];
+        }
+      }
+    }
+
+    const n=Math.max(1,Math.min(3,passes||2));
+    for(let pass=0;pass<n;pass++){
+      horiz(a,b);
+      vert(b,a);
+    }
+    img.data.set(a);
+    const out=document.createElement("canvas"); out.width=w; out.height=h;
+    out.getContext("2d").putImageData(img,0,0);
+    return out;
+  }
+
   function anonymizeBlurCanvas(srcCanvas, radiusPx, intensityValue){
     const w=srcCanvas.width, h=srcCanvas.height;
     const t=clamp((Number.isFinite(intensityValue)?intensityValue:50)/100,0,1);
@@ -1901,35 +1955,29 @@
       return c;
     }
 
-    // 강도 50에서 약 3.5배 축소. 100에서도 6배 안팎으로 제한해 색 덩어리화를 방지한다.
-    const downFactor = 1 + 5.2*Math.pow(t,1.08);
-    const smallW=Math.max(2,Math.round(w/downFactor));
-    const smallH=Math.max(2,Math.round(h/downFactor));
+    // 강도 50은 '보도용 기본 익명화'가 되도록 약 3.7배 축소한다.
+    // 강도를 높여도 지나치게 단색 덩어리가 되지 않도록 최대 축소폭은 제한한다.
+    const downFactor = 1.65 + 4.15*Math.pow(t,0.92); // 50≈3.84x, 100≈5.8x
+    const smallW=Math.max(12,Math.round(w/downFactor));
+    const smallH=Math.max(12,Math.round(h/downFactor));
     const small=document.createElement("canvas"); small.width=smallW; small.height=smallH;
-    const sctx=small.getContext("2d");
+    const sctx=small.getContext("2d", {willReadFrequently:true});
     sctx.imageSmoothingEnabled=true;
     sctx.imageSmoothingQuality="high";
     sctx.drawImage(srcCanvas,0,0,w,h,0,0,smallW,smallH);
 
-    const up=document.createElement("canvas"); up.width=w; up.height=h;
-    const uctx=up.getContext("2d");
-    uctx.imageSmoothingEnabled=true;
-    uctx.imageSmoothingQuality="high";
-    uctx.drawImage(small,0,0,smallW,smallH,0,0,w,h);
+    // 원본 좌표에서 계산된 블러 반경을 축소 캔버스 좌표로 환산한다.
+    // 최소값을 보장해 iOS에서도 '효과가 안 먹는' 상태가 생기지 않게 한다.
+    const scaleDown=smallW/Math.max(1,w);
+    const smallRadius=Math.max(1.5, radiusPx*scaleDown*1.35);
+    const blurredSmall=cpuBoxBlurCanvas(small, smallRadius, t>=0.72?3:2);
 
-    // 마지막으로 중간 세기의 Gaussian을 한 번만 적용한다.
-    // 필터 미지원 환경에서는 축소→확대 결과만으로도 익명화가 유지된다.
-    if(uctx && "filter" in uctx){
-      try{
-        const out=document.createElement("canvas"); out.width=w; out.height=h;
-        const octx=out.getContext("2d");
-        octx.filter=`blur(${Math.max(0.7,radiusPx)}px)`;
-        octx.drawImage(up,0,0);
-        octx.filter="none";
-        return out;
-      }catch(_e){}
-    }
-    return up;
+    const out=document.createElement("canvas"); out.width=w; out.height=h;
+    const octx=out.getContext("2d");
+    octx.imageSmoothingEnabled=true;
+    octx.imageSmoothingQuality="high";
+    octx.drawImage(blurredSmall,0,0,smallW,smallH,0,0,w,h);
+    return out;
   }
 
   // natRect 영역에 대해 현재 shape/mode/intensity 기준으로 처리된 결과 조각을 계산만 하고,
