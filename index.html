@@ -1557,10 +1557,21 @@
   // ---------------- 박스 안 얼굴 자동 인식 ----------------
   // MediaPipe Face Landmarker로 눈·코·입 랜드마크를 찾는다.
   // 자동 인식은 위치를 새로 결정하지 않고, 사용자가 그린 범위 안에서만 이목구비 영역을 미세 보정한다.
-  let faceLandmarkerPromise = null;
-  function ensureFaceLandmarker(){
-    if(faceLandmarkerPromise) return faceLandmarkerPromise;
-    faceLandmarkerPromise = (async()=>{
+  // delegate별 인스턴스를 따로 유지한다. iOS에서는 WebGL/GPU 경로가 불안정할 수 있어 CPU를 우선 사용하고,
+  // 그 외 환경에서는 GPU를 먼저 시도한 뒤 실패/미검출 시 CPU로 자동 폴백한다.
+  const faceLandmarkerPromises = { CPU:null, GPU:null };
+  function isIOSDevice(){
+    const ua = navigator.userAgent || "";
+    return /iPad|iPhone|iPod/i.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  }
+  function resetFaceLandmarker(delegate, instance){
+    try{ if(instance && typeof instance.close === "function") instance.close(); }catch(_){ }
+    faceLandmarkerPromises[delegate] = null;
+  }
+  function ensureFaceLandmarker(delegate){
+    const d = delegate === "CPU" ? "CPU" : "GPU";
+    if(faceLandmarkerPromises[d]) return faceLandmarkerPromises[d];
+    faceLandmarkerPromises[d] = (async()=>{
       try{
         const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
         const fileset = await vision.FilesetResolver.forVisionTasks(
@@ -1569,7 +1580,7 @@
         return await vision.FaceLandmarker.createFromOptions(fileset,{
           baseOptions:{
             modelAssetPath:"https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-            delegate:"GPU"
+            delegate:d
           },
           runningMode:"IMAGE",
           numFaces:12,
@@ -1580,13 +1591,32 @@
           outputFacialTransformationMatrixes:false
         });
       }catch(err){
-        console.warn("Face Landmarker unavailable; manual region will be used.", err);
-        // 일시적인 네트워크/CDN 실패를 세션 내내 캐시하지 않는다. 다음 작업에서 재시도한다.
-        faceLandmarkerPromise = null;
+        console.warn(`Face Landmarker ${d} unavailable; another delegate/manual region will be used.`, err);
+        // 네트워크/CDN/초기화 실패를 영구 캐시하지 않는다. 다음 작업 때 다시 시도할 수 있게 비운다.
+        faceLandmarkerPromises[d] = null;
         return null;
       }
     })();
-    return faceLandmarkerPromise;
+    return faceLandmarkerPromises[d];
+  }
+
+  async function detectFaceLandmarksWithFallback(crop){
+    const order = isIOSDevice() ? ["CPU","GPU"] : ["GPU","CPU"];
+    for(const delegate of order){
+      const landmarker = await ensureFaceLandmarker(delegate);
+      if(!landmarker) continue;
+      try{
+        const result = landmarker.detect(crop);
+        const faces = (result && result.faceLandmarks) || [];
+        // 0명도 단순 실패로 취급해 다른 delegate로 한 번 더 검사한다.
+        if(faces.length) return faces;
+      }catch(err){
+        console.warn(`Face Landmarker ${delegate} detect failed; retrying with fallback.`, err);
+        // detect 단계에서 깨진 인스턴스도 다음 호출 때 새로 만들 수 있도록 폐기한다.
+        resetFaceLandmarker(delegate, landmarker);
+      }
+    }
+    return [];
   }
 
   function runFaceDetectionInBox(natRect, cb){
@@ -1608,11 +1638,7 @@
       const cctx=crop.getContext("2d"); cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality="high";
       cctx.drawImage(rasterCanvas,sx,sy,cw,ch,0,0,dw,dh);
 
-      const landmarker=await ensureFaceLandmarker();
-      if(!landmarker){ cb([],[]); return; }
-      let result;
-      try{ result=landmarker.detect(crop); }catch(err){ console.warn(err); cb([],[]); return; }
-      const faces=(result&&result.faceLandmarks)||[];
+      const faces=await detectFaceLandmarksWithFallback(crop);
       if(!faces.length){ cb([],[]); return; }
 
       // 눈·코·입의 대표 랜드마크. 머리/귀가 아니라 실제 이목구비를 기준으로 가림 영역을 만든다.
@@ -1633,13 +1659,13 @@
         x1-=padX; x2+=padX; y1-=padTop; y2+=padBottom;
         const cx=(x1+x2)/2, cy=(y1+y2)/2;
         const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
-        const centerNear=Math.hypot(cx-selCx,cy-selCy)<=selDiag*0.34;
+        const centerNear=Math.hypot(cx-selCx,cy-selCy)<=selDiag*0.45;
         if(!centerInside||!centerNear) continue;
         const ix1=Math.max(x1,natRect.x), iy1=Math.max(y1,natRect.y);
         const ix2=Math.min(x2,natRect.x+natRect.w), iy2=Math.min(y2,natRect.y+natRect.h);
         const overlap=Math.max(0,ix2-ix1)*Math.max(0,iy2-iy1);
         const featureArea=Math.max(1,(x2-x1)*(y2-y1));
-        if(overlap/featureArea<0.58) continue;
+        if(overlap/featureArea<0.42) continue;
         candidates.push({x:clamp(x1,0,naturalW),y:clamp(y1,0,naturalH),w:Math.min(x2-x1,naturalW-clamp(x1,0,naturalW)),h:Math.min(y2-y1,naturalH-clamp(y1,0,naturalH)),cx,cy});
       }
       candidates.sort((a,b)=>Math.hypot(a.cx-selCx,a.cy-selCy)-Math.hypot(b.cx-selCx,b.cy-selCy));
