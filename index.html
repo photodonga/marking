@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 v0.3</title>
+<title>마킹 v0.4</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
 <style>
@@ -340,7 +340,7 @@
       <div class="brand">마킹</div>
       <div class="tools">
         <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph">▦</span><span class="label">가림</span></button>
-        <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph">○</span><span class="label">동그라미</span></button>
+        <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph">◇</span><span class="label">도형</span></button>
         <button class="tool-btn" data-tool="arrow" id="btn-arrow"><span class="glyph">→</span><span class="label">화살표</span></button>
         <button class="tool-btn" data-tool="crop" id="btn-crop"><span class="glyph">⛶</span><span class="label">자르기</span></button>
         <span class="sep"></span>
@@ -406,7 +406,8 @@
   let pendingEffect = null;  // 아직 확정되지 않은 가림 효과: {rect, canvas, sx, sy}
   let strokeMultCurrent = 1; // 새 객체 생성 시 두께 배율
   let strokeColorCurrent = DEFAULT_COLOR; // 새 객체 생성 시 색상
-  let circleLocked = false;  // true면 동그라미를 항상 정원(1:1)으로 생성/조절
+  let circleLocked = false;  // true면 도형을 항상 1:1로 생성/조절
+  let shapeKind = "circle";    // circle | rect
 
   let scale = 1;             // display / natural
   let dispW = 0, dispH = 0;
@@ -633,11 +634,9 @@
   }
 
   function objectBoundsNatural(o){
-    if(o.type==="circle"){
-      return {x:o.cx-o.rx, y:o.cy-o.ry, w:o.rx*2, h:o.ry*2};
-    } else {
-      return {x:Math.min(o.x1,o.x2), y:Math.min(o.y1,o.y2), w:Math.abs(o.x2-o.x1), h:Math.abs(o.y2-o.y1)};
-    }
+    if(o.type==="circle") return {x:o.cx-o.rx, y:o.cy-o.ry, w:o.rx*2, h:o.ry*2};
+    if(o.type==="rect") return {x:o.x, y:o.y, w:o.w, h:o.h};
+    return {x:Math.min(o.x1,o.x2), y:Math.min(o.y1,o.y2), w:Math.abs(o.x2-o.x1), h:Math.abs(o.y2-o.y1)};
   }
 
   function drawObjectOnCtx(ctx, o, s){
@@ -645,6 +644,9 @@
     const col = o.color || DEFAULT_COLOR;
     if(o.type==="circle"){
       drawCircleShape(ctx, o.cx*s, o.cy*s, o.rx*s, o.ry*s, sw, col);
+    } else if(o.type==="rect"){
+      ctx.save(); ctx.lineWidth=sw; ctx.strokeStyle=col; ctx.lineJoin="round";
+      ctx.strokeRect(o.x*s,o.y*s,o.w*s,o.h*s); ctx.restore();
     } else {
       drawArrowShape(ctx, o.x1*s, o.y1*s, o.x2*s, o.y2*s, sw, col);
     }
@@ -665,10 +667,19 @@
     });
     ctx.restore();
   }
+  function drawObjectSelection(ctx,o){
+    const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
+    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,255,255,.9)';
+    ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
+    const r=11,cx=x+w,cy=y; ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='#fff';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(cx-4,cy-4);ctx.lineTo(cx+4,cy+4);ctx.moveTo(cx+4,cy-4);ctx.lineTo(cx-4,cy+4);ctx.stroke();ctx.restore();
+  }
+  function objectCloseHit(dp,o){ const b=objectBoundsNatural(o),cx=(b.x+b.w)*scale,cy=b.y*scale; return Math.hypot(dp.x-cx,dp.y-cy)<=20; }
+
   function var_accent_blue(){ return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0a6cff"; }
 
   function handlePointsDisplay(o, s){
-    if(o.type==="circle"){
+    if(o.type==="circle" || o.type==="rect"){
       const b = objectBoundsNatural(o);
       return [
         {x:b.x*s, y:b.y*s, k:"nw"},
@@ -724,6 +735,7 @@
     objects.forEach(o=>{
       drawObjectOnCtx(vctx, o, scale);
       if(o.id===selectedId){
+        drawObjectSelection(vctx,o);
         drawHandles(vctx, o, scale);
       }
     });
@@ -756,8 +768,12 @@
         } else {
           r = normRect(drag.startDisp, drag.curDisp);
         }
-        const cx=r.x+r.w/2, cy=r.y+r.h/2;
-        drawCircleShape(vctx, cx, cy, r.w/2, r.h/2, strokeWidthNatural(strokeMultCurrent)*scale, strokeColorCurrent);
+        if(shapeKind==="rect"){
+          vctx.lineWidth=strokeWidthNatural(strokeMultCurrent)*scale; vctx.strokeStyle=strokeColorCurrent; vctx.strokeRect(r.x,r.y,r.w,r.h);
+        } else {
+          const cx=r.x+r.w/2, cy=r.y+r.h/2;
+          drawCircleShape(vctx, cx, cy, r.w/2, r.h/2, strokeWidthNatural(strokeMultCurrent)*scale, strokeColorCurrent);
+        }
       } else if(activeTool==="arrow"){
         drawArrowShape(vctx, drag.startDisp.x, drag.startDisp.y, drag.curDisp.x, drag.curDisp.y, strokeWidthNatural(strokeMultCurrent)*scale, strokeColorCurrent);
       } else if(activeTool==="crop"){
@@ -817,10 +833,13 @@
   }
 
   function findEffectAt(dp){
+    // 모바일에서는 손가락으로 다시 고르기 쉽도록 화면 기준 약 22px의 여유를 둔다.
+    // 페더 때문에 실제 효과의 경계가 흐려도 원래 마킹 영역을 기준으로 재선택한다.
+    const tolNat = 22 / Math.max(scale, 0.001);
+    const x=dp.x/scale, y=dp.y/scale;
     for(let i=effects.length-1;i>=0;i--){
       const e=effects[i], b=effectBounds(e);
-      const x=dp.x/scale,y=dp.y/scale;
-      if(x>=b.x && x<=b.x+b.w && y>=b.y && y<=b.y+b.h) return e;
+      if(x>=b.x-tolNat && x<=b.x+b.w+tolNat && y>=b.y-tolNat && y<=b.y+b.h+tolNat) return e;
     }
     return null;
   }
@@ -944,6 +963,12 @@
       optionsBar.appendChild(g1); optionsBar.appendChild(g2); optionsBar.appendChild(gf); optionsBar.appendChild(g3);
     } else if(activeTool==="circle" || activeTool==="arrow"){
       optionsBar.classList.remove("hidden");
+      if(activeTool==="circle"){
+        const gs=document.createElement("div"); gs.className="opt-group";
+        const segs=document.createElement("div"); segs.className="seg";
+        [["circle","원/타원"],["rect","네모"]].forEach(([k,n])=>{ const b=document.createElement("button"); b.textContent=n; b.className=shapeKind===k?"active":""; b.onclick=()=>{shapeKind=k;buildOptionsBar();}; segs.appendChild(b); });
+        gs.appendChild(segs); optionsBar.appendChild(gs);
+      }
 
       const g = document.createElement("div"); g.className="opt-group";
       const label = document.createElement("span"); label.textContent="굵기";
@@ -990,7 +1015,7 @@
         const gl = document.createElement("label"); gl.className="opt-group check-opt";
         const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=circleLocked;
         lockCheck.onchange=()=>{ circleLocked=lockCheck.checked; };
-        const lockText=document.createElement("span"); lockText.textContent="정원 유지";
+        const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지";
         gl.appendChild(lockCheck); gl.appendChild(lockText);
         optionsBar.appendChild(gl);
       }
@@ -1027,11 +1052,11 @@
         gc.appendChild(colorLabel); gc.appendChild(colorInput);
         optionsBar.appendChild(gc);
 
-        if(sel.type==="circle"){
+        if(sel.type==="circle" || sel.type==="rect"){
           const gl = document.createElement("label"); gl.className="opt-group check-opt";
           const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=circleLocked;
           lockCheck.onchange=()=>{ circleLocked=lockCheck.checked; };
-          const lockText=document.createElement("span"); lockText.textContent="정원 유지";
+          const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형 유지":"정원 유지";
           gl.appendChild(lockCheck); gl.appendChild(lockText);
           optionsBar.appendChild(gl);
         }
@@ -1062,47 +1087,25 @@
     viewCanvas.setPointerCapture && viewCanvas.setPointerCapture(e.pointerId);
     const dp = getDispPoint(e);
 
-    // 선택된 가림 효과의 우측 상단 ×는 터치/클릭 즉시 삭제
+    // 기존 항목 선택이 언제나 새 마킹 생성보다 우선한다.
     const selectedEffect = effects.find(x=>x.id===selectedId);
     if(selectedEffect && effectCloseHit(dp, selectedEffect)){ deleteSelected(); return; }
-    // 선택 모드에서는 가림 효과도 일반 마킹처럼 선택 가능
-    if(activeTool===null){
-      const eh=findEffectAt(dp);
-      if(eh){ selectedId=eh.id; buildOptionsBar(); redraw(); return; }
-    }
+    const selectedObject = objects.find(x=>x.id===selectedId);
+    if(selectedObject && objectCloseHit(dp, selectedObject)){ deleteSelected(); return; }
+    const handleHit = findHandleAt(dp);
+    if(handleHit){ selectedId=handleHit.obj.id; drag={mode:"resize",obj:handleHit.obj,handle:handleHit.handle,startNat:dispToNat(dp)}; buildOptionsBar(); redraw(); return; }
+    const objHit = findObjectAt(dp);
+    if(objHit){ selectedId=objHit.id; strokeMultCurrent=objHit.strokeMult||1; drag={mode:"move",obj:objHit,last:dispToNat(dp),snapshot:Object.assign({},objHit)}; buildOptionsBar(); redraw(); return; }
+    const eh=findEffectAt(dp);
+    if(eh){ selectedId=eh.id; buildOptionsBar(); redraw(); return; }
 
     if(activeTool==="crop"){
       if(pendingEffect) commitPendingEffect();
-      drag = {mode:"create", startDisp:dp, curDisp:dp};
-      redraw();
-      return;
+      drag = {mode:"create", startDisp:dp, curDisp:dp}; redraw(); return;
     }
-
     if(activeTool==="blur"){
       if(pendingEffect) commitPendingEffect();
-      drag = {mode:"create", startDisp:dp, curDisp:dp};
-      redraw();
-      return;
-    }
-
-    // 선택/이동/리사이즈 우선 처리 (동그라미/화살표 도구 및 선택모드 공통)
-    const handleHit = findHandleAt(dp);
-    if(handleHit){
-      selectedId = handleHit.obj.id;
-      drag = {mode:"resize", obj:handleHit.obj, handle:handleHit.handle, startNat:dispToNat(dp)};
-      buildOptionsBar();
-      redraw();
-      return;
-    }
-    const objHit = findObjectAt(dp);
-    if(objHit){
-      selectedId = objHit.id;
-      strokeMultCurrent = objHit.strokeMult || 1;
-      const natStart = dispToNat(dp);
-      drag = {mode:"move", obj:objHit, last:natStart, snapshot:Object.assign({},objHit)};
-      buildOptionsBar();
-      redraw();
-      return;
+      drag = {mode:"create", startDisp:dp, curDisp:dp}; redraw(); return;
     }
 
     if(activeTool==="circle" || activeTool==="arrow"){
@@ -1132,13 +1135,14 @@
       const dx = nat.x-drag.last.x, dy = nat.y-drag.last.y;
       const o = drag.obj;
       if(o.type==="circle"){ o.cx+=dx; o.cy+=dy; }
+      else if(o.type==="rect"){ o.x+=dx; o.y+=dy; }
       else { o.x1+=dx; o.y1+=dy; o.x2+=dx; o.y2+=dy; }
       drag.last = nat;
       redraw();
     } else if(drag.mode==="resize"){
       const nat = dispToNat(dp);
       const o = drag.obj;
-      if(o.type==="circle"){
+      if(o.type==="circle" || o.type==="rect"){
         const b = objectBoundsNatural(o);
         const x0=b.x, y0=b.y, x1=b.x+b.w, y1=b.y+b.h;
         let ax, ay, mx=nat.x, my=nat.y;
@@ -1154,7 +1158,8 @@
         }
         const nx = Math.min(ax,mvx), ny=Math.min(ay,mvy);
         const nw = Math.max(4,Math.abs(mvx-ax)), nh = Math.max(4,Math.abs(mvy-ay));
-        o.cx = nx+nw/2; o.cy = ny+nh/2; o.rx = nw/2; o.ry = nh/2;
+        if(o.type==="circle"){ o.cx = nx+nw/2; o.cy = ny+nh/2; o.rx = nw/2; o.ry = nh/2; }
+        else { o.x=nx; o.y=ny; o.w=nw; o.h=nh; }
       } else {
         if(drag.handle==="p1"){ o.x1=nat.x; o.y1=nat.y; }
         else { o.x2=nat.x; o.y2=nat.y; }
@@ -1191,7 +1196,7 @@
             const toolAtDrag = activeTool;
             runFaceDetectionInBox(r, function(faces){
               if(activeTool!==toolAtDrag) return;
-              // 얼굴 검출 박스 전체(머리/귀)를 덮지 않고 이목구비 중심으로 가린다.
+              // 조건을 통과한 얼굴만 이목구비 중심으로 자동 가림한다. 조건을 못 넘으면 사용자가 그린 위치를 그대로 가린다.
               // tracking.js의 face box를 기준으로 중앙 88% × 78%만 사용하고,
               // 타원 + 강한 페더로 뉴스 사진에서 흔히 쓰는 자연스러운 익명화 느낌을 만든다.
               const faceRects=(faces||[]).map(face=>{
@@ -1228,7 +1233,9 @@
             r = normRect(n0, n1);
           }
           if(r.w>3 && r.h>3){
-            const obj = {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokeMult:strokeMultCurrent, color:strokeColorCurrent};
+            const obj = shapeKind==="rect"
+              ? {id:genId(), type:"rect", x:r.x, y:r.y, w:r.w, h:r.h, strokeMult:strokeMultCurrent, color:strokeColorCurrent}
+              : {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokeMult:strokeMultCurrent, color:strokeColorCurrent};
             objects.push(obj);
             selectedId = obj.id;
             pushHistory(false);
@@ -1295,8 +1302,19 @@
         if(!data.length){ finish([]); return; }
         const inv=1/ds;
         let faces=data.map(rr=>({ x:sx+rr.x*inv, y:sy+rr.y*inv, w:rr.width*inv, h:rr.height*inv }));
-        // 패딩 영역의 옆 사람까지 딸려오지 않도록, 얼굴 중심이 사용자가 그린 검색영역 안에 있는 것만 채택.
-        faces=faces.filter(f=>{ const cx=f.x+f.w/2, cy=f.y+f.h/2; return cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h; });
+        // 사용자가 지정한 위치를 최우선한다. 단순히 얼굴 중심이 박스 안에 있다는 이유만으로
+        // 주변 얼굴로 마킹이 점프하지 않도록, 얼굴과 지정 영역이 충분히 겹치고
+        // 지정 영역의 크기도 얼굴에 비해 지나치게 크지 않을 때만 자동 얼굴 스냅한다.
+        faces=faces.filter(f=>{
+          const ix=Math.max(0, Math.min(f.x+f.w,natRect.x+natRect.w)-Math.max(f.x,natRect.x));
+          const iy=Math.max(0, Math.min(f.y+f.h,natRect.y+natRect.h)-Math.max(f.y,natRect.y));
+          const inter=ix*iy, faceArea=Math.max(1,f.w*f.h), selArea=Math.max(1,natRect.w*natRect.h);
+          const overlapFace=inter/faceArea;
+          const sizeRatio=selArea/faceArea;
+          const cx=f.x+f.w/2, cy=f.y+f.h/2;
+          const centerInside=cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h;
+          return centerInside && overlapFace>=0.62 && sizeRatio<=5.0;
+        });
         // 거의 같은 얼굴이 중복 검출되면 큰 박스 하나만 남긴다.
         faces.sort((a,b)=>(b.w*b.h)-(a.w*a.h));
         const kept=[];
