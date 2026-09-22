@@ -548,10 +548,12 @@
   // 가림 강도는 사진 전체 크기가 아니라 현재 가림 영역 크기를 기준으로 계산한다.
   // 0은 거의 변화 없음, 50은 일반적인 익명화, 100은 강한 익명화가 되도록 비선형 매핑.
   function blurRadiusNatural(rect){
+    // 익명화용 블러: 낮은 슬라이더 값에서도 이목구비가 남지 않도록 최소 강도를 확보한다.
+    // 기준은 사진 전체가 아니라 가림 영역의 짧은 변. 10≈6.5%, 50≈11%, 100≈17%.
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
-    if(t<=0) return 0.35;
-    return base * (0.008 + 0.22*Math.pow(t, 1.35));
+    if(t<=0) return 0;
+    return base * (0.052 + 0.118*Math.pow(t, 0.82));
   }
   function mosaicBlockNatural(rect){
     const base = Math.max(8, Math.min(rect.w, rect.h));
@@ -1595,9 +1597,16 @@
     const nctx = nativeOut.getContext("2d");
     if(nctx && "filter" in nctx){
       try{
-        nctx.filter = `blur(${Math.max(0.6, radiusPx)}px)`;
-        // 필터가 가장자리에서 잘리지 않도록 원본 전체 조각을 그대로 렌더링한다.
-        nctx.drawImage(srcCanvas,0,0);
+        // 두 번의 중간 강도 Gaussian pass가 한 번의 과도한 blur보다
+        // 얼굴색을 희게 번지게 하지 않으면서 눈·코·입 디테일을 안정적으로 제거한다.
+        const passRadius = Math.max(0.6, radiusPx * 0.72);
+        const tmp = document.createElement("canvas"); tmp.width=w; tmp.height=h;
+        const tctx = tmp.getContext("2d");
+        tctx.filter = `blur(${passRadius}px)`;
+        tctx.drawImage(srcCanvas,0,0);
+        tctx.filter = "none";
+        nctx.filter = `blur(${passRadius}px)`;
+        nctx.drawImage(tmp,0,0);
         nctx.filter = "none";
         return nativeOut;
       }catch(_e){}
@@ -1633,10 +1642,10 @@
     const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect) : mosaicBlockNatural(natRect);
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(feather/100,0,1);
-    // 페더 폭은 사진 전체가 아니라 현재 가림 영역의 짧은 변 기준. 0은 완전 하드엣지, 100은 확실한 소프트엣지.
-    const featherPx = feather>0 ? base * 0.24 * Math.pow(ft,1.05) : 0;
-    // 페더가 바깥으로 번질 공간까지 캔버스에 확보한다. 이전에는 이 여백이 없어 큰 페더가 잘려 체감 변화가 작았다.
-    const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2 : 2) + featherPx*1.6 + 6);
+    // 페더는 익명화 강도를 낮추지 않고 가장자리 전환에만 쓴다.
+    // 기존 24%는 얼굴 전체가 반투명해 보일 정도로 과했다. 최대 약 8%로 제한한다.
+    const featherPx = feather>0 ? base * 0.08 * Math.pow(ft,1.15) : 0;
+    const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
     const ex = clamp(Math.ceil(natRect.x+natRect.w+pad),0,naturalW);
@@ -1671,27 +1680,33 @@
     const rx0 = natRect.x-sx, ry0 = natRect.y-sy;
     mctx.fillStyle = "#fff";
     if(shape==="ellipse"){
-      mctx.beginPath();
-      mctx.ellipse(rx0+natRect.w/2, ry0+natRect.h/2, natRect.w/2, natRect.h/2, 0,0,Math.PI*2);
-      mctx.fill();
+      // 얼굴 중앙은 항상 100% 효과. 페더는 외곽의 얇은 링에서만 작동한다.
+      // 타원은 원형 radialGradient를 비율 변환해서 정확한 타원 그라데이션으로 만든다.
+      const cx=rx0+natRect.w/2, cy=ry0+natRect.h/2;
+      const rx=Math.max(1,natRect.w/2), ry=Math.max(1,natRect.h/2);
+      const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.28) : 0;
+      mctx.save();
+      mctx.translate(cx,cy); mctx.scale(rx,ry);
+      if(edgeFrac>0){
+        const g=mctx.createRadialGradient(0,0,0,0,0,1);
+        g.addColorStop(0,"rgba(255,255,255,1)");
+        g.addColorStop(Math.max(0,1-edgeFrac),"rgba(255,255,255,1)");
+        g.addColorStop(1,"rgba(255,255,255,0)");
+        mctx.fillStyle=g;
+      }
+      mctx.beginPath(); mctx.arc(0,0,1,0,Math.PI*2); mctx.fill();
+      mctx.restore();
     } else {
       mctx.fillRect(rx0, ry0, natRect.w, natRect.h);
     }
     let finalMask = mask;
-    // 페더는 효과 강도와 별개로 '마스크 경계'만 흐린다.
-    // 축소/확대 방식은 큰 페더값에서도 경계 변화가 작아 실제 Gaussian blur를 우선 사용한다.
-    if(featherPx>0.5){
+    // 사각형만 기존 방식의 좁은 경계 페더를 사용한다. 타원은 위에서 불투명 중심을 보장했다.
+    if(shape!=="ellipse" && featherPx>0.5){
       const fm=document.createElement("canvas"); fm.width=sw; fm.height=sh;
       const fctx=fm.getContext("2d");
       if("filter" in fctx){
-        fctx.filter=`blur(${featherPx}px)`;
-        fctx.drawImage(mask,0,0);
-        fctx.filter="none";
-        finalMask=fm;
-      }else{
-        // 구형 브라우저 fallback
-        finalMask=boxBlurCanvas(mask, featherPx);
-      }
+        fctx.filter=`blur(${featherPx}px)`; fctx.drawImage(mask,0,0); fctx.filter="none"; finalMask=fm;
+      }else finalMask=boxBlurCanvas(mask, featherPx);
     }
 
     const pctx = processed.getContext("2d");
