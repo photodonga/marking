@@ -553,24 +553,20 @@
   // 가림 강도는 사진 전체가 아니라 현재 가림 영역의 짧은 변을 기준으로 계산한다.
   // 블러와 모자이크는 같은 0~100 슬라이더를 쓰지만 시각적 특성이 달라 별도 곡선을 사용한다.
   function blurRadiusNatural(rect){
-    // 50을 보도사진용 기본 익명화 수준으로 설정한다.
-    // 50에서 눈·코·입/안경 안쪽 디테일이 거의 읽히지 않도록 반경을 충분히 확보하고,
-    // 75~100은 큰 얼굴·고해상도 원본을 위한 추가 여유로 둔다.
+    // 강도 슬라이더가 0~100 전 구간에서 고르게 체감되도록 선형에 가깝게 비례시키고,
+    // 기존보다 전 구간에서 약하게(최대치 기준 약 45%p 하향) 조정했다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
     const t = clamp(intensity/100, 0, 1);
     if(t<=0) return 0;
 
     // 작은 얼굴은 현재 익명화 품질을 유지하고, 화면에서 크게 보이는 얼굴만 추가 보정한다.
-    // 단순 선형 비례만 쓰면 클로즈업 얼굴에서 눈·코·입 구조가 상대적으로 더 남아 보일 수 있다.
     const imageShort = Math.max(1, Math.min(naturalW, naturalH));
     const faceShare = clamp(base / imageShort, 0, 1);
-    // 짧은 변의 18% 이하는 보정 없음. 45% 이상이면 최대 1.55배.
     const largeFaceT = clamp((faceShare - 0.18) / 0.27, 0, 1);
-    const largeFaceBoost = 1 + 0.55 * Math.pow(largeFaceT, 0.85);
+    const largeFaceBoost = 1 + 0.35 * Math.pow(largeFaceT, 0.85);
 
-    // 익명화 도구의 기본값(50)은 작은 얼굴에서도 이목구비 식별이 어렵게 한다.
-    // 낮은 구간은 조절 여지를 남기고, 50 이후는 완만하게 추가 강화한다.
-    const strength = 0.11 + 0.30*Math.pow(t, 0.62);
+    // 0 근처에서도 급격한 문턱 없이 약한 블러로 시작해, 100까지 완만하게 선형 증가한다.
+    const strength = 0.045 + 0.20 * t;
     return base * strength * largeFaceBoost;
   }
   function mosaicBlockNatural(rect){
@@ -1653,9 +1649,8 @@
         let x2=Math.max(...pts.map(p=>p.x)), y2=Math.max(...pts.map(p=>p.y));
         const fw=Math.max(8,x2-x1), fh=Math.max(8,y2-y1);
         // 랜드마크 자체보다 넓혀 눈썹·이마·입 주변까지 자연스럽게 포함한다.
-        // 상단은 기존보다 약 12%p 더 확장해 헤어라인 바로 아래까지 가림이 올라오도록 한다.
-        // 보도사진 익명화 기준: 눈·코·입은 확실히 덮되 머리카락/턱 전체까지 과도하게 먹지 않도록 한다.
-        const padX=fw*0.30, padTop=fh*0.50, padBottom=fh*0.35;
+        // 이마 위쪽(헤어라인 근처)부터 턱 끝까지 얼굴 윤곽 전체가 가려지도록 상/하단을 크게 확장한다.
+        const padX=fw*0.35, padTop=fh*0.80, padBottom=fh*0.60;
         x1-=padX; x2+=padX; y1-=padTop; y2+=padBottom;
         const cx=(x1+x2)/2, cy=(y1+y2)/2;
         const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
@@ -1738,9 +1733,10 @@
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(feather/100,0,1);
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환에만 쓴다.
-    // 블러는 최대 8%, 모자이크는 블록 경계를 흐리지 않도록 최대 2.5%까지만 허용한다.
-    const featherRatio = mode==="mosaic" ? 0.025 : 0.08;
-    const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.15) : 0;
+    // 블러는 최대 16%, 모자이크는 블록 경계를 과하게 흐리지 않도록 최대 5%까지 허용한다.
+    // 지수 없이 강도에 선형으로 비례시켜 슬라이더 구간별 차이가 뚜렷하게 느껴지도록 했다.
+    const featherRatio = mode==="mosaic" ? 0.05 : 0.16;
+    const featherPx = feather>0 ? base * featherRatio * ft : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
@@ -1780,7 +1776,7 @@
       // 타원은 원형 radialGradient를 비율 변환해서 정확한 타원 그라데이션으로 만든다.
       const cx=rx0+natRect.w/2, cy=ry0+natRect.h/2;
       const rx=Math.max(1,natRect.w/2), ry=Math.max(1,natRect.h/2);
-      const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.28) : 0;
+      const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.55) : 0;
       mctx.save();
       mctx.translate(cx,cy); mctx.scale(rx,ry);
       if(edgeFrac>0){
