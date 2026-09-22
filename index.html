@@ -300,6 +300,10 @@
   }
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+  .glyph{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;line-height:0;}
+  .glyph svg,.icon-btn svg{width:20px;height:20px;display:block;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+  .icon-btn svg{width:18px;height:18px;}
+
   /* ---------- desktop: toolbar + tool options in one glass row ---------- */
   @media (min-width:641px){
     #chrome{gap:0;}
@@ -356,11 +360,12 @@
     .save-group{gap:5px;}
     #format-select{padding:6px 7px;font-size:12px;}
     .save-btn{padding:7px 12px;font-size:12.5px;}
-    #options-bar{gap:5px;padding:6px 6px;border-radius:14px;font-size:10.5px;max-width:100%;overflow-x:auto;}
-    #options-bar .opt-group{gap:4px;flex:0 0 auto;}
-    #options-bar .seg{padding:2px;gap:1px;}
-    #options-bar .seg button{padding:5px 6px;font-size:10.5px;}
-    #options-bar input[type="range"]{width:44px;min-width:44px;}
+    #options-bar{gap:3px;padding:6px 5px;border-radius:14px;font-size:10px;width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;}
+    #options-bar .opt-group{gap:3px;flex:0 1 auto;min-width:0;}
+    #options-bar .seg{padding:2px;gap:1px;flex:0 0 auto;}
+    #options-bar .seg button{padding:5px 5px;font-size:10px;white-space:nowrap;}
+    #options-bar input[type="range"]{width:36px;min-width:28px;max-width:42px;flex:1 1 36px;}
+    #options-bar .opt-group>span{white-space:nowrap;}
   }
   /* ---------- footer notice ---------- */
   #footer-note{
@@ -413,13 +418,13 @@
     <header id="toolbar">
       <div class="brand">마킹</div>
       <div class="tools">
-        <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph">▦</span><span class="label">가림</span></button>
-        <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph">◇</span><span class="label">도형</span></button>
-        <button class="tool-btn" data-tool="arrow" id="btn-arrow"><span class="glyph">→</span><span class="label">화살표</span></button>
+        <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 4v16M12 4v16M16 4v16M4 8h16M4 12h16M4 16h16" opacity=".72"/></svg></span><span class="label">가림</span></button>
+        <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg></span><span class="label">도형</span></button>
+        <button class="tool-btn" data-tool="arrow" id="btn-arrow"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg></span><span class="label">화살표</span></button>
         <span class="sep"></span>
-        <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled>↶</button>
-        <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
-        <button class="icon-btn" id="btn-clear-photo" title="사진 지우기" disabled>⌫</button>
+        <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 5 11l4 4"/><path d="M5 11h8a6 6 0 0 1 6 6"/></svg></button>
+        <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 4 4-4 4"/><path d="M19 11h-8a6 6 0 0 0-6 6"/></svg></button>
+        <button class="icon-btn" id="btn-clear-photo" title="사진 지우기" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m9 9 6 6M15 9l-6 6"/></svg></button>
       </div>
       <div class="save-group">
         <select id="format-select">
@@ -563,7 +568,10 @@
     const largeFaceT = clamp((faceShare - 0.18) / 0.27, 0, 1);
     const largeFaceBoost = 1 + 0.55 * Math.pow(largeFaceT, 0.85);
 
-    return base * (0.085 + 0.195*Math.pow(t, 0.72)) * largeFaceBoost;
+    // 익명화 도구의 기본값(50)은 작은 얼굴에서도 이목구비 식별이 어렵게 한다.
+    // 낮은 구간은 조절 여지를 남기고, 50 이후는 완만하게 추가 강화한다.
+    const strength = 0.11 + 0.30*Math.pow(t, 0.62);
+    return base * strength * largeFaceBoost;
   }
   function mosaicBlockNatural(rect){
     // 모자이크는 블록을 크게 키워 강도를 만드는 대신 촘촘하고 정돈된 블록을 유지한다.
@@ -820,7 +828,7 @@
   function objectClosePoint(o){
     // 크기 조절점과 삭제 X가 겹치지 않도록 X는 선택 영역 바깥에 둔다.
     // 화살표는 긴 바운딩박스 모서리보다 화살촉 근처가 훨씬 직관적이다.
-    const margin=17;
+    const margin=14;
     if(o.type==="arrow"){
       const x1=o.x1*scale,y1=o.y1*scale,x2=o.x2*scale,y2=o.y2*scale;
       const dx=x2-x1,dy=y2-y1,len=Math.max(1,Math.hypot(dx,dy));
@@ -829,13 +837,14 @@
       return {x:cx,y:cy};
     }
     const b=objectBoundsNatural(o), x=(b.x+b.w)*scale, y=b.y*scale;
-    return {x:clamp(x+margin,13,dispW-13), y:clamp(y-margin,13,dispH-13)};
+    // 도형 X는 선택 박스 우상단 안쪽에 붙여 어느 객체의 삭제 버튼인지 명확하게 한다.
+    return {x:clamp(x-12,13,dispW-13), y:clamp(y+12,13,dispH-13)};
   }
   function drawObjectSelection(ctx,o){
     const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
     ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,255,255,.9)';
     ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
-    const r=11,cp=objectClosePoint(o),cx=cp.x,cy=cp.y; ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    const r=10,cp=objectClosePoint(o),cx=cp.x,cy=cp.y; ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
     ctx.strokeStyle='#fff';ctx.lineWidth=1.8;ctx.beginPath();ctx.moveTo(cx-4,cy-4);ctx.lineTo(cx+4,cy+4);ctx.moveTo(cx+4,cy-4);ctx.lineTo(cx-4,cy+4);ctx.stroke();ctx.restore();
   }
   function objectCloseHit(dp,o){ const cp=objectClosePoint(o); return Math.hypot(dp.x-cp.x,dp.y-cp.y)<=20; }
@@ -968,8 +977,9 @@
   }
 
   function effectClosePoint(eff){
-    const b=effectBounds(eff), margin=17;
-    return {x:clamp((b.x+b.w)*scale+margin,13,dispW-13), y:clamp(b.y*scale-margin,13,dispH-13)};
+    const b=effectBounds(eff);
+    // 가림 X도 박스 우상단 안쪽에 고정한다. 밀집된 얼굴에서 이웃 얼굴 위로 뜨는 문제를 줄인다.
+    return {x:clamp((b.x+b.w)*scale-12,13,dispW-13), y:clamp(b.y*scale+12,13,dispH-13)};
   }
   function drawEffectGuide(ctx, eff){
     const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
@@ -985,7 +995,7 @@
     const b=effectBounds(eff), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
     ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,.95)';
     ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
-    const r=11, cp=effectClosePoint(eff), cx=cp.x, cy=cp.y;
+    const r=10, cp=effectClosePoint(eff), cx=cp.x, cy=cp.y;
     ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
     ctx.strokeStyle='#fff'; ctx.lineWidth=1.8;
     ctx.beginPath(); ctx.moveTo(cx-4,cy-4);ctx.lineTo(cx+4,cy+4);ctx.moveTo(cx+4,cy-4);ctx.lineTo(cx-4,cy+4);ctx.stroke();
@@ -1112,6 +1122,8 @@
 
   function buildOptionsBar(){
     optionsBar.innerHTML = "";
+    // 모바일에서 이전 가로 스크롤 위치가 남아 메뉴 앞부분이 잘리는 현상을 방지한다.
+    optionsBar.scrollLeft = 0;
     if(activeTool==="blur"){
       optionsBar.classList.remove("hidden");
       const g1 = document.createElement("div"); g1.className="opt-group";
@@ -1547,9 +1559,9 @@
             delegate:"GPU"
           },
           runningMode:"IMAGE",
-          numFaces:4,
-          minFaceDetectionConfidence:0.60,
-          minFacePresenceConfidence:0.60,
+          numFaces:12,
+          minFaceDetectionConfidence:0.50,
+          minFacePresenceConfidence:0.50,
           minTrackingConfidence:0.55,
           outputFaceBlendshapes:false,
           outputFacialTransformationMatrixes:false
@@ -1574,8 +1586,11 @@
       const cw=Math.max(1,ex-sx), ch=Math.max(1,ey-sy);
       if(cw<24||ch<24){ cb([],[]); return; }
 
-      const detectMax=1024, ds=Math.min(1,detectMax/Math.max(cw,ch));
-      const dw=Math.max(24,Math.round(cw*ds)), dh=Math.max(24,Math.round(ch*ds));
+      // 작은 얼굴은 원본 crop 크기 그대로 넣으면 랜드마크 입력 해상도가 부족해질 수 있다.
+      // 긴 변을 최소 480px까지 업스케일(최대 3배)하고, 큰 crop은 1024px로 제한한다.
+      const detectMin=480, detectMax=1024, long=Math.max(cw,ch);
+      const ds=Math.min(3, detectMax/long, Math.max(1,detectMin/long));
+      const dw=Math.max(96,Math.round(cw*ds)), dh=Math.max(96,Math.round(ch*ds));
       const crop=document.createElement("canvas"); crop.width=dw; crop.height=dh;
       const cctx=crop.getContext("2d"); cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality="high";
       cctx.drawImage(rasterCanvas,sx,sy,cw,ch,0,0,dw,dh);
