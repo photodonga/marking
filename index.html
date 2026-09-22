@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 v0.7</title>
+<title>마킹 v0.8</title>
 
 <style>
   :root{
@@ -323,6 +323,32 @@
   }
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
+  /* ---------- desktop: toolbar + tool options in one glass row ---------- */
+  @media (min-width:641px){
+    #chrome{gap:0;}
+    #toolbar{overflow-x:auto;}
+    #toolbar #options-bar{
+      flex:0 1 auto;
+      min-width:0;
+      gap:12px;
+      padding:0 4px;
+      margin-left:2px;
+      background:transparent;
+      backdrop-filter:none;
+      -webkit-backdrop-filter:none;
+      border:0;
+      border-radius:0;
+      box-shadow:none;
+      overflow:visible;
+    }
+    #toolbar #options-bar:not(.hidden){display:flex;}
+    #toolbar #options-bar .opt-group{gap:6px;}
+    #toolbar #options-bar .seg{padding:2px;gap:2px;}
+    #toolbar #options-bar .seg button{padding:5px 9px;font-size:12px;}
+    #toolbar #options-bar input[type="range"]{width:86px;}
+    #toolbar .save-group{margin-left:auto;}
+  }
+
   @media (max-width:640px){
     #chrome{top:calc(6px + var(--safe-t));left:6px;right:6px;gap:4px;}
     .brand{display:none;}
@@ -479,6 +505,21 @@
   const vctx = viewCanvas.getContext("2d");
   const fileInput = document.getElementById("file-input");
   const optionsBar = document.getElementById("options-bar");
+  const toolbarEl = document.getElementById("toolbar");
+  const saveGroupEl = toolbarEl.querySelector(".save-group");
+  const chromeEl = document.getElementById("chrome");
+
+  // PC에서는 도구 옵션을 메인 툴바 안에 합치고, 모바일에서는 기존 2단 구조를 유지한다.
+  function syncOptionsBarLayout(){
+    const desktop = window.matchMedia("(min-width: 641px)").matches;
+    if(desktop){
+      if(optionsBar.parentElement !== toolbarEl) toolbarEl.insertBefore(optionsBar, saveGroupEl);
+    }else{
+      if(optionsBar.parentElement !== chromeEl) chromeEl.appendChild(optionsBar);
+    }
+  }
+  syncOptionsBarLayout();
+  window.addEventListener("resize", syncOptionsBarLayout, {passive:true});
   const btnUndo = document.getElementById("btn-undo");
   const btnRedo = document.getElementById("btn-redo");
   const btnClearPhoto = document.getElementById("btn-clear-photo");
@@ -697,9 +738,9 @@
     const arrowLen = Math.hypot(x2-x1, y2-y1);
     // 화살촉은 선 굵기가 아니라 사진의 긴 변을 기준으로 규격화한다.
     // 아주 짧은 화살표에서만 몸통을 삼키지 않도록 길이의 38%로 제한한다.
-    const standardHeadLen = longSide() * 0.018;
-    const headLen = Math.min(standardHeadLen, Math.max(sw*3.2, arrowLen*0.38));
-    const headHalfAngle = Math.PI/6; // 30°: 작은 화면에서도 방향이 또렷한 넓은 화살촉
+    const standardHeadLen = longSide() * 0.012;
+    const headLen = Math.min(standardHeadLen, Math.max(sw*2.8, arrowLen*0.30));
+    const headHalfAngle = Math.PI/7; // 약 26°: 기존보다 작고 날렵한 화살촉
     const shortenX = Math.cos(angle)*headLen*0.62;
     const shortenY = Math.sin(angle)*headLen*0.62;
     ctx.lineWidth = sw;
@@ -1019,10 +1060,10 @@
         const tol=HIT_TOLERANCE/Math.max(4,Math.min(rx,ry));
         if(Math.abs(q-1)<=tol) return o;
       } else if(o.type==="rect"){
+        // 네모는 테두리뿐 아니라 내부를 눌러도 선택/이동할 수 있게 한다.
         const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
         const inside=dispPt.x>=x-HIT_TOLERANCE&&dispPt.x<=x+w+HIT_TOLERANCE&&dispPt.y>=y-HIT_TOLERANCE&&dispPt.y<=y+h+HIT_TOLERANCE;
-        const edge=Math.min(Math.abs(dispPt.x-x),Math.abs(dispPt.x-(x+w)),Math.abs(dispPt.y-y),Math.abs(dispPt.y-(y+h)));
-        if(inside&&edge<=HIT_TOLERANCE) return o;
+        if(inside) return o;
       }
     }
     return null;
@@ -1056,29 +1097,41 @@
       const seg1 = document.createElement("div"); seg1.className="seg";
       const bBlur = document.createElement("button"); bBlur.textContent="블러"; bBlur.className = blurMode==="blur"?"active":"";
       const bMosaic = document.createElement("button"); bMosaic.textContent="모자이크"; bMosaic.className = blurMode==="mosaic"?"active":"";
-      bBlur.onclick=()=>{ blurMode="blur"; buildOptionsBar(); recomputePendingPreview(); };
-      bMosaic.onclick=()=>{ blurMode="mosaic"; buildOptionsBar(); recomputePendingPreview(); };
+      bBlur.onclick=()=>{ blurMode="blur"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
+      bMosaic.onclick=()=>{ blurMode="mosaic"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
       seg1.appendChild(bBlur); seg1.appendChild(bMosaic);
       g1.appendChild(seg1);
 
       const g2 = document.createElement("div"); g2.className="opt-group";
       const label2 = document.createElement("span"); label2.textContent="강도";
       const slider = document.createElement("input"); slider.type="range"; slider.min="0"; slider.max="100"; slider.value=String(intensity);
-      slider.oninput = ()=>{ intensity = Number(slider.value); recomputePendingPreview(); };
+      slider.oninput = ()=>{
+        intensity = Number(slider.value);
+        const selEff=effects.find(e=>e.id===selectedId);
+        if(selEff){ selEff.intensity=intensity; redraw(); }
+        recomputePendingPreview();
+      };
+      slider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(false); };
       g2.appendChild(label2); g2.appendChild(slider);
 
       const gf = document.createElement("div"); gf.className="opt-group";
       const featherLabel = document.createElement("span"); featherLabel.textContent="페더";
       const featherSlider = document.createElement("input"); featherSlider.type="range"; featherSlider.min="0"; featherSlider.max="100"; featherSlider.value=String(feather);
-      featherSlider.oninput=()=>{ feather=Number(featherSlider.value); recomputePendingPreview(); };
+      featherSlider.oninput=()=>{
+        feather=Number(featherSlider.value);
+        const selEff=effects.find(e=>e.id===selectedId);
+        if(selEff){ selEff.feather=feather; redraw(); }
+        recomputePendingPreview();
+      };
+      featherSlider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(false); };
       gf.appendChild(featherLabel); gf.appendChild(featherSlider);
 
       const g3 = document.createElement("div"); g3.className="opt-group";
       const seg3 = document.createElement("div"); seg3.className="seg";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
       const bEllipse = document.createElement("button"); bEllipse.textContent="타원형"; bEllipse.className = blurShape==="ellipse"?"active":"";
-      bRect.onclick=()=>{ blurShape="rect"; buildOptionsBar(); recomputePendingPreview(); };
-      bEllipse.onclick=()=>{ blurShape="ellipse"; buildOptionsBar(); recomputePendingPreview(); };
+      bRect.onclick=()=>{ blurShape="rect"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape=blurShape;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
+      bEllipse.onclick=()=>{ blurShape="ellipse"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape=blurShape;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
       seg3.appendChild(bRect); seg3.appendChild(bEllipse);
       g3.appendChild(seg3);
 
@@ -1276,7 +1329,14 @@
     const objHit = findObjectAt(dp);
     if(objHit){ selectedId=objHit.id; strokeMultCurrent=objHit.strokeMult||1; drag={mode:"move",obj:objHit,last:dispToNat(dp),snapshot:Object.assign({},objHit)}; buildOptionsBar(); redraw(); return; }
     const eh=findEffectAt(dp);
-    if(eh){ selectedId=eh.id; buildOptionsBar(); redraw(); return; }
+    if(eh){
+      selectedId=eh.id;
+      intensity=Number.isFinite(eh.intensity)?eh.intensity:intensity;
+      feather=Number.isFinite(eh.feather)?eh.feather:feather;
+      blurMode=eh.mode||blurMode;
+      if(!eh.autoFace) blurShape=eh.shape||blurShape;
+      buildOptionsBar(); redraw(); return;
+    }
 
     // 기존 항목이 없는 곳을 누르면 먼저 선택을 해제한다.
     if(selectedId!=null){ selectedId=null; buildOptionsBar(); redraw(); }
@@ -1472,8 +1532,11 @@
 
   function runFaceDetectionInBox(natRect, cb){
     (async()=>{
-      const sx=clamp(Math.floor(natRect.x),0,naturalW), sy=clamp(Math.floor(natRect.y),0,naturalH);
-      const ex=clamp(Math.ceil(natRect.x+natRect.w),0,naturalW), ey=clamp(Math.ceil(natRect.y+natRect.h),0,naturalH);
+      // 얼굴 일부만 드래그해도 눈/입이 crop 경계에 잘리지 않도록 탐지용 crop만 넉넉히 확장한다.
+      // 최종 후보 판정은 아래에서 원래 사용자가 그린 natRect를 기준으로 하므로 다른 얼굴로 점프하지 않는다.
+      const marginX=natRect.w*0.35, marginY=natRect.h*0.35;
+      const sx=clamp(Math.floor(natRect.x-marginX),0,naturalW), sy=clamp(Math.floor(natRect.y-marginY),0,naturalH);
+      const ex=clamp(Math.ceil(natRect.x+natRect.w+marginX),0,naturalW), ey=clamp(Math.ceil(natRect.y+natRect.h+marginY),0,naturalH);
       const cw=Math.max(1,ex-sx), ch=Math.max(1,ey-sy);
       if(cw<24||ch<24){ cb([],[]); return; }
 
@@ -1502,8 +1565,9 @@
         let x2=Math.max(...pts.map(p=>p.x)), y2=Math.max(...pts.map(p=>p.y));
         const fw=Math.max(8,x2-x1), fh=Math.max(8,y2-y1);
         // 랜드마크 자체보다 약간 넓혀 눈썹·입 주변까지 자연스럽게 포함한다.
-        const padX=fw*0.18, padY=fh*0.18;
-        x1-=padX; x2+=padX; y1-=padY; y2+=padY;
+        // 보도사진 익명화 기준: 눈·코·입은 확실히 덮되 머리카락/턱 전체까지 과도하게 먹지 않도록 한다.
+        const padX=fw*0.28, padTop=fh*0.30, padBottom=fh*0.24;
+        x1-=padX; x2+=padX; y1-=padTop; y2+=padBottom;
         const cx=(x1+x2)/2, cy=(y1+y2)/2;
         const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
         const centerNear=Math.hypot(cx-selCx,cy-selCy)<=selDiag*0.34;
@@ -1512,7 +1576,7 @@
         const ix2=Math.min(x2,natRect.x+natRect.w), iy2=Math.min(y2,natRect.y+natRect.h);
         const overlap=Math.max(0,ix2-ix1)*Math.max(0,iy2-iy1);
         const featureArea=Math.max(1,(x2-x1)*(y2-y1));
-        if(overlap/featureArea<0.72) continue;
+        if(overlap/featureArea<0.58) continue;
         candidates.push({x:clamp(x1,0,naturalW),y:clamp(y1,0,naturalH),w:Math.min(x2-x1,naturalW-clamp(x1,0,naturalW)),h:Math.min(y2-y1,naturalH-clamp(y1,0,naturalH)),cx,cy});
       }
       candidates.sort((a,b)=>Math.hypot(a.cx-selCx,a.cy-selCy)-Math.hypot(b.cx-selCx,b.cy-selCy));
@@ -1561,7 +1625,12 @@
   // 원본 rasterCanvas에는 아직 반영하지 않는다 (실시간 미리보기/재조정을 위해 분리).
   function computeEffectRegion(natRect, shape, mode){
     const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect) : mosaicBlockNatural(natRect);
-    const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2 : 2) + 6);
+    const base = Math.max(8, Math.min(natRect.w, natRect.h));
+    const ft = clamp(feather/100,0,1);
+    // 페더 폭은 사진 전체가 아니라 현재 가림 영역의 짧은 변 기준. 0은 완전 하드엣지, 100은 확실한 소프트엣지.
+    const featherPx = feather>0 ? base * 0.24 * Math.pow(ft,1.05) : 0;
+    // 페더가 바깥으로 번질 공간까지 캔버스에 확보한다. 이전에는 이 여백이 없어 큰 페더가 잘려 체감 변화가 작았다.
+    const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2 : 2) + featherPx*1.6 + 6);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-pad),0,naturalH);
     const ex = clamp(Math.ceil(natRect.x+natRect.w+pad),0,naturalW);
@@ -1604,10 +1673,7 @@
     }
     let finalMask = mask;
     // 모양의 딱딱한 경계를 줄이는 페더. 블러/모자이크 모두 적용.
-    if(feather>0){
-      const base = Math.max(8, Math.min(natRect.w, natRect.h));
-      const ft = clamp(feather/100,0,1);
-      const featherPx = Math.max(1, base * 0.16 * Math.pow(ft,1.15));
+    if(featherPx>0.5){
       finalMask = boxBlurCanvas(mask, featherPx);
     }
 
