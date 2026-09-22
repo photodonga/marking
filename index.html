@@ -281,29 +281,6 @@
   }
   #view-canvas.ready{display:block;}
 
-  .crop-actions{
-    position:absolute;
-    bottom:calc(20px + var(--safe-b));
-    left:50%;
-    transform:translateX(-50%);
-    display:flex;
-    gap:8px;
-    background:linear-gradient(135deg, rgba(255,255,255,.72), rgba(255,255,255,.48));
-    backdrop-filter:blur(28px) saturate(190%);
-    -webkit-backdrop-filter:blur(28px) saturate(190%);
-    border:1px solid var(--glass-border);
-    padding:8px;
-    border-radius:var(--radius-lg);
-    box-shadow:0 12px 34px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.55);
-  }
-  .crop-actions.hidden{display:none;}
-  .crop-actions button{
-    border:none;font-family:inherit;font-size:13px;font-weight:650;
-    padding:9px 18px;border-radius:999px;cursor:pointer;
-  }
-  #crop-apply{background:linear-gradient(135deg, var(--accent), #5aa2ff);color:#fff;box-shadow:0 6px 16px rgba(10,108,255,0.30);}
-  #crop-cancel{background:var(--chip-bg);color:var(--ink);border:1px solid var(--chip-border) !important;}
-
   #toast{
     position:absolute;
     bottom:calc(24px + var(--safe-b));
@@ -401,7 +378,6 @@
         <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph">▦</span><span class="label">가림</span></button>
         <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph">◇</span><span class="label">도형</span></button>
         <button class="tool-btn" data-tool="arrow" id="btn-arrow"><span class="glyph">→</span><span class="label">화살표</span></button>
-        <button class="tool-btn" data-tool="crop" id="btn-crop"><span class="glyph">⛶</span><span class="label">자르기</span></button>
         <span class="sep"></span>
         <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled>↶</button>
         <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
@@ -426,10 +402,6 @@
       <p class="ph-sub">가리고 · 표시하고 · 바로 저장</p>
     </div>
     <canvas id="view-canvas"></canvas>
-    <div class="crop-actions hidden" id="crop-actions">
-      <button id="crop-apply">적용</button>
-      <button id="crop-cancel">취소</button>
-    </div>
     <div id="toast"></div>
   </main>
 
@@ -465,7 +437,7 @@
   let selectedId = null;
   let nextObjId = 1;
 
-  let activeTool = null;     // 'blur' | 'circle' | 'arrow' | 'crop' | null(선택모드)
+  let activeTool = null;     // 'blur' | 'circle' | 'arrow' | null(선택모드)
   let blurMode = "blur";     // 'blur' | 'mosaic'
   let blurShape = "ellipse"; // 기본 가림은 소프트 타원형
   let intensity = 50;        // 0-100
@@ -492,7 +464,6 @@
   let historyIndex = -1;
 
   let drag = null;           // 진행중인 포인터 상호작용 상태
-  let cropRect = null;       // {x,y,w,h} in natural coords, 자르기 진행중
   let faceDebugPoints = [];  // 얼굴 인식 중심점 표시용(원본 좌표)
   let faceDebugTimer = null;
 
@@ -525,14 +496,12 @@
   const btnClearPhoto = document.getElementById("btn-clear-photo");
   const btnSave = document.getElementById("btn-save");
   const formatSelect = document.getElementById("format-select");
-  const cropActions = document.getElementById("crop-actions");
   const toastEl = document.getElementById("toast");
 
   const toolButtons = {
     blur: document.getElementById("btn-blur"),
     circle: document.getElementById("btn-circle"),
     arrow: document.getElementById("btn-arrow"),
-    crop: document.getElementById("btn-crop"),
   };
 
   // ---------------- utils ----------------
@@ -606,7 +575,6 @@
     historyIndex--;
     restoreHistoryEntry(history[historyIndex]);
     updateHistoryButtons();
-    closeCropIfActive(true);
   }
   function redo(){
     discardPendingEffect();
@@ -614,7 +582,6 @@
     historyIndex++;
     restoreHistoryEntry(history[historyIndex]);
     updateHistoryButtons();
-    closeCropIfActive(true);
   }
   function updateHistoryButtons(){
     btnUndo.disabled = historyIndex<=0;
@@ -909,18 +876,6 @@
         }
       } else if(activeTool==="arrow"){
         drawArrowShape(vctx, drag.startDisp.x, drag.startDisp.y, drag.curDisp.x, drag.curDisp.y, strokeWidthNatural(strokeMultCurrent)*scale, strokeColorCurrent);
-      } else if(activeTool==="crop"){
-        const r = normRect(drag.startDisp, drag.curDisp);
-        vctx.fillStyle = "rgba(0,0,0,0.45)";
-        vctx.fillRect(0,0,dispW,dispH);
-        vctx.clearRect(r.x,r.y,r.w,r.h);
-        vctx.drawImage(rasterCanvas,
-          r.x/scale, r.y/scale, r.w/scale, r.h/scale,
-          r.x, r.y, r.w, r.h);
-        vctx.setLineDash([6,4]);
-        vctx.lineWidth = 1.5;
-        vctx.strokeStyle = "#ffffff";
-        vctx.strokeRect(r.x,r.y,r.w,r.h);
       }
       vctx.restore();
     }
@@ -934,22 +889,6 @@
         vctx.fillStyle="#0a84ff"; vctx.fill();
         vctx.lineWidth=2; vctx.strokeStyle="rgba(255,255,255,.95)"; vctx.stroke();
       });
-      vctx.restore();
-    }
-
-    if(cropRect && !(drag && drag.mode==="create")){
-      const r = {x:cropRect.x*scale, y:cropRect.y*scale, w:cropRect.w*scale, h:cropRect.h*scale};
-      vctx.save();
-      vctx.fillStyle = "rgba(0,0,0,0.45)";
-      vctx.fillRect(0,0,dispW,dispH);
-      vctx.clearRect(r.x,r.y,r.w,r.h);
-      vctx.drawImage(rasterCanvas,
-        r.x/scale, r.y/scale, r.w/scale, r.h/scale,
-        r.x, r.y, r.w, r.h);
-      vctx.setLineDash([6,4]);
-      vctx.lineWidth = 1.5;
-      vctx.strokeStyle = "#ffffff";
-      vctx.strokeRect(r.x,r.y,r.w,r.h);
       vctx.restore();
     }
   }
@@ -1071,7 +1010,6 @@
 
   // ---------------- tool selection ----------------
   function setActiveTool(tool){
-    if(activeTool==="crop" && tool!=="crop"){ closeCropIfActive(true); }
     if(pendingEffect && tool!==activeTool){ commitPendingEffect(); }
     activeTool = tool;
     Object.keys(toolButtons).forEach(k=>{
@@ -1335,16 +1273,13 @@
       feather=Number.isFinite(eh.feather)?eh.feather:feather;
       blurMode=eh.mode||blurMode;
       if(!eh.autoFace) blurShape=eh.shape||blurShape;
+      // 블러/모자이크도 생성 후 영역 안을 드래그해 자유롭게 이동한다.
+      drag={mode:"effectMove",effect:eh,last:dispToNat(dp)};
       buildOptionsBar(); redraw(); return;
     }
 
     // 기존 항목이 없는 곳을 누르면 먼저 선택을 해제한다.
     if(selectedId!=null){ selectedId=null; buildOptionsBar(); redraw(); }
-
-    if(activeTool==="crop"){
-      if(pendingEffect) commitPendingEffect();
-      drag = {mode:"create", startDisp:dp, curDisp:dp}; redraw(); return;
-    }
     if(activeTool==="blur"){
       if(pendingEffect) commitPendingEffect();
       drag = {mode:"create", startDisp:dp, curDisp:dp}; redraw(); return;
@@ -1380,6 +1315,18 @@
       else if(o.type==="rect"){ o.x+=dx; o.y+=dy; }
       else { o.x1+=dx; o.y1+=dy; o.x2+=dx; o.y2+=dy; }
       drag.last = nat;
+      redraw();
+    } else if(drag.mode==="effectMove"){
+      const nat=dispToNat(dp);
+      const dx=nat.x-drag.last.x, dy=nat.y-drag.last.y;
+      const eff=drag.effect;
+      const b=effectBounds(eff);
+      // 효과 전체가 사진 밖으로 사라지지 않도록 이동량을 제한한다.
+      const mdx=clamp(dx,-b.x,naturalW-(b.x+b.w));
+      const mdy=clamp(dy,-b.y,naturalH-(b.y+b.h));
+      eff.rect.x+=mdx; eff.rect.y+=mdy;
+      if(eff.faceRects&&eff.faceRects.length) eff.faceRects.forEach(r=>{r.x+=mdx;r.y+=mdy;});
+      drag.last={x:nat.x-(dx-mdx),y:nat.y-(dy-mdy)};
       redraw();
     } else if(drag.mode==="resize"){
       const nat = dispToNat(dp);
@@ -1418,18 +1365,6 @@
     if(finishedDrag.mode==="create"){
       const dp0 = finishedDrag.startDisp, dp1 = finishedDrag.curDisp;
       const moved = Math.hypot(dp1.x-dp0.x, dp1.y-dp0.y) > 3;
-
-      if(activeTool==="crop"){
-        if(moved){
-          const r = normRect(dispToNat(dp0), dispToNat(dp1));
-          if(r.w>4 && r.h>4){
-            cropRect = r;
-            cropActions.classList.remove("hidden");
-          }
-        }
-        redraw();
-        return;
-      }
 
       if(activeTool==="blur"){
         if(moved){
@@ -1494,7 +1429,7 @@
         redraw();
         return;
       }
-    } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize"){
+    } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize" || finishedDrag.mode==="effectMove"){
       pushHistory(false);
     }
   }
@@ -1566,7 +1501,7 @@
         const fw=Math.max(8,x2-x1), fh=Math.max(8,y2-y1);
         // 랜드마크 자체보다 약간 넓혀 눈썹·입 주변까지 자연스럽게 포함한다.
         // 보도사진 익명화 기준: 눈·코·입은 확실히 덮되 머리카락/턱 전체까지 과도하게 먹지 않도록 한다.
-        const padX=fw*0.28, padTop=fh*0.30, padBottom=fh*0.24;
+        const padX=fw*0.30, padTop=fh*0.30, padBottom=fh*0.30;
         x1-=padX; x2+=padX; y1-=padTop; y2+=padBottom;
         const cx=(x1+x2)/2, cy=(y1+y2)/2;
         const centerInside=cx>=natRect.x&&cx<=natRect.x+natRect.w&&cy>=natRect.y&&cy<=natRect.y+natRect.h;
@@ -1672,9 +1607,20 @@
       mctx.fillRect(rx0, ry0, natRect.w, natRect.h);
     }
     let finalMask = mask;
-    // 모양의 딱딱한 경계를 줄이는 페더. 블러/모자이크 모두 적용.
+    // 페더는 효과 강도와 별개로 '마스크 경계'만 흐린다.
+    // 축소/확대 방식은 큰 페더값에서도 경계 변화가 작아 실제 Gaussian blur를 우선 사용한다.
     if(featherPx>0.5){
-      finalMask = boxBlurCanvas(mask, featherPx);
+      const fm=document.createElement("canvas"); fm.width=sw; fm.height=sh;
+      const fctx=fm.getContext("2d");
+      if("filter" in fctx){
+        fctx.filter=`blur(${featherPx}px)`;
+        fctx.drawImage(mask,0,0);
+        fctx.filter="none";
+        finalMask=fm;
+      }else{
+        // 구형 브라우저 fallback
+        finalMask=boxBlurCanvas(mask, featherPx);
+      }
     }
 
     const pctx = processed.getContext("2d");
@@ -1745,45 +1691,6 @@
     pendingEffect = null;
   }
 
-  // ---------------- crop ----------------
-  document.getElementById("crop-apply").addEventListener("click", ()=>{
-    if(!cropRect) return;
-    const r = cropRect;
-    const x = Math.round(clamp(r.x,0,naturalW));
-    const y = Math.round(clamp(r.y,0,naturalH));
-    const w = Math.round(clamp(r.w,1,naturalW-x));
-    const h = Math.round(clamp(r.h,1,naturalH-y));
-    if(w<2 || h<2){ closeCropIfActive(true); return; }
-
-    const newCanvas = document.createElement("canvas");
-    newCanvas.width = w; newCanvas.height = h;
-    newCanvas.getContext("2d").drawImage(rasterCanvas, x,y,w,h, 0,0,w,h);
-    rasterCanvas = newCanvas;
-    rasterCtx = rasterCanvas.getContext("2d");
-    naturalW = w; naturalH = h;
-
-    objects.forEach(o=>{
-      if(o.type==="circle"){ o.cx-=x; o.cy-=y; }
-      else { o.x1-=x; o.y1-=y; o.x2-=x; o.y2-=y; }
-    });
-    effects.forEach(e=>{
-      const shift=r=>{r.x-=x;r.y-=y;}; shift(e.rect); (e.faceRects||[]).forEach(shift);
-    });
-
-    closeCropIfActive(false);
-    pushHistory(true);
-    fitCanvas();
-    redraw();
-    setActiveTool(null);
-  });
-  document.getElementById("crop-cancel").addEventListener("click", ()=> closeCropIfActive(true));
-
-  function closeCropIfActive(redrawAfter){
-    cropRect = null;
-    cropActions.classList.add("hidden");
-    if(redrawAfter) redraw();
-  }
-
   // ---------------- undo/redo buttons ----------------
   btnUndo.addEventListener("click", undo);
   btnRedo.addEventListener("click", redo);
@@ -1792,7 +1699,7 @@
   function clearPhoto(){
     if(!naturalW) return;
     if(!confirm("현재 사진과 모든 마킹을 지울까요?")) return;
-    discardPendingEffect(); naturalW=0; naturalH=0; objects=[]; effects=[]; selectedId=null; cropRect=null; drag=null;
+    discardPendingEffect(); naturalW=0; naturalH=0; objects=[]; effects=[]; selectedId=null; drag=null;
     rasterCanvas=document.createElement("canvas"); rasterCtx=rasterCanvas.getContext("2d");
     rasterStates=[]; history=[]; historyIndex=-1;
     viewCanvas.width=1; viewCanvas.height=1; viewCanvas.classList.remove("ready");
@@ -1823,7 +1730,6 @@
       return;
     }
     if(e.key==="Escape"){
-      if(activeTool==="crop"){ closeCropIfActive(true); setActiveTool(null); return; }
       if(pendingEffect){ discardPendingEffect(); redraw(); return; }
       if(drag){ drag=null; redraw(); return; }
       if(selectedId!=null){ selectedId=null; buildOptionsBar(); redraw(); return; }
