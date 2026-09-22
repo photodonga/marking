@@ -1287,6 +1287,8 @@
   // 한 손가락/좌클릭 = 편집, 두 손가락 = 보기(핀치 확대 + 이동).
   // 두 손가락 제스처 중에는 마킹 생성/선택/이동을 절대 실행하지 않는다.
   viewCanvas.addEventListener("pointerdown", function(e){
+    // 핀치 중 손가락이 확대된 캔버스 바깥으로 나가도 move/up 이벤트를 계속 받는다.
+    try{ viewCanvas.setPointerCapture && viewCanvas.setPointerCapture(e.pointerId); }catch(_){ }
     activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
     if(e.pointerType==="touch" && activePointers.size>=2){
       e.preventDefault();
@@ -1311,9 +1313,19 @@
       if(a&&b){
         const dist=Math.max(1,Math.hypot(b.x-a.x,b.y-a.y));
         const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
-        viewZoom=clamp(pinchGesture.startZoom*(dist/pinchGesture.startDist),MIN_VIEW_ZOOM,MAX_VIEW_ZOOM);
-        viewPanX=pinchGesture.startPanX+(mid.x-pinchGesture.startMid.x);
-        viewPanY=pinchGesture.startPanY+(mid.y-pinchGesture.startMid.y);
+        const nextZoom=clamp(pinchGesture.startZoom*(dist/pinchGesture.startDist),MIN_VIEW_ZOOM,MAX_VIEW_ZOOM);
+        // 제스처 시작 중점 아래의 사진 위치를 고정한 채 확대/축소한다.
+        // 단순히 pan에 중점 이동량만 더하면 확대 후 축소할 때 원래 위치로 복귀하지 못한다.
+        const wa=workarea.getBoundingClientRect();
+        const centerX=wa.left+wa.width/2, centerY=wa.top+wa.height/2;
+        const anchorX=pinchGesture.startMid.x-centerX-pinchGesture.startPanX;
+        const anchorY=pinchGesture.startMid.y-centerY-pinchGesture.startPanY;
+        const ratio=nextZoom/Math.max(0.0001,pinchGesture.startZoom);
+        viewZoom=nextZoom;
+        viewPanX=pinchGesture.startPanX + (mid.x-pinchGesture.startMid.x) + anchorX*(1-ratio);
+        viewPanY=pinchGesture.startPanY + (mid.y-pinchGesture.startMid.y) + anchorY*(1-ratio);
+        // fit 크기 근처에서는 정확히 원래 보기로 스냅한다.
+        if(viewZoom<=1.025){ viewZoom=1; viewPanX=0; viewPanY=0; }
         clampView(); applyViewTransform();
       }
       return;
@@ -1328,6 +1340,7 @@
       if(activePointers.size<2){
         pinchGesture.ids.forEach(id=>suppressPointerUp.add(id));
         pinchGesture=null;
+        if(viewZoom<=1.025){ viewZoom=1; viewPanX=0; viewPanY=0; }
         clampView(); applyViewTransform();
       }
       return;
