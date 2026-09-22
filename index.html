@@ -1796,8 +1796,8 @@
   // Landmarker가 실패해도 타원으로 돌아가지 않도록 얼굴 박스에서 완만한 얼굴형 실루엣을 만든다.
   // 관자놀이는 넓게, 턱으로 내려갈수록 좁아져 원형/타원형 느낌을 줄인다.
   function faceLikeMaskFromRect(r){
-    const nx=[.50,.68,.82,.91,.95,.93,.86,.74,.61,.50,.39,.26,.14,.07,.05,.09,.18,.32];
-    const ny=[.00,.03,.10,.22,.38,.56,.73,.87,.96,1.00,.96,.87,.73,.56,.38,.22,.10,.03];
+    const nx=[.50,.64,.77,.86,.90,.89,.82,.70,.58,.50,.42,.30,.18,.11,.10,.14,.23,.36];
+    const ny=[.00,.03,.10,.22,.39,.57,.74,.88,.97,1.00,.97,.88,.74,.57,.39,.22,.10,.03];
     return nx.map((x,i)=>({
       x:clamp(r.x+r.w*x,0,naturalW),
       y:clamp(r.y+r.h*ny[i],0,naturalH)
@@ -1817,11 +1817,20 @@
     if(!best) return null;
 
     const {raw,b,cx,cy}=best;
-    // 얼굴 외곽은 그대로 살리되 이마는 조금 더, 턱은 아주 조금만 확장한다.
-    // 좌우는 2.5%만 넓혀 기존 타원처럼 볼 옆으로 둥글게 퍼지는 현상을 억제한다.
+    // MediaPipe face oval을 그대로 쓰면 정면 얼굴에서 여전히 '달걀/원형'처럼 보일 수 있다.
+    // 세로 위치별로 좌우 폭을 다르게 조여 실제 얼굴 실루엣(관자놀이→볼→턱)을 더 강하게 만든다.
+    // 이마는 조금 위로, 턱은 아주 조금만 아래로 확장하되 귀/배경 쪽은 거의 확장하지 않는다.
+    const yTop=b.y, yBottom=b.y+b.h, bh=Math.max(1,b.h);
     const points=raw.map(p=>{
-      const x=cx+(p.x-cx)*1.025;
-      const yScale=p.y<cy ? 1.085 : 1.035;
+      const v=clamp((p.y-yTop)/bh,0,1); // 0=이마, 1=턱
+      let xScale;
+      if(v<0.16)      xScale=0.84; // 이마/관자놀이: 둥근 머리 모양을 과하게 먹지 않게
+      else if(v<0.42) xScale=0.91; // 눈/광대 위
+      else if(v<0.68) xScale=0.96; // 볼: 얼굴 폭은 대부분 유지
+      else if(v<0.86) xScale=0.88; // 턱선으로 내려가며 수축
+      else             xScale=0.74; // 턱 끝: 확실히 좁혀 얼굴형 강조
+      const x=cx+(p.x-cx)*xScale;
+      const yScale=p.y<cy ? 1.075 : 1.025;
       const y=cy+(p.y-cy)*yScale;
       return {x:clamp(x,0,naturalW),y:clamp(y,0,naturalH)};
     });
@@ -2091,7 +2100,12 @@
     const ft = clamp(feather/100,0,1);
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환에만 쓴다.
     // 블러는 최대 8%, 모자이크는 블록 경계를 흐리지 않도록 최대 2.5%까지만 허용한다.
-    const featherRatio = mode==="mosaic" ? 0.025 : 0.08;
+    // 자동 얼굴형 마스크는 페더가 넓으면 다시 원형처럼 퍼져 보이므로 훨씬 좁게 제한한다.
+    // 수동 타원/사각형은 기존 페더 감각을 유지한다.
+    const isFaceShape = shape==="face" && Array.isArray(maskPoints) && maskPoints.length>=8;
+    const featherRatio = isFaceShape
+      ? (mode==="mosaic" ? 0.010 : 0.032)
+      : (mode==="mosaic" ? 0.025 : 0.08);
     const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.15) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
