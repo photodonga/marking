@@ -170,14 +170,21 @@
     background:rgba(255,255,255,.22);
   }
   #toolbar #btn-clear-photo:not(:disabled){
-    color:#c9362d;
-    background:rgba(255,69,58,.08);
-    border-color:rgba(201,54,45,.16);
+    color:#fff;
+    background:#ff453a;
+    border-color:rgba(180,28,22,.22);
+    box-shadow:0 5px 14px rgba(255,69,58,.28), inset 0 1px 0 rgba(255,255,255,.28);
   }
   #toolbar #btn-clear-photo:hover:not(:disabled){
-    color:#b52c24;
-    background:rgba(255,69,58,.14);
-    border-color:rgba(201,54,45,.22);
+    color:#fff;
+    background:#e83b32;
+    border-color:rgba(180,28,22,.30);
+    box-shadow:0 6px 16px rgba(255,69,58,.34), inset 0 1px 0 rgba(255,255,255,.24);
+  }
+  #toolbar #btn-clear-photo:not(:disabled) svg{
+    width:18px;
+    height:18px;
+    stroke-width:2;
   }
   #toolbar #format-select{color:#20283a;background:rgba(255,255,255,.52);}
   .save-group{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
@@ -462,7 +469,7 @@
         <span class="sep"></span>
         <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 5 11l4 4"/><path d="M5 11h8a6 6 0 0 1 6 6"/></svg></button>
         <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 4 4-4 4"/><path d="M19 11h-8a6 6 0 0 0-6 6"/></svg></button>
-        <button class="icon-btn" id="btn-clear-photo" title="사진 지우기" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="3"/><path d="m9 9 6 6M15 9l-6 6"/></svg></button>
+        <button class="icon-btn" id="btn-clear-photo" title="사진 삭제" aria-label="사진 삭제" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></svg></button>
       </div>
       <div class="save-group">
         <select id="format-select">
@@ -524,7 +531,7 @@
   let pendingEffect = null;  // 아직 확정되지 않은 가림 효과: {rect, canvas, sx, sy}
   let strokeMultCurrent = 1; // 새 객체 생성 시 두께 배율
   let strokeColorCurrent = DEFAULT_COLOR; // 새 객체 생성 시 색상
-  let circleLocked = false;  // true면 도형을 항상 1:1로 생성/조절
+  let circleLocked = true;   // 원/타원 도형은 기본적으로 정원(1:1) 유지
   let shapeKind = "circle";    // circle | rect
 
   let scale = 1;             // base display / natural (export coordinates are unaffected)
