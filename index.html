@@ -346,6 +346,7 @@
         <span class="sep"></span>
         <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled>↶</button>
         <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled>↷</button>
+        <button class="icon-btn" id="btn-clear-photo" title="사진 지우기" disabled>⌫</button>
       </div>
       <div class="save-group">
         <select id="format-select">
@@ -427,6 +428,7 @@
   const optionsBar = document.getElementById("options-bar");
   const btnUndo = document.getElementById("btn-undo");
   const btnRedo = document.getElementById("btn-redo");
+  const btnClearPhoto = document.getElementById("btn-clear-photo");
   const btnSave = document.getElementById("btn-save");
   const formatSelect = document.getElementById("format-select");
   const cropActions = document.getElementById("crop-actions");
@@ -541,6 +543,7 @@
         placeholder.classList.add("hidden");
         viewCanvas.classList.add("ready");
         btnSave.disabled = false;
+        btnClearPhoto.disabled = false;
         setActiveTool(null);
         fitCanvas();
         redraw();
@@ -970,16 +973,20 @@
         optionsBar.appendChild(gc);
 
         if(sel.type==="circle"){
-          const gl = document.createElement("div"); gl.className="opt-group";
-          const seg = document.createElement("div"); seg.className="seg";
-          const lockBtn = document.createElement("button");
-          lockBtn.textContent = "정원";
-          lockBtn.className = circleLocked ? "active" : "";
-          lockBtn.onclick = ()=>{ circleLocked = !circleLocked; buildOptionsBar(); };
-          seg.appendChild(lockBtn);
-          gl.appendChild(seg);
+          const gl = document.createElement("label"); gl.className="opt-group check-opt";
+          const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=circleLocked;
+          lockCheck.onchange=()=>{ circleLocked=lockCheck.checked; };
+          const lockText=document.createElement("span"); lockText.textContent="정원 유지";
+          gl.appendChild(lockCheck); gl.appendChild(lockText);
           optionsBar.appendChild(gl);
         }
+
+        const gd=document.createElement("div"); gd.className="opt-group";
+        const del=document.createElement("button"); del.className="danger-opt"; del.textContent="삭제"; del.title="선택 항목 삭제 (Delete)";
+        del.onclick=()=>{
+          objects=objects.filter(o=>o.id!==selectedId); selectedId=null; pushHistory(false); buildOptionsBar(); redraw(); showToast("선택 항목을 삭제했습니다.",1000);
+        };
+        gd.appendChild(del); optionsBar.appendChild(gd);
       } else {
         optionsBar.classList.add("hidden");
       }
@@ -1136,7 +1143,8 @@
                 ? { rect: faceRects[0], faceRects, autoFace:true }
                 : { rect:r, autoFace:false };
               recomputePendingPreview();
-              if(faceRects.length>1) showToast(faceRects.length+"명 얼굴을 찾았습니다",1400);
+              if(faceRects.length) showToast(faceRects.length+"명 얼굴 자동 인식",1200);
+              else showToast("얼굴을 찾지 못해 선택 영역을 가립니다.",1500);
             });
           }
         }
@@ -1189,7 +1197,7 @@
   // 찾으면 [{x,y,w,h}, ...](원본 좌표), 못 찾거나 라이브러리가 없으면 빈 배열.
   function runFaceDetectionInBox(natRect, cb){
     if(typeof tracking === "undefined" || !tracking.ObjectTracker){ cb([]); return; }
-    const padFrac = 0.25;
+    const padFrac = 0.18;
     const padX = natRect.w*padFrac, padY = natRect.h*padFrac;
     const sx = clamp(Math.floor(natRect.x-padX),0,naturalW);
     const sy = clamp(Math.floor(natRect.y-padY),0,naturalH);
@@ -1198,32 +1206,46 @@
     const cw = Math.max(1, ex-sx), ch = Math.max(1, ey-sy);
     if(cw<24 || ch<24){ cb([]); return; }
 
-    const crop = document.createElement("canvas"); crop.width=cw; crop.height=ch;
-    crop.getContext("2d").drawImage(rasterCanvas, sx,sy,cw,ch, 0,0,cw,ch);
+    // 큰 원본을 그대로 추적하면 모바일에서 느리거나 1.5초 타임아웃에 걸릴 수 있어
+    // 탐지용 이미지만 긴 변 960px 이하로 축소한다. 실제 가림은 원본 해상도 좌표로 되돌린다.
+    const detectMax = 960;
+    const ds = Math.min(1, detectMax/Math.max(cw,ch));
+    const dw = Math.max(24, Math.round(cw*ds)), dh = Math.max(24, Math.round(ch*ds));
+    const crop = document.createElement("canvas"); crop.width=dw; crop.height=dh;
+    const cctx=crop.getContext("2d"); cctx.imageSmoothingEnabled=true; cctx.imageSmoothingQuality="high";
+    cctx.drawImage(rasterCanvas, sx,sy,cw,ch, 0,0,dw,dh);
 
     let settled = false, task = null;
     const finish = (result)=>{
-      if(settled) return;
-      settled = true;
+      if(settled) return; settled = true;
       try{ if(task) task.stop(); }catch(e){}
       cb(result);
     };
     try{
       const tracker = new tracking.ObjectTracker("face");
-      tracker.setInitialScale(2.2);
-      tracker.setStepSize(1.15);
-      tracker.setEdgesDensity(0.08);
+      tracker.setInitialScale(2.0);
+      tracker.setStepSize(1.12);
+      tracker.setEdgesDensity(0.07);
       tracker.on("track", function(ev){
         const data = (ev && ev.data) || [];
         if(!data.length){ finish([]); return; }
-        finish(data.map(rr=>({ x:sx+rr.x, y:sy+rr.y, w:rr.width, h:rr.height })));
+        const inv=1/ds;
+        let faces=data.map(rr=>({ x:sx+rr.x*inv, y:sy+rr.y*inv, w:rr.width*inv, h:rr.height*inv }));
+        // 패딩 영역의 옆 사람까지 딸려오지 않도록, 얼굴 중심이 사용자가 그린 검색영역 안에 있는 것만 채택.
+        faces=faces.filter(f=>{ const cx=f.x+f.w/2, cy=f.y+f.h/2; return cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h; });
+        // 거의 같은 얼굴이 중복 검출되면 큰 박스 하나만 남긴다.
+        faces.sort((a,b)=>(b.w*b.h)-(a.w*a.h));
+        const kept=[];
+        faces.forEach(f=>{
+          const cx=f.x+f.w/2, cy=f.y+f.h/2;
+          const dup=kept.some(k=>{ const kx=k.x+k.w/2, ky=k.y+k.h/2; return Math.hypot(cx-kx,cy-ky)<Math.min(f.w,k.w)*0.35; });
+          if(!dup) kept.push(f);
+        });
+        finish(kept);
       });
       task = tracking.track(crop, tracker);
-    }catch(e){
-      finish([]);
-      return;
-    }
-    setTimeout(function(){ finish([]); }, 1500);
+    }catch(e){ finish([]); return; }
+    setTimeout(function(){ finish([]); }, 2200);
   }
 
   // ---------------- blur / mosaic engine ----------------
@@ -1403,6 +1425,19 @@
   btnUndo.addEventListener("click", undo);
   btnRedo.addEventListener("click", redo);
 
+  // ---------------- photo / selection delete ----------------
+  function clearPhoto(){
+    if(!naturalW) return;
+    if(!confirm("현재 사진과 모든 마킹을 지울까요?")) return;
+    discardPendingEffect(); naturalW=0; naturalH=0; objects=[]; selectedId=null; cropRect=null; drag=null;
+    rasterCanvas=document.createElement("canvas"); rasterCtx=rasterCanvas.getContext("2d");
+    rasterStates=[]; history=[]; historyIndex=-1;
+    viewCanvas.width=1; viewCanvas.height=1; viewCanvas.classList.remove("ready");
+    placeholder.classList.remove("hidden"); btnSave.disabled=true; btnClearPhoto.disabled=true;
+    setActiveTool(null); updateHistoryButtons();
+  }
+  btnClearPhoto.addEventListener("click", clearPhoto);
+
   // ---------------- keyboard shortcuts ----------------
   window.addEventListener("keydown", (e)=>{
     const meta = e.ctrlKey || e.metaKey;
@@ -1461,7 +1496,7 @@
     const mime = format==="png" ? "image/png" : "image/jpeg";
     const quality = format==="png" ? undefined : 0.92;
     const ext = format==="png" ? "png" : "jpg";
-    const filename = "표식_" + Date.now() + "." + ext;
+    const filename = "마킹_" + Date.now() + "." + ext;
 
     outCanvas.toBlob(async (blob)=>{
       if(!blob){ showToast("저장에 실패했습니다."); return; }
