@@ -905,7 +905,7 @@
   }
   function drawObjectSelection(ctx,o){
     const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
-    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,255,255,.9)';
+    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,255,255,.62)';
     ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
     const cp=objectClosePoint(o),cx=cp.x,cy=cp.y,r=cp.r,a=cp.arm;
     ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
@@ -1052,14 +1052,14 @@
     ctx.save();
     ctx.setLineDash([6,5]);
     ctx.lineWidth=1.35;
-    ctx.strokeStyle='rgba(255,255,255,.72)';
+    ctx.strokeStyle='rgba(255,255,255,.52)';
     rs.forEach(r=>ctx.strokeRect(r.x*scale,r.y*scale,r.w*scale,r.h*scale));
     ctx.restore();
   }
 
   function drawEffectSelection(ctx, eff){
     const b=effectBounds(eff), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
-    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,.95)';
+    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.35; ctx.strokeStyle='rgba(255,255,255,.68)';
     ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
     const cp=effectClosePoint(eff), cx=cp.x, cy=cp.y, r=cp.r, a=cp.arm;
     ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
@@ -1796,7 +1796,7 @@
   // Landmarker가 실패해도 타원으로 돌아가지 않도록 얼굴 박스에서 완만한 얼굴형 실루엣을 만든다.
   // 관자놀이는 넓게, 턱으로 내려갈수록 좁아져 원형/타원형 느낌을 줄인다.
   function faceLikeMaskFromRect(r){
-    const nx=[.50,.64,.77,.86,.90,.89,.82,.70,.58,.50,.42,.30,.18,.11,.10,.14,.23,.36];
+    const nx=[.50,.66,.79,.88,.92,.91,.84,.72,.59,.50,.41,.28,.16,.09,.08,.12,.21,.34];
     const ny=[.00,.03,.10,.22,.39,.57,.74,.88,.97,1.00,.97,.88,.74,.57,.39,.22,.10,.03];
     return nx.map((x,i)=>({
       x:clamp(r.x+r.w*x,0,naturalW),
@@ -1824,13 +1824,13 @@
     const points=raw.map(p=>{
       const v=clamp((p.y-yTop)/bh,0,1); // 0=이마, 1=턱
       let xScale;
-      if(v<0.16)      xScale=0.84; // 이마/관자놀이: 둥근 머리 모양을 과하게 먹지 않게
-      else if(v<0.42) xScale=0.91; // 눈/광대 위
-      else if(v<0.68) xScale=0.96; // 볼: 얼굴 폭은 대부분 유지
-      else if(v<0.86) xScale=0.88; // 턱선으로 내려가며 수축
-      else             xScale=0.74; // 턱 끝: 확실히 좁혀 얼굴형 강조
+      if(v<0.16)      xScale=0.89; // 이마/관자놀이: 조금 더 넓혀 이마 양옆이 답답하지 않게
+      else if(v<0.42) xScale=0.95; // 눈/광대 위
+      else if(v<0.68) xScale=0.99; // 볼: 실제 얼굴 폭을 거의 유지
+      else if(v<0.86) xScale=0.91; // 턱선으로 내려가며 완만하게 수축
+      else             xScale=0.79; // 턱 끝: 여전히 좁히되 기존보다 과하지 않게
       const x=cx+(p.x-cx)*xScale;
-      const yScale=p.y<cy ? 1.075 : 1.025;
+      const yScale=p.y<cy ? 1.085 : 1.03;
       const y=cy+(p.y-cy)*yScale;
       return {x:clamp(x,0,naturalW),y:clamp(y,0,naturalH)};
     });
