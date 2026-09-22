@@ -880,7 +880,10 @@
         vctx.drawImage(rendered.canvas, 0,0,rendered.canvas.width,rendered.canvas.height,
           rendered.sx*scale, rendered.sy*scale, rendered.canvas.width*scale, rendered.canvas.height*scale);
       }
+      // 저장하기 전에는 만들어 둔 모든 가림 영역의 경계를 계속 표시한다.
+      // 선택된 영역만 X 버튼을 보여 주고, 나머지는 점선 가이드만 남긴다.
       if(eff.id===selectedId) drawEffectSelection(vctx, eff);
+      else drawEffectGuide(vctx, eff);
     });
 
     if(pendingEffect && pendingEffect.canvas){
@@ -968,6 +971,16 @@
     const b=effectBounds(eff), margin=17;
     return {x:clamp((b.x+b.w)*scale+margin,13,dispW-13), y:clamp(b.y*scale-margin,13,dispH-13)};
   }
+  function drawEffectGuide(ctx, eff){
+    const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
+    ctx.save();
+    ctx.setLineDash([6,5]);
+    ctx.lineWidth=1.35;
+    ctx.strokeStyle='rgba(255,255,255,.72)';
+    rs.forEach(r=>ctx.strokeRect(r.x*scale,r.y*scale,r.w*scale,r.h*scale));
+    ctx.restore();
+  }
+
   function drawEffectSelection(ctx, eff){
     const b=effectBounds(eff), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
     ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.5; ctx.strokeStyle='rgba(255,255,255,.95)';
@@ -1449,10 +1462,22 @@
               // 조건을 통과한 얼굴만 이목구비 중심으로 자동 가림한다. 조건을 못 넘으면 사용자가 그린 위치를 그대로 가린다.
               // MediaPipe가 반환한 눈·코·입 랜드마크 기반 영역을 그대로 사용한다.
               const faceRects=(faces||[]).map(face=>({x:face.x,y:face.y,w:face.w,h:face.h}));
-              pendingEffect = faceRects.length
-                ? { rect: faceRects[0], faceRects, autoFace:true }
-                : { rect:r, autoFace:false };
-              recomputePendingPreview();
+              // 비동기 얼굴 인식 결과를 pendingEffect 하나에 보관하면 연속 작업 때
+              // 다음 가림이 이전 가림을 덮어쓸 수 있다. 검출이 끝나는 즉시 독립 효과 객체로 등록한다.
+              const eff={
+                id:genId(), type:'effect',
+                rect:Object.assign({}, faceRects.length ? faceRects[0] : r),
+                faceRects:faceRects.map(fr=>Object.assign({},fr)),
+                autoFace:!!faceRects.length, mode:blurMode,
+                shape:faceRects.length?'ellipse':blurShape,
+                intensity:intensity, feather:feather
+              };
+              effects.push(eff);
+              selectedId=eff.id;
+              pendingEffect=null;
+              pushHistory(false);
+              buildOptionsBar();
+              redraw();
               if(faceRects.length) showToast("얼굴 위치 보정",1000);
               else showToast("지정한 영역 그대로 가림",1100);
             });
@@ -1512,9 +1537,9 @@
     if(faceLandmarkerPromise) return faceLandmarkerPromise;
     faceLandmarkerPromise = (async()=>{
       try{
-        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/+esm");
+        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
         const fileset = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
         );
         return await vision.FaceLandmarker.createFromOptions(fileset,{
           baseOptions:{
@@ -1531,6 +1556,8 @@
         });
       }catch(err){
         console.warn("Face Landmarker unavailable; manual region will be used.", err);
+        // 일시적인 네트워크/CDN 실패를 세션 내내 캐시하지 않는다. 다음 작업에서 재시도한다.
+        faceLandmarkerPromise = null;
         return null;
       }
     })();
