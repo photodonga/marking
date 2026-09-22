@@ -518,7 +518,7 @@
 
   let activeTool = null;     // 'blur' | 'circle' | 'arrow' | null(선택모드)
   let blurMode = "blur";     // 'blur' | 'mosaic'
-  let blurShape = "ellipse"; // 기본 가림은 소프트 타원형
+  let blurShape = "face"; // 기본 가림은 얼굴 인식 + 얼굴 비율 타원
   let intensity = 50;        // 0-100
   let feather = 72;          // 0-100, 기본은 경계가 드러나지 않는 강한 페더
   let pendingEffect = null;  // 아직 확정되지 않은 가림 효과: {rect, canvas, sx, sy}
@@ -984,7 +984,7 @@
         vctx.lineWidth = 1.5;
         vctx.strokeStyle = "#ffffff";
         vctx.fillStyle = "rgba(255,255,255,0.10)";
-        if(blurShape==="ellipse"){
+        if(blurShape==="face"){
           vctx.beginPath();
           vctx.ellipse(r.x+r.w/2, r.y+r.h/2, r.w/2, r.h/2, 0,0,Math.PI*2);
           vctx.fill(); vctx.stroke();
@@ -1224,11 +1224,11 @@
 
       const g3 = document.createElement("div"); g3.className="opt-group";
       const seg3 = document.createElement("div"); seg3.className="seg";
+      const bFace = document.createElement("button"); bFace.textContent="얼굴"; bFace.className = blurShape==="face"?"active":"";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
-      const bEllipse = document.createElement("button"); bEllipse.textContent="타원형"; bEllipse.className = blurShape==="ellipse"?"active":"";
-      bRect.onclick=()=>{ blurShape="rect"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape=blurShape;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
-      bEllipse.onclick=()=>{ blurShape="ellipse"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape=blurShape;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
-      seg3.appendChild(bRect); seg3.appendChild(bEllipse);
+      bFace.onclick=()=>{ blurShape="face"; buildOptionsBar(); recomputePendingPreview(); redraw(); };
+      bRect.onclick=()=>{ blurShape="rect"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape="rect";pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
+      seg3.appendChild(bFace); seg3.appendChild(bRect);
       g3.appendChild(seg3);
 
       optionsBar.appendChild(g1); optionsBar.appendChild(g2); optionsBar.appendChild(gf); optionsBar.appendChild(g3);
@@ -1469,7 +1469,7 @@
       intensity=Number.isFinite(eh.intensity)?eh.intensity:intensity;
       feather=Number.isFinite(eh.feather)?eh.feather:feather;
       blurMode=eh.mode||blurMode;
-      if(!eh.autoFace) blurShape=eh.shape||blurShape;
+      blurShape = eh.autoFace || eh.shape==="ellipse" ? "face" : "rect";
       // 블러/모자이크도 생성 후 영역 안을 드래그해 자유롭게 이동한다.
       drag={mode:"effectMove",effect:eh,last:dispToNat(dp)};
       buildOptionsBar(); redraw(); return;
@@ -1567,6 +1567,18 @@
         if(moved){
           const r = normRect(dispToNat(dp0), dispToNat(dp1));
           if(r.w>2 && r.h>2){
+            // 얼굴 모드는 얼굴을 찾아 비율에 맞는 타원으로 보정하고,
+            // 사각형 모드는 사용자가 그린 영역을 그대로 즉시 가린다.
+            if(blurShape==="rect"){
+              const eff={
+                id:genId(), type:'effect', rect:Object.assign({},r), faceRects:[],
+                autoFace:false, mode:blurMode, shape:'rect', intensity:intensity, feather:feather
+              };
+              effects.push(eff); selectedId=eff.id; pendingEffect=null;
+              pushHistory(false); buildOptionsBar(); redraw();
+              showToast("사각형 영역 가림",900);
+              return;
+            }
             const toolAtDrag = activeTool;
             runFaceDetectionInBox(r, function(faces, points){
               if(activeTool!==toolAtDrag) return;
@@ -1583,7 +1595,7 @@
                 rect:Object.assign({}, faceRects.length ? faceRects[0] : r),
                 faceRects:faceRects.map(fr=>Object.assign({},fr)),
                 autoFace:!!faceRects.length, mode:blurMode,
-                shape:faceRects.length?'ellipse':blurShape,
+                shape:'ellipse',
                 intensity:intensity, feather:feather
               };
               effects.push(eff);
@@ -1785,9 +1797,9 @@
 
     // 실제 얼굴 비율은 유지하되 타원이 피부에 너무 딱 붙지 않도록 소폭 확장한다.
     // 좌우보다 위쪽을 조금 더 확보해 이마까지 자연스럽게 가린다.
-    const padX=best.w*0.065;
-    const padTop=best.h*0.095;
-    const padBottom=best.h*0.045;
+    const padX=best.w*0.090;
+    const padTop=best.h*0.120;
+    const padBottom=best.h*0.070;
     const x1=clamp(best.x1-padX,0,naturalW);
     const y1=clamp(best.y1-padTop,0,naturalH);
     const x2=clamp(best.x2+padX,0,naturalW);
@@ -1858,7 +1870,7 @@
         }
 
         // Landmarker가 실패하면 Detector 박스 비율을 그대로 살린 타원형으로 폴백한다.
-        const padX=f.bw*0.075, padTop=f.bh*0.16, padBottom=f.bh*0.075;
+        const padX=f.bw*0.100, padTop=f.bh*0.185, padBottom=f.bh*0.100;
         const x1=clamp(f.bx-padX,0,naturalW), y1=clamp(f.by-padTop,0,naturalH);
         const x2=clamp(f.bx+f.bw+padX,0,naturalW), y2=clamp(f.by+f.bh+padBottom,0,naturalH);
         cb([{x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1)}],[{x:f.cx,y:f.cy}]);
@@ -2142,7 +2154,7 @@
     try{
       const rects = pendingEffect.faceRects && pendingEffect.faceRects.length ? pendingEffect.faceRects : [pendingEffect.rect];
       if(rects.length===1){
-        const effectShape = pendingEffect.autoFace ? "ellipse" : blurShape;
+        const effectShape = pendingEffect.autoFace || blurShape==="face" ? "ellipse" : "rect";
         const region = computeEffectRegion(rects[0], effectShape, blurMode);
         pendingEffect.canvas = region.canvas;
         pendingEffect.sx = region.sx;
@@ -2171,7 +2183,7 @@
     const eff={
       id:genId(), type:'effect', rect:Object.assign({},pendingEffect.rect),
       faceRects:(pendingEffect.faceRects||[]).map(r=>Object.assign({},r)),
-      autoFace:!!pendingEffect.autoFace, mode:blurMode, shape:pendingEffect.autoFace?'ellipse':blurShape,
+      autoFace:!!pendingEffect.autoFace, mode:blurMode, shape:(pendingEffect.autoFace||blurShape==='face')?'ellipse':'rect',
       intensity:intensity, feather:feather
     };
     effects.push(eff); selectedId=eff.id; pendingEffect=null;
