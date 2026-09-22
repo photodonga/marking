@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 v0.4</title>
+<title>마킹 v0.5</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
 <style>
@@ -341,6 +341,30 @@
     #options-bar .seg button{padding:5px 9px;font-size:11.5px;}
     #options-bar input[type="range"]{width:78px;}
   }
+  /* ---------- footer notice ---------- */
+  #footer-note{
+    position:absolute;
+    left:50%;
+    bottom:calc(10px + var(--safe-b));
+    transform:translateX(-50%);
+    z-index:12;
+    width:min(94vw, 980px);
+    text-align:center;
+    color:rgba(255,255,255,.50);
+    font-size:10.5px;
+    line-height:1.55;
+    letter-spacing:-.01em;
+    pointer-events:none;
+  }
+  #footer-note .guide{margin-bottom:2px;}
+  #footer-note .shortcut{color:rgba(255,255,255,.40);}
+  #footer-note .privacy{margin-top:2px;color:rgba(255,255,255,.40);}
+  #footer-note .copyright{color:rgba(255,255,255,.30);}
+  @media (max-width:640px){
+    #footer-note{bottom:calc(6px + var(--safe-b));font-size:9.5px;line-height:1.45;width:96vw;}
+    #footer-note .desktop-guide{display:none;}
+  }
+
 </style>
 </head>
 <body>
@@ -384,6 +408,14 @@
     <div id="toast"></div>
   </main>
 
+
+  <div id="footer-note" aria-hidden="true">
+    <div class="guide">사진을 불러온 뒤 가림 · 도형 · 화살표를 선택해 드래그하세요. 기존 마킹은 터치하거나 클릭해 다시 선택 · 수정 · 삭제할 수 있습니다.</div>
+    <div class="shortcut"><span class="desktop-guide">PC: 마우스 휠 확대/축소 · Ctrl/⌘+O 사진 열기 · Ctrl/⌘+Z 실행취소 · Ctrl/⌘+Shift+Z 다시실행 · Delete/Backspace 삭제 · Esc 선택 해제</span><span class="mobile-guide">모바일: 두 손가락 확대/축소 · 두 손가락 이동</span></div>
+    <div class="privacy">사진은 서버에 업로드되지 않으며 이 기기에서만 처리됩니다.</div>
+    <div class="copyright">Copyright by 송은석. All Rights Reserved.</div>
+  </div>
+
   <input type="file" id="file-input" accept="image/png,image/jpeg,image/jpg" hidden>
 </div>
 
@@ -419,8 +451,16 @@
   let circleLocked = false;  // true면 도형을 항상 1:1로 생성/조절
   let shapeKind = "circle";    // circle | rect
 
-  let scale = 1;             // display / natural
+  let scale = 1;             // base display / natural (export coordinates are unaffected)
   let dispW = 0, dispH = 0;
+
+  // 보기 전용 확대/이동. 편집 좌표와 저장 해상도에는 영향을 주지 않는다.
+  let viewZoom = 1;
+  let viewPanX = 0, viewPanY = 0;
+  const MIN_VIEW_ZOOM = 1, MAX_VIEW_ZOOM = 6;
+  const activePointers = new Map();
+  let pinchGesture = null;
+  let suppressPointerUp = new Set();
 
   let rasterStates = [];     // dataURL 배열
   let history = [];          // {rasterStateIndex, objects:[...]}
@@ -561,6 +601,7 @@
         btnSave.disabled = false;
         btnClearPhoto.disabled = false;
         setActiveTool(null);
+        resetView();
         fitCanvas();
         redraw();
       };
@@ -592,6 +633,39 @@
   });
 
   // ---------------- layout ----------------
+  function applyViewTransform(){
+    // CSS transform만 사용하므로 원본/마킹 좌표와 JPEG·PNG 결과는 변하지 않는다.
+    viewCanvas.style.transformOrigin = "50% 50%";
+    viewCanvas.style.transform = `translate(${viewPanX}px, ${viewPanY}px) scale(${viewZoom})`;
+  }
+  function resetView(){
+    viewZoom=1; viewPanX=0; viewPanY=0;
+    applyViewTransform();
+  }
+  function clampView(){
+    if(viewZoom<=1.001){ viewZoom=1; viewPanX=0; viewPanY=0; return; }
+    // 사진이 화면에서 완전히 사라지지 않을 정도로 이동 범위를 제한한다.
+    const maxX=Math.max(0,(dispW*viewZoom-workarea.clientWidth)/2 + workarea.clientWidth*0.42);
+    const maxY=Math.max(0,(dispH*viewZoom-workarea.clientHeight)/2 + workarea.clientHeight*0.42);
+    viewPanX=clamp(viewPanX,-maxX,maxX);
+    viewPanY=clamp(viewPanY,-maxY,maxY);
+  }
+  function setViewZoom(nextZoom, clientX, clientY){
+    const old=viewZoom;
+    nextZoom=clamp(nextZoom,MIN_VIEW_ZOOM,MAX_VIEW_ZOOM);
+    if(Math.abs(nextZoom-old)<0.0001) return;
+    // 포인터 아래의 사진 위치가 가능한 한 그대로 남도록 pan을 보정한다.
+    const wa=workarea.getBoundingClientRect();
+    const cx=clientX==null ? wa.left+wa.width/2 : clientX;
+    const cy=clientY==null ? wa.top+wa.height/2 : clientY;
+    const centerX=wa.left+wa.width/2, centerY=wa.top+wa.height/2;
+    const localX=cx-centerX-viewPanX, localY=cy-centerY-viewPanY;
+    const ratio=nextZoom/old;
+    viewPanX += localX*(1-ratio);
+    viewPanY += localY*(1-ratio);
+    viewZoom=nextZoom;
+    clampView(); applyViewTransform();
+  }
   function fitCanvas(){
     if(!naturalW) return;
     const wrapW = workarea.clientWidth - 24;
@@ -608,6 +682,7 @@
     viewCanvas.style.width = dispW+"px";
     viewCanvas.style.height = dispH+"px";
     vctx.setTransform(dpr,0,0,dpr,0,0);
+    clampView(); applyViewTransform();
   }
   window.addEventListener("resize", ()=>{ fitCanvas(); redraw(); });
 
@@ -895,7 +970,12 @@
   // ---------------- pointer coordinate helpers ----------------
   function getDispPoint(e){
     const rect = viewCanvas.getBoundingClientRect();
-    return { x: clamp(e.clientX-rect.left,0,dispW), y: clamp(e.clientY-rect.top,0,dispH) };
+    // CSS 확대/이동 뒤의 화면 좌표를 base canvas 좌표로 역변환한다.
+    const rw=rect.width||dispW, rh=rect.height||dispH;
+    return {
+      x: clamp((e.clientX-rect.left)*(dispW/rw),0,dispW),
+      y: clamp((e.clientY-rect.top)*(dispH/rh),0,dispH)
+    };
   }
   function dispToNat(p){ return { x:p.x/scale, y:p.y/scale }; }
 
@@ -1113,10 +1193,67 @@
   }
 
   // ---------------- pointer interaction ----------------
-  viewCanvas.addEventListener("pointerdown", onPointerDown);
-  viewCanvas.addEventListener("pointermove", onPointerMove);
-  window.addEventListener("pointerup", onPointerUp);
-  window.addEventListener("pointercancel", onPointerUp);
+  // 한 손가락/좌클릭 = 편집, 두 손가락 = 보기(핀치 확대 + 이동).
+  // 두 손가락 제스처 중에는 마킹 생성/선택/이동을 절대 실행하지 않는다.
+  viewCanvas.addEventListener("pointerdown", function(e){
+    activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
+    if(e.pointerType==="touch" && activePointers.size>=2){
+      e.preventDefault();
+      drag=null; // 첫 손가락으로 시작됐던 편집 동작도 즉시 취소
+      const pts=[...activePointers.values()].slice(0,2);
+      const dx=pts[1].x-pts[0].x, dy=pts[1].y-pts[0].y;
+      pinchGesture={
+        startDist:Math.max(1,Math.hypot(dx,dy)), startZoom:viewZoom,
+        startMid:{x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2},
+        startPanX:viewPanX,startPanY:viewPanY, ids:[...activePointers.keys()].slice(0,2)
+      };
+      pinchGesture.ids.forEach(id=>suppressPointerUp.add(id));
+      redraw(); return;
+    }
+    if(!pinchGesture) onPointerDown(e);
+  });
+  viewCanvas.addEventListener("pointermove", function(e){
+    if(activePointers.has(e.pointerId)) activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
+    if(pinchGesture){
+      e.preventDefault();
+      const a=activePointers.get(pinchGesture.ids[0]), b=activePointers.get(pinchGesture.ids[1]);
+      if(a&&b){
+        const dist=Math.max(1,Math.hypot(b.x-a.x,b.y-a.y));
+        const mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+        viewZoom=clamp(pinchGesture.startZoom*(dist/pinchGesture.startDist),MIN_VIEW_ZOOM,MAX_VIEW_ZOOM);
+        viewPanX=pinchGesture.startPanX+(mid.x-pinchGesture.startMid.x);
+        viewPanY=pinchGesture.startPanY+(mid.y-pinchGesture.startMid.y);
+        clampView(); applyViewTransform();
+      }
+      return;
+    }
+    onPointerMove(e);
+  });
+  function finishPointer(e){
+    const wasSuppressed=suppressPointerUp.has(e.pointerId);
+    activePointers.delete(e.pointerId);
+    suppressPointerUp.delete(e.pointerId);
+    if(pinchGesture){
+      if(activePointers.size<2){
+        pinchGesture.ids.forEach(id=>suppressPointerUp.add(id));
+        pinchGesture=null;
+        clampView(); applyViewTransform();
+      }
+      return;
+    }
+    if(wasSuppressed) return;
+    onPointerUp(e);
+  }
+  window.addEventListener("pointerup", finishPointer);
+  window.addEventListener("pointercancel", finishPointer);
+
+  // PC: 마우스 휠은 보기 확대/축소 전용. 편집 기능과 연결하지 않는다.
+  viewCanvas.addEventListener("wheel", function(e){
+    if(!naturalW) return;
+    e.preventDefault();
+    const factor=Math.exp(-e.deltaY*0.0015);
+    setViewZoom(viewZoom*factor,e.clientX,e.clientY);
+  },{passive:false});
 
   function onPointerDown(e){
     if(!naturalW) return;
