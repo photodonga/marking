@@ -492,7 +492,6 @@
     <div class="copyright">Copyright by 송은석. All Rights Reserved.</div>
   </div>
 
-  <input type="file" id="file-input" accept="image/*" hidden>
 </div>
 
 <script>
@@ -553,7 +552,7 @@
   const placeholder = document.getElementById("placeholder");
   const viewCanvas = document.getElementById("view-canvas");
   const vctx = viewCanvas.getContext("2d");
-  const fileInput = document.getElementById("file-input");
+  let activePickerInput = null; // iOS용: 사진창을 열 때마다 새 단일 선택 input을 만든다.
   const optionsBar = document.getElementById("options-bar");
   const toolbarEl = document.getElementById("toolbar");
   const saveGroupEl = toolbarEl.querySelector(".save-group");
@@ -723,19 +722,49 @@
     reader.readAsDataURL(file);
   }
 
-  // 사진 선택은 이음의 '사진 교체' 입력과 동일하게 단순한 단일-file input으로 유지한다.
-  // iOS Photos picker는 input 상태를 열기 직전에 JS로 재설정하면 선택 UI가 달라질 수 있어,
-  // 클릭 전에는 속성을 건드리지 않고 선택 완료(change) 뒤에만 value를 비운다.
+  // iOS 사진 선택창은 같은 <input type=file> 요소를 재사용할 때 이전 picker 상태가
+  // 남아 다중 선택/확정 UI처럼 열리는 경우가 있다. 마킹은 항상 한 장만 필요하므로
+  // 사진창을 열 때마다 '새로운 단일 선택 input'을 만들어 picker 설정을 강제로 초기화한다.
+  // multiple/capture는 절대 지정하지 않는다. 선택된 첫 파일을 받은 즉시 input은 제거한다.
   function openImagePicker(){
-    fileInput.click();
+    if(activePickerInput) return;
+
+    const picker = document.createElement("input");
+    picker.type = "file";
+    picker.accept = "image/*";
+    picker.multiple = false;
+    picker.removeAttribute("multiple");
+    picker.removeAttribute("capture");
+    picker.setAttribute("aria-hidden", "true");
+    picker.style.position = "fixed";
+    picker.style.left = "-9999px";
+    picker.style.top = "0";
+    picker.style.width = "1px";
+    picker.style.height = "1px";
+    picker.style.opacity = "0";
+    picker.style.pointerEvents = "none";
+
+    const cleanup = ()=>{
+      if(activePickerInput === picker) activePickerInput = null;
+      try { picker.remove(); } catch(_) {}
+    };
+
+    picker.addEventListener("change", ()=>{
+      const file = picker.files && picker.files.length ? picker.files[0] : null;
+      if(file) loadImageFile(file);
+      // change 콜백이 끝난 뒤 제거해야 iOS가 File 객체를 안정적으로 넘긴다.
+      setTimeout(cleanup, 0);
+    }, {once:true});
+
+    // 사용자가 사진창을 취소했을 때도 다음 열기에서 새 input을 만들 수 있게 한다.
+    picker.addEventListener("cancel", cleanup, {once:true});
+
+    document.body.appendChild(picker);
+    activePickerInput = picker;
+    picker.click();
   }
 
   placeholder.addEventListener("click", openImagePicker);
-  fileInput.addEventListener("change", (e)=>{
-    const file = e.target.files && e.target.files[0];
-    if(file) loadImageFile(file);
-    e.target.value = ""; // 같은 사진을 다시 고를 수 있도록 완료 후에만 초기화
-  });
   ["dragenter","dragover"].forEach(ev=>{
     workarea.addEventListener(ev, e=>{
       e.preventDefault();
