@@ -326,6 +326,25 @@
     #toolbar .save-group{margin-left:auto;}
   }
 
+  /* Wide desktop: keep the controls together instead of stretching them edge-to-edge.
+     Medium/tablet layouts keep the flexible behavior above so nothing gets crushed. */
+  @media (min-width:900px){
+    #toolbar{
+      justify-content:center;
+    }
+    #toolbar .tools{
+      flex:0 0 auto;
+      min-width:max-content;
+    }
+    #toolbar #options-bar{
+      flex:0 1 auto;
+    }
+    #toolbar .save-group{
+      margin-left:8px;
+      flex:0 0 auto;
+    }
+  }
+
   @media (max-width:640px){
     #chrome{top:calc(6px + var(--safe-t));left:6px;right:6px;gap:4px;}
     .brand{display:none;}
@@ -362,6 +381,25 @@
   #footer-note .shortcut{color:rgba(255,255,255,.40);}
   #footer-note .privacy{margin-top:2px;color:rgba(255,255,255,.40);}
   #footer-note .copyright{color:rgba(255,255,255,.30);}
+  /* Wide desktop: keep the controls together instead of stretching them edge-to-edge.
+     Medium/tablet layouts keep the flexible behavior above so nothing gets crushed. */
+  @media (min-width:900px){
+    #toolbar{
+      justify-content:center;
+    }
+    #toolbar .tools{
+      flex:0 0 auto;
+      min-width:max-content;
+    }
+    #toolbar #options-bar{
+      flex:0 1 auto;
+    }
+    #toolbar .save-group{
+      margin-left:8px;
+      flex:0 0 auto;
+    }
+  }
+
   @media (max-width:640px){
     #footer-note{bottom:calc(6px + var(--safe-b));font-size:9.5px;line-height:1.45;width:96vw;}
     #footer-note .desktop-guide{display:none;}
@@ -701,11 +739,10 @@
   function drawArrowShape(ctx, x1,y1,x2,y2, sw, color){
     const angle = Math.atan2(y2-y1, x2-x1);
     const arrowLen = Math.hypot(x2-x1, y2-y1);
-    // 화살촉은 선 굵기가 아니라 사진의 긴 변을 기준으로 규격화한다.
-    // 아주 짧은 화살표에서만 몸통을 삼키지 않도록 길이의 38%로 제한한다.
-    const standardHeadLen = longSide() * 0.012;
-    const headLen = Math.min(standardHeadLen, Math.max(sw*2.8, arrowLen*0.30));
-    const headHalfAngle = Math.PI/7; // 약 26°: 기존보다 작고 날렵한 화살촉
+    // 화살촉 크기는 현재 그려지는 선 굵기와 화살표 길이를 기준으로 계산한다.
+    // 화면 미리보기에서도 원본 사진의 natural size를 참조하지 않아 과도하게 커지지 않는다.
+    const headLen = Math.min(Math.max(sw*4.2, arrowLen*0.055), arrowLen*0.14);
+    const headHalfAngle = Math.PI/7.2; // 약 25°: 작고 날렵한 화살촉
     const shortenX = Math.cos(angle)*headLen*0.62;
     const shortenY = Math.sin(angle)*headLen*0.62;
     ctx.lineWidth = sw;
@@ -1460,9 +1497,9 @@
     if(faceLandmarkerPromise) return faceLandmarkerPromise;
     faceLandmarkerPromise = (async()=>{
       try{
-        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/+esm");
+        const vision = await import("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/+esm");
         const fileset = await vision.FilesetResolver.forVisionTasks(
-          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm"
+          "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
         );
         return await vision.FaceLandmarker.createFromOptions(fileset,{
           baseOptions:{
@@ -1471,9 +1508,11 @@
           },
           runningMode:"IMAGE",
           numFaces:4,
-          minFaceDetectionConfidence:0.55,
-          minFacePresenceConfidence:0.55,
-          minTrackingConfidence:0.5
+          minFaceDetectionConfidence:0.60,
+          minFacePresenceConfidence:0.60,
+          minTrackingConfidence:0.55,
+          outputFaceBlendshapes:false,
+          outputFacialTransformationMatrixes:false
         });
       }catch(err){
         console.warn("Face Landmarker unavailable; manual region will be used.", err);
