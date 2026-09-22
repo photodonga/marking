@@ -325,11 +325,21 @@
   #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
   @media (max-width:640px){
+    #chrome{top:calc(6px + var(--safe-t));left:6px;right:6px;gap:4px;}
     .brand{display:none;}
-    #toolbar{gap:6px;padding:7px 8px;}
-    .tool-btn{padding:7px 9px;font-size:12.5px;}
+    #toolbar{gap:4px;padding:5px 6px;border-radius:20px;}
+    .tools{gap:2px;}
+    .tool-btn{padding:6px 8px;font-size:12px;}
     .tool-btn .label{display:none;}
-    .save-btn{padding:8px 14px;font-size:12.5px;}
+    .icon-btn{width:31px;height:31px;}
+    .save-group{gap:5px;}
+    #format-select{padding:6px 7px;font-size:12px;}
+    .save-btn{padding:7px 12px;font-size:12.5px;}
+    #options-bar{gap:10px;padding:6px 9px;border-radius:14px;font-size:11.5px;}
+    #options-bar .opt-group{gap:5px;}
+    #options-bar .seg{padding:2px;gap:2px;}
+    #options-bar .seg button{padding:5px 9px;font-size:11.5px;}
+    #options-bar input[type="range"]{width:78px;}
   }
 </style>
 </head>
@@ -418,6 +428,8 @@
 
   let drag = null;           // 진행중인 포인터 상호작용 상태
   let cropRect = null;       // {x,y,w,h} in natural coords, 자르기 진행중
+  let faceDebugPoints = [];  // 얼굴 인식 중심점 표시용(원본 좌표)
+  let faceDebugTimer = null;
 
   let rafPending = false;
 
@@ -792,6 +804,18 @@
       vctx.restore();
     }
 
+    // 가림 범위를 놓은 직후, 실제로 인식된 얼굴 중심을 잠깐 파란 점으로 보여준다.
+    if(faceDebugPoints.length){
+      vctx.save();
+      faceDebugPoints.forEach(p=>{
+        const x=p.x*scale, y=p.y*scale;
+        vctx.beginPath(); vctx.arc(x,y,6,0,Math.PI*2);
+        vctx.fillStyle="#0a84ff"; vctx.fill();
+        vctx.lineWidth=2; vctx.strokeStyle="rgba(255,255,255,.95)"; vctx.stroke();
+      });
+      vctx.restore();
+    }
+
     if(cropRect && !(drag && drag.mode==="create")){
       const r = {x:cropRect.x*scale, y:cropRect.y*scale, w:cropRect.w*scale, h:cropRect.h*scale};
       vctx.save();
@@ -833,13 +857,22 @@
   }
 
   function findEffectAt(dp){
-    // 모바일에서는 손가락으로 다시 고르기 쉽도록 화면 기준 약 22px의 여유를 둔다.
-    // 페더 때문에 실제 효과의 경계가 흐려도 원래 마킹 영역을 기준으로 재선택한다.
-    const tolNat = 22 / Math.max(scale, 0.001);
-    const x=dp.x/scale, y=dp.y/scale;
+    // 모바일 재선택 여유는 주되, 타원형 가림의 빈 모서리까지 잡히지는 않게 한다.
+    const tolPx = 18, x=dp.x/scale, y=dp.y/scale;
     for(let i=effects.length-1;i>=0;i--){
-      const e=effects[i], b=effectBounds(e);
-      if(x>=b.x-tolNat && x<=b.x+b.w+tolNat && y>=b.y-tolNat && y<=b.y+b.h+tolNat) return e;
+      const e=effects[i];
+      const rs=e.faceRects&&e.faceRects.length?e.faceRects:[e.rect];
+      for(const r of rs){
+        if((e.shape||"ellipse")==="ellipse"){
+          const rx=Math.max(1,r.w*scale/2+tolPx), ry=Math.max(1,r.h*scale/2+tolPx);
+          const cx=(r.x+r.w/2)*scale, cy=(r.y+r.h/2)*scale;
+          const dx=(dp.x-cx)/rx, dy=(dp.y-cy)/ry;
+          if(dx*dx+dy*dy<=1) return e;
+        }else{
+          const t=tolPx/Math.max(scale,.001);
+          if(x>=r.x-t&&x<=r.x+r.w+t&&y>=r.y-t&&y<=r.y+r.h+t) return e;
+        }
+      }
     }
     return null;
   }
@@ -895,12 +928,16 @@
       if(o.type==="arrow"){
         const d = distToSegment(dispPt.x,dispPt.y, o.x1*scale,o.y1*scale, o.x2*scale,o.y2*scale);
         if(d<=HIT_TOLERANCE) return o;
-      } else {
-        const b = objectBoundsNatural(o);
-        const bx=b.x*scale, by=b.y*scale, bw=b.w*scale, bh=b.h*scale;
-        if(dispPt.x>=bx-HIT_TOLERANCE && dispPt.x<=bx+bw+HIT_TOLERANCE && dispPt.y>=by-HIT_TOLERANCE && dispPt.y<=by+bh+HIT_TOLERANCE){
-          return o;
-        }
+      } else if(o.type==="circle"){
+        const cx=o.cx*scale, cy=o.cy*scale, rx=Math.max(1,o.rx*scale), ry=Math.max(1,o.ry*scale);
+        const q=Math.sqrt(((dispPt.x-cx)/rx)**2+((dispPt.y-cy)/ry)**2);
+        const tol=HIT_TOLERANCE/Math.max(4,Math.min(rx,ry));
+        if(Math.abs(q-1)<=tol) return o;
+      } else if(o.type==="rect"){
+        const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
+        const inside=dispPt.x>=x-HIT_TOLERANCE&&dispPt.x<=x+w+HIT_TOLERANCE&&dispPt.y>=y-HIT_TOLERANCE&&dispPt.y<=y+h+HIT_TOLERANCE;
+        const edge=Math.min(Math.abs(dispPt.x-x),Math.abs(dispPt.x-(x+w)),Math.abs(dispPt.y-y),Math.abs(dispPt.y-(y+h)));
+        if(inside&&edge<=HIT_TOLERANCE) return o;
       }
     }
     return null;
@@ -1099,6 +1136,9 @@
     const eh=findEffectAt(dp);
     if(eh){ selectedId=eh.id; buildOptionsBar(); redraw(); return; }
 
+    // 기존 항목이 없는 곳을 누르면 먼저 선택을 해제한다.
+    if(selectedId!=null){ selectedId=null; buildOptionsBar(); redraw(); }
+
     if(activeTool==="crop"){
       if(pendingEffect) commitPendingEffect();
       drag = {mode:"create", startDisp:dp, curDisp:dp}; redraw(); return;
@@ -1194,8 +1234,11 @@
           const r = normRect(dispToNat(dp0), dispToNat(dp1));
           if(r.w>2 && r.h>2){
             const toolAtDrag = activeTool;
-            runFaceDetectionInBox(r, function(faces){
+            runFaceDetectionInBox(r, function(faces, points){
               if(activeTool!==toolAtDrag) return;
+              faceDebugPoints = points || [];
+              clearTimeout(faceDebugTimer);
+              faceDebugTimer = setTimeout(()=>{ faceDebugPoints=[]; redraw(); }, 1100);
               // 조건을 통과한 얼굴만 이목구비 중심으로 자동 가림한다. 조건을 못 넘으면 사용자가 그린 위치를 그대로 가린다.
               // tracking.js의 face box를 기준으로 중앙 88% × 78%만 사용하고,
               // 타원 + 강한 페더로 뉴스 사진에서 흔히 쓰는 자연스러운 익명화 느낌을 만든다.
@@ -1267,7 +1310,7 @@
   // 드래그한 영역(natRect, 원본 좌표) 안에서 얼굴을 찾아 콜백으로 넘긴다.
   // 찾으면 [{x,y,w,h}, ...](원본 좌표), 못 찾거나 라이브러리가 없으면 빈 배열.
   function runFaceDetectionInBox(natRect, cb){
-    if(typeof tracking === "undefined" || !tracking.ObjectTracker){ cb([]); return; }
+    if(typeof tracking === "undefined" || !tracking.ObjectTracker){ cb([],[]); return; }
     const padFrac = 0.18;
     const padX = natRect.w*padFrac, padY = natRect.h*padFrac;
     const sx = clamp(Math.floor(natRect.x-padX),0,naturalW);
@@ -1275,7 +1318,7 @@
     const ex = clamp(Math.ceil(natRect.x+natRect.w+padX),0,naturalW);
     const ey = clamp(Math.ceil(natRect.y+natRect.h+padY),0,naturalH);
     const cw = Math.max(1, ex-sx), ch = Math.max(1, ey-sy);
-    if(cw<24 || ch<24){ cb([]); return; }
+    if(cw<24 || ch<24){ cb([],[]); return; }
 
     // 큰 원본을 그대로 추적하면 모바일에서 느리거나 1.5초 타임아웃에 걸릴 수 있어
     // 탐지용 이미지만 긴 변 960px 이하로 축소한다. 실제 가림은 원본 해상도 좌표로 되돌린다.
@@ -1287,10 +1330,10 @@
     cctx.drawImage(rasterCanvas, sx,sy,cw,ch, 0,0,dw,dh);
 
     let settled = false, task = null;
-    const finish = (result)=>{
+    const finish = (result, points)=>{
       if(settled) return; settled = true;
       try{ if(task) task.stop(); }catch(e){}
-      cb(result);
+      cb(result, points||[]);
     };
     try{
       const tracker = new tracking.ObjectTracker("face");
@@ -1299,31 +1342,27 @@
       tracker.setEdgesDensity(0.07);
       tracker.on("track", function(ev){
         const data = (ev && ev.data) || [];
-        if(!data.length){ finish([]); return; }
+        if(!data.length){ finish([],[]); return; }
         const inv=1/ds;
         let faces=data.map(rr=>({ x:sx+rr.x*inv, y:sy+rr.y*inv, w:rr.width*inv, h:rr.height*inv }));
         // 사용자가 지정한 위치를 최우선한다. 단순히 얼굴 중심이 박스 안에 있다는 이유만으로
         // 주변 얼굴로 마킹이 점프하지 않도록, 얼굴과 지정 영역이 충분히 겹치고
         // 지정 영역의 크기도 얼굴에 비해 지나치게 크지 않을 때만 자동 얼굴 스냅한다.
-        faces=faces.filter(f=>{
+        const selCx=natRect.x+natRect.w/2, selCy=natRect.y+natRect.h/2;
+        const centered=faces.filter(f=>{
+          const cx=f.x+f.w/2, cy=f.y+f.h/2;
+          return cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h;
+        });
+        const points=centered.map(f=>({x:f.x+f.w/2,y:f.y+f.h/2}));
+        faces=centered.filter(f=>{
           const ix=Math.max(0, Math.min(f.x+f.w,natRect.x+natRect.w)-Math.max(f.x,natRect.x));
           const iy=Math.max(0, Math.min(f.y+f.h,natRect.y+natRect.h)-Math.max(f.y,natRect.y));
-          const inter=ix*iy, faceArea=Math.max(1,f.w*f.h), selArea=Math.max(1,natRect.w*natRect.h);
-          const overlapFace=inter/faceArea;
-          const sizeRatio=selArea/faceArea;
-          const cx=f.x+f.w/2, cy=f.y+f.h/2;
-          const centerInside=cx>=natRect.x && cx<=natRect.x+natRect.w && cy>=natRect.y && cy<=natRect.y+natRect.h;
-          return centerInside && overlapFace>=0.62 && sizeRatio<=5.0;
+          const faceArea=Math.max(1,f.w*f.h), selArea=Math.max(1,natRect.w*natRect.h);
+          return (ix*iy)/faceArea>=0.62 && selArea/faceArea<=5.0;
         });
-        // 거의 같은 얼굴이 중복 검출되면 큰 박스 하나만 남긴다.
-        faces.sort((a,b)=>(b.w*b.h)-(a.w*a.h));
-        const kept=[];
-        faces.forEach(f=>{
-          const cx=f.x+f.w/2, cy=f.y+f.h/2;
-          const dup=kept.some(k=>{ const kx=k.x+k.w/2, ky=k.y+k.h/2; return Math.hypot(cx-kx,cy-ky)<Math.min(f.w,k.w)*0.35; });
-          if(!dup) kept.push(f);
-        });
-        finish(kept);
+        // 여러 얼굴 중심이 범위 안에 있으면 사용자가 그린 범위의 중심과 가장 가까운 한 명만 선택한다.
+        faces.sort((a,b)=>Math.hypot(a.x+a.w/2-selCx,a.y+a.h/2-selCy)-Math.hypot(b.x+b.w/2-selCx,b.y+b.h/2-selCy));
+        finish(faces.length?[faces[0]]:[], points);
       });
       task = tracking.track(crop, tracker);
     }catch(e){ finish([]); return; }
