@@ -618,12 +618,7 @@
     const ratio = 0.012 + 0.025 * (1 - Math.exp(-2.2*t)); // 50≈2.9%, 100≈3.4%
     return Math.max(2, Math.min(base*0.036, base*ratio));
   }
-  function deepCloneObjects(arr){
-    return arr.map(o=>Object.assign({},o,
-      o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {},
-      o.faceMasks ? {faceMasks:o.faceMasks.map(poly=>(poly||[]).map(p=>({x:p.x,y:p.y})))} : {}
-    ));
-  }
+  function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
   function showToast(msg, ms){
     toastEl.textContent = msg;
@@ -885,8 +880,8 @@
     // 작은 선택 영역에서는 X가 객체를 덮지 않도록 시각 크기만 축소한다.
     // 터치 판정 영역은 별도로 넉넉하게 유지한다.
     const minDim=Math.max(1,Math.min(Math.abs(w),Math.abs(h)));
-    const r=clamp(minDim*0.11,6,10);
-    return {r, arm:Math.max(2.6,r*0.42), inset:r+2, hit:20};
+    const r=clamp(minDim*0.09,5,8);
+    return {r, arm:Math.max(2.2,r*0.38), inset:r+1.5, hit:18};
   }
   function objectClosePoint(o){
     // 화살표는 화살촉 근처, 도형은 우상단 안쪽에 배치한다.
@@ -905,11 +900,11 @@
   }
   function drawObjectSelection(ctx,o){
     const b=objectBoundsNatural(o), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
-    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.2; ctx.strokeStyle='rgba(255,255,255,.62)';
+    ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1.0; ctx.strokeStyle='rgba(255,255,255,.46)';
     ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
     const cp=objectClosePoint(o),cx=cp.x,cy=cp.y,r=cp.r,a=cp.arm;
-    ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
-    ctx.strokeStyle='#fff';ctx.lineWidth=Math.max(1.5,r*0.18);ctx.beginPath();ctx.moveTo(cx-a,cy-a);ctx.lineTo(cx+a,cy+a);ctx.moveTo(cx+a,cy-a);ctx.lineTo(cx-a,cy+a);ctx.stroke();ctx.restore();
+    ctx.fillStyle='rgba(28,28,30,.78)'; ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.92)';ctx.lineWidth=Math.max(1.2,r*0.16);ctx.beginPath();ctx.moveTo(cx-a,cy-a);ctx.lineTo(cx+a,cy+a);ctx.moveTo(cx+a,cy-a);ctx.lineTo(cx-a,cy+a);ctx.stroke();ctx.restore();
   }
   function objectCloseHit(dp,o){ const cp=objectClosePoint(o); return Math.hypot(dp.x-cp.x,dp.y-cp.y)<=cp.hit; }
 
@@ -965,9 +960,9 @@
         pendingEffect.sx*scale, pendingEffect.sy*scale, pc.width*scale, pc.height*scale);
       const r = pendingEffect.rect;
       vctx.save();
-      vctx.setLineDash([5,4]);
-      vctx.lineWidth = 1.5;
-      vctx.strokeStyle = "rgba(255,255,255,0.85)";
+      vctx.setLineDash([4,3]);
+      vctx.lineWidth = 1.05;
+      vctx.strokeStyle = "rgba(255,255,255,0.60)";
       vctx.strokeRect(r.x*scale, r.y*scale, r.w*scale, r.h*scale);
       vctx.restore();
     }
@@ -1050,20 +1045,20 @@
   function drawEffectGuide(ctx, eff){
     const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
     ctx.save();
-    ctx.setLineDash([6,5]);
-    ctx.lineWidth=1.35;
-    ctx.strokeStyle='rgba(255,255,255,.52)';
+    ctx.setLineDash([4,3]);
+    ctx.lineWidth=1.05;
+    ctx.strokeStyle='rgba(255,255,255,.42)';
     rs.forEach(r=>ctx.strokeRect(r.x*scale,r.y*scale,r.w*scale,r.h*scale));
     ctx.restore();
   }
 
   function drawEffectSelection(ctx, eff){
     const b=effectBounds(eff), x=b.x*scale,y=b.y*scale,w=b.w*scale,h=b.h*scale;
-    ctx.save(); ctx.setLineDash([6,5]); ctx.lineWidth=1.35; ctx.strokeStyle='rgba(255,255,255,.68)';
+    ctx.save(); ctx.setLineDash([4,3]); ctx.lineWidth=1.05; ctx.strokeStyle='rgba(255,255,255,.56)';
     ctx.strokeRect(x,y,w,h); ctx.setLineDash([]);
     const cp=effectClosePoint(eff), cx=cp.x, cy=cp.y, r=cp.r, a=cp.arm;
-    ctx.fillStyle='rgba(28,28,30,.92)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
-    ctx.strokeStyle='#fff'; ctx.lineWidth=Math.max(1.5,r*0.18);
+    ctx.fillStyle='rgba(28,28,30,.78)'; ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.lineWidth=Math.max(1.2,r*0.16);
     ctx.beginPath(); ctx.moveTo(cx-a,cy-a);ctx.lineTo(cx+a,cy+a);ctx.moveTo(cx+a,cy-a);ctx.lineTo(cx-a,cy+a);ctx.stroke();
     ctx.restore();
   }
@@ -1079,19 +1074,8 @@
     for(let i=effects.length-1;i>=0;i--){
       const e=effects[i];
       const rs=e.faceRects&&e.faceRects.length?e.faceRects:[e.rect];
-      const masks=e.faceMasks||[];
-      for(let ri=0;ri<rs.length;ri++){
-        const r=rs[ri], poly=masks[ri];
-        if(poly && poly.length>=8){
-          // 실제 얼굴형 마스크 내부를 누르면 선택된다.
-          let inside=false;
-          for(let a=0,b=poly.length-1;a<poly.length;b=a++){
-            const xi=poly[a].x*scale, yi=poly[a].y*scale, xj=poly[b].x*scale, yj=poly[b].y*scale;
-            const cross=((yi>dp.y)!=(yj>dp.y)) && (dp.x < (xj-xi)*(dp.y-yi)/((yj-yi)||1e-9)+xi);
-            if(cross) inside=!inside;
-          }
-          if(inside) return e;
-        } else if((e.shape||"ellipse")==="ellipse"){
+      for(const r of rs){
+        if((e.shape||"ellipse")==="ellipse"){
           const rx=Math.max(1,r.w*scale/2+tolPx), ry=Math.max(1,r.h*scale/2+tolPx);
           const cx=(r.x+r.w/2)*scale, cy=(r.y+r.h/2)*scale;
           const dx=(dp.x-cx)/rx, dy=(dp.y-cy)/ry;
@@ -1537,9 +1521,6 @@
       const mdy=clamp(dy,-b.y,naturalH-(b.y+b.h));
       eff.rect.x+=mdx; eff.rect.y+=mdy;
       if(eff.faceRects&&eff.faceRects.length) eff.faceRects.forEach(r=>{r.x+=mdx;r.y+=mdy;});
-      if(eff.faceMasks&&eff.faceMasks.length) eff.faceMasks.forEach(poly=>{
-        (poly||[]).forEach(p=>{p.x+=mdx;p.y+=mdy;});
-      });
       drag.last={x:nat.x-(dx-mdx),y:nat.y-(dy-mdy)};
       redraw();
     } else if(drag.mode==="resize"){
@@ -1593,16 +1574,14 @@
               // 조건을 통과한 얼굴만 이목구비 중심으로 자동 가림한다. 조건을 못 넘으면 사용자가 그린 위치를 그대로 가린다.
               // MediaPipe가 반환한 눈·코·입 랜드마크 기반 영역을 그대로 사용한다.
               const faceRects=(faces||[]).map(face=>({x:face.x,y:face.y,w:face.w,h:face.h}));
-              const faceMasks=(faces||[]).map(face=>(face.maskPoints||[]).map(p=>({x:p.x,y:p.y})));
               // 비동기 얼굴 인식 결과를 pendingEffect 하나에 보관하면 연속 작업 때
               // 다음 가림이 이전 가림을 덮어쓸 수 있다. 검출이 끝나는 즉시 독립 효과 객체로 등록한다.
               const eff={
                 id:genId(), type:'effect',
                 rect:Object.assign({}, faceRects.length ? faceRects[0] : r),
                 faceRects:faceRects.map(fr=>Object.assign({},fr)),
-                faceMasks:faceMasks,
                 autoFace:!!faceRects.length, mode:blurMode,
-                shape:faceRects.length?'face':blurShape,
+                shape:faceRects.length?'ellipse':blurShape,
                 intensity:intensity, feather:feather
               };
               effects.push(eff);
@@ -1784,57 +1763,34 @@
     }
   }
 
-  const FACE_OVAL_INDICES = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
+  // 얼굴 외곽선을 그대로 마스크로 쓰지 않고, 랜드마크는 얼굴의 실제 가로/세로 비율과 중심만 계산하는 데 사용한다.
+  // 최종 가림 모양은 항상 매끈한 타원형이다.
+  const FACE_OVAL_BOUNDS_INDICES = [10,338,297,332,284,251,389,356,454,323,361,288,397,365,379,378,400,377,152,148,176,149,150,136,172,58,132,93,234,127,162,21,54,103,67,109];
 
-  function polygonBounds(points){
-    if(!points || !points.length) return null;
-    const xs=points.map(p=>p.x), ys=points.map(p=>p.y);
-    const x1=Math.min(...xs), y1=Math.min(...ys), x2=Math.max(...xs), y2=Math.max(...ys);
-    return {x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1)};
-  }
-
-  // Landmarker가 실패해도 타원으로 돌아가지 않도록 얼굴 박스에서 완만한 얼굴형 실루엣을 만든다.
-  // 관자놀이는 넓게, 턱으로 내려갈수록 좁아져 원형/타원형 느낌을 줄인다.
-  function faceLikeMaskFromRect(r){
-    const nx=[.50,.66,.79,.88,.92,.91,.84,.72,.59,.50,.41,.28,.16,.09,.08,.12,.21,.34];
-    const ny=[.00,.03,.10,.22,.39,.57,.74,.88,.97,1.00,.97,.88,.74,.57,.39,.22,.10,.03];
-    return nx.map((x,i)=>({
-      x:clamp(r.x+r.w*x,0,naturalW),
-      y:clamp(r.y+r.h*ny[i],0,naturalH)
-    }));
-  }
-
-  function bestFaceOvalMask(landmarkFaces, sx,sy,cw,ch, targetCx,targetCy){
+  function adaptiveFaceEllipseFromLandmarks(landmarkFaces, sx, sy, cw, ch, targetCx, targetCy){
     let best=null;
     for(const lm of (landmarkFaces||[])){
-      const raw=FACE_OVAL_INDICES.map(i=>lm[i]).filter(Boolean).map(pt=>({x:sx+pt.x*cw,y:sy+pt.y*ch}));
-      if(raw.length<24) continue;
-      const b=polygonBounds(raw); if(!b) continue;
-      const cx=b.x+b.w/2, cy=b.y+b.h/2;
+      const pts=FACE_OVAL_BOUNDS_INDICES.map(i=>lm[i]).filter(Boolean).map(pt=>({x:sx+pt.x*cw,y:sy+pt.y*ch}));
+      if(pts.length<24) continue;
+      const xs=pts.map(p=>p.x), ys=pts.map(p=>p.y);
+      const x1=Math.min(...xs), x2=Math.max(...xs), y1=Math.min(...ys), y2=Math.max(...ys);
+      const w=Math.max(8,x2-x1), h=Math.max(8,y2-y1);
+      const cx=(x1+x2)/2, cy=(y1+y2)/2;
       const dist=Math.hypot(cx-targetCx,cy-targetCy);
-      if(!best || dist<best.dist) best={raw,b,cx,cy,dist};
+      if(!best || dist<best.dist) best={x1,x2,y1,y2,w,h,cx,cy,dist};
     }
     if(!best) return null;
 
-    const {raw,b,cx,cy}=best;
-    // MediaPipe face oval을 그대로 쓰면 정면 얼굴에서 여전히 '달걀/원형'처럼 보일 수 있다.
-    // 세로 위치별로 좌우 폭을 다르게 조여 실제 얼굴 실루엣(관자놀이→볼→턱)을 더 강하게 만든다.
-    // 이마는 조금 위로, 턱은 아주 조금만 아래로 확장하되 귀/배경 쪽은 거의 확장하지 않는다.
-    const yTop=b.y, yBottom=b.y+b.h, bh=Math.max(1,b.h);
-    const points=raw.map(p=>{
-      const v=clamp((p.y-yTop)/bh,0,1); // 0=이마, 1=턱
-      let xScale;
-      if(v<0.16)      xScale=0.89; // 이마/관자놀이: 조금 더 넓혀 이마 양옆이 답답하지 않게
-      else if(v<0.42) xScale=0.95; // 눈/광대 위
-      else if(v<0.68) xScale=0.99; // 볼: 실제 얼굴 폭을 거의 유지
-      else if(v<0.86) xScale=0.91; // 턱선으로 내려가며 완만하게 수축
-      else             xScale=0.79; // 턱 끝: 여전히 좁히되 기존보다 과하지 않게
-      const x=cx+(p.x-cx)*xScale;
-      const yScale=p.y<cy ? 1.085 : 1.03;
-      const y=cy+(p.y-cy)*yScale;
-      return {x:clamp(x,0,naturalW),y:clamp(y,0,naturalH)};
-    });
-    return {points, rect:polygonBounds(points), center:{x:cx,y:cy}};
+    // 실제 얼굴 비율은 유지하되 타원이 피부에 너무 딱 붙지 않도록 소폭 확장한다.
+    // 좌우보다 위쪽을 조금 더 확보해 이마까지 자연스럽게 가린다.
+    const padX=best.w*0.065;
+    const padTop=best.h*0.095;
+    const padBottom=best.h*0.045;
+    const x1=clamp(best.x1-padX,0,naturalW);
+    const y1=clamp(best.y1-padTop,0,naturalH);
+    const x2=clamp(best.x2+padX,0,naturalW);
+    const y2=clamp(best.y2+padBottom,0,naturalH);
+    return {x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1),center:{x:best.cx,y:best.cy}};
   }
 
   function runFaceDetectionInBox(natRect, cb){
@@ -1889,28 +1845,29 @@
       candidates.sort((a,b)=>a.score-b.score);
       if(candidates.length){
         const f=candidates[0];
-        // 위치 검출은 Face Detector가 담당하고, 실제 가림 모양은 Face Landmarker의 face oval을 우선 사용한다.
-        // Landmarker가 이 얼굴에서 실패해도 detector 박스 기반 얼굴형 polygon으로 폴백한다.
+
+        // Detector는 얼굴 위치를 잡고, Landmarker는 얼굴형의 가로/세로 비율만 얻는다.
+        // 외곽선을 따는 polygon은 사용하지 않는다. 결과는 언제나 단순한 타원형이다.
         const landmarkFaces=await detectLandmarksFallback(crop);
-        const oval=bestFaceOvalMask(landmarkFaces,sx,sy,cw,ch,f.cx,f.cy);
-        if(oval && oval.rect){
-          cb([{x:oval.rect.x,y:oval.rect.y,w:oval.rect.w,h:oval.rect.h,maskPoints:oval.points}],[{x:f.cx,y:f.cy}]);
+        const adaptive=adaptiveFaceEllipseFromLandmarks(landmarkFaces,sx,sy,cw,ch,f.cx,f.cy);
+        if(adaptive && adaptive.center && Math.hypot(adaptive.center.x-f.cx,adaptive.center.y-f.cy)<=Math.max(f.bw,f.bh)*0.65){
+          cb([{x:adaptive.x,y:adaptive.y,w:adaptive.w,h:adaptive.h}],[{x:f.cx,y:f.cy}]);
           return;
         }
 
-        const padX=f.bw*0.055, padTop=f.bh*0.16, padBottom=f.bh*0.08;
+        // Landmarker가 실패하면 Detector 박스 비율을 그대로 살린 타원형으로 폴백한다.
+        const padX=f.bw*0.075, padTop=f.bh*0.16, padBottom=f.bh*0.075;
         const x1=clamp(f.bx-padX,0,naturalW), y1=clamp(f.by-padTop,0,naturalH);
         const x2=clamp(f.bx+f.bw+padX,0,naturalW), y2=clamp(f.by+f.bh+padBottom,0,naturalH);
-        const rect={x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1)};
-        cb([{...rect,maskPoints:faceLikeMaskFromRect(rect)}],[{x:f.cx,y:f.cy}]);
+        cb([{x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1)}],[{x:f.cx,y:f.cy}]);
         return;
       }
 
-      // 2) Detector가 놓친 경우 Landmarker의 face oval 자체로 얼굴 위치와 모양을 복구한다.
-      const landmarkFaces=await detectLandmarksFallback(crop);
-      const oval=bestFaceOvalMask(landmarkFaces,sx,sy,cw,ch,selCx,selCy);
-      if(oval && oval.rect && Math.hypot(oval.center.x-selCx,oval.center.y-selCy)<=selDiag*0.90){
-        cb([{x:oval.rect.x,y:oval.rect.y,w:oval.rect.w,h:oval.rect.h,maskPoints:oval.points}],[oval.center]);
+      // 2) Detector가 놓친 경우에도 Landmarker의 얼굴 외곽 '범위'만 이용해 타원 비율을 정한다.
+      const faces=await detectLandmarksFallback(crop);
+      const adaptive=adaptiveFaceEllipseFromLandmarks(faces,sx,sy,cw,ch,selCx,selCy);
+      if(adaptive && adaptive.center && Math.hypot(adaptive.center.x-selCx,adaptive.center.y-selCy)<=selDiag*0.90){
+        cb([{x:adaptive.x,y:adaptive.y,w:adaptive.w,h:adaptive.h}],[adaptive.center]);
         return;
       }
 
@@ -2094,18 +2051,13 @@
 
   // natRect 영역에 대해 현재 shape/mode/intensity 기준으로 처리된 결과 조각을 계산만 하고,
   // 원본 rasterCanvas에는 아직 반영하지 않는다 (실시간 미리보기/재조정을 위해 분리).
-  function computeEffectRegion(natRect, shape, mode, maskPoints){
+  function computeEffectRegion(natRect, shape, mode){
     const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect) : mosaicBlockNatural(natRect);
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(feather/100,0,1);
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환에만 쓴다.
     // 블러는 최대 8%, 모자이크는 블록 경계를 흐리지 않도록 최대 2.5%까지만 허용한다.
-    // 자동 얼굴형 마스크는 페더가 넓으면 다시 원형처럼 퍼져 보이므로 훨씬 좁게 제한한다.
-    // 수동 타원/사각형은 기존 페더 감각을 유지한다.
-    const isFaceShape = shape==="face" && Array.isArray(maskPoints) && maskPoints.length>=8;
-    const featherRatio = isFaceShape
-      ? (mode==="mosaic" ? 0.010 : 0.032)
-      : (mode==="mosaic" ? 0.025 : 0.08);
+    const featherRatio = mode==="mosaic" ? 0.025 : 0.08;
     const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.15) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const sx = clamp(Math.floor(natRect.x-pad),0,naturalW);
@@ -2130,19 +2082,9 @@
     const mctx = mask.getContext("2d");
     const rx0 = natRect.x-sx, ry0 = natRect.y-sy;
     mctx.fillStyle = "#fff";
-    const hasFaceMask = Array.isArray(maskPoints) && maskPoints.length>=8;
-    if(hasFaceMask){
-      // 자동 얼굴 가림은 타원이 아니라 실제 face oval polygon을 사용한다.
-      // 좌우 볼/귀 바깥으로 둥글게 번지지 않고 턱선과 이마 윤곽을 따라간다.
-      mctx.beginPath();
-      maskPoints.forEach((p,i)=>{
-        const px=p.x-sx, py=p.y-sy;
-        if(i===0) mctx.moveTo(px,py); else mctx.lineTo(px,py);
-      });
-      mctx.closePath();
-      mctx.fill();
-    } else if(shape==="ellipse"){
-      // 수동 타원형은 기존 동작을 유지한다.
+    if(shape==="ellipse"){
+      // 얼굴 중앙은 항상 100% 효과. 페더는 외곽의 얇은 링에서만 작동한다.
+      // 타원은 원형 radialGradient를 비율 변환해서 정확한 타원 그라데이션으로 만든다.
       const cx=rx0+natRect.w/2, cy=ry0+natRect.h/2;
       const rx=Math.max(1,natRect.w/2), ry=Math.max(1,natRect.h/2);
       const edgeFrac = featherPx>0 ? clamp(featherPx/Math.max(1,Math.min(rx,ry)),0.02,0.28) : 0;
@@ -2161,8 +2103,8 @@
       mctx.fillRect(rx0, ry0, natRect.w, natRect.h);
     }
     let finalMask = mask;
-    // 얼굴형 polygon/사각형은 채워진 중심은 그대로 두고 가장자리만 부드럽게 연결한다.
-    if((hasFaceMask || shape!=="ellipse") && featherPx>0.5){
+    // 사각형만 기존 방식의 좁은 경계 페더를 사용한다. 타원은 위에서 불투명 중심을 보장했다.
+    if(shape!=="ellipse" && featherPx>0.5){
       const fm=document.createElement("canvas"); fm.width=sw; fm.height=sh;
       const fctx=fm.getContext("2d");
       if("filter" in fctx){
@@ -2181,12 +2123,11 @@
   function renderEffectObject(eff){
     const oldI=intensity, oldF=feather; intensity=eff.intensity; feather=eff.feather;
     const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
-    const masks=eff.faceMasks||[];
     let result;
-    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'face':eff.shape, eff.mode, masks[0]); }
+    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'ellipse':eff.shape, eff.mode); }
     else {
       const overlay=document.createElement('canvas'); overlay.width=naturalW; overlay.height=naturalH;
-      const oc=overlay.getContext('2d'); rs.forEach((r,i)=>{const z=computeEffectRegion(r,'face',eff.mode,masks[i]);oc.drawImage(z.canvas,z.sx,z.sy);});
+      const oc=overlay.getContext('2d'); rs.forEach(r=>{const z=computeEffectRegion(r,'ellipse',eff.mode);oc.drawImage(z.canvas,z.sx,z.sy);});
       result={canvas:overlay,sx:0,sy:0};
     }
     intensity=oldI; feather=oldF; return result;
@@ -2197,10 +2138,9 @@
     if(!pendingEffect) return;
     try{
       const rects = pendingEffect.faceRects && pendingEffect.faceRects.length ? pendingEffect.faceRects : [pendingEffect.rect];
-      const masks = pendingEffect.faceMasks || [];
       if(rects.length===1){
-        const effectShape = pendingEffect.autoFace ? "face" : blurShape;
-        const region = computeEffectRegion(rects[0], effectShape, blurMode, masks[0]);
+        const effectShape = pendingEffect.autoFace ? "ellipse" : blurShape;
+        const region = computeEffectRegion(rects[0], effectShape, blurMode);
         pendingEffect.canvas = region.canvas;
         pendingEffect.sx = region.sx;
         pendingEffect.sy = region.sy;
@@ -2208,8 +2148,8 @@
         // 여러 얼굴을 한 번에 선택했을 때 각 얼굴만 독립적으로 가린다.
         const overlay = document.createElement("canvas"); overlay.width=naturalW; overlay.height=naturalH;
         const octx=overlay.getContext("2d");
-        rects.forEach((rr,i)=>{
-          const region=computeEffectRegion(rr, "face", blurMode, masks[i]);
+        rects.forEach(rr=>{
+          const region=computeEffectRegion(rr, "ellipse", blurMode);
           octx.drawImage(region.canvas, region.sx, region.sy);
         });
         pendingEffect.canvas=overlay; pendingEffect.sx=0; pendingEffect.sy=0;
@@ -2228,8 +2168,7 @@
     const eff={
       id:genId(), type:'effect', rect:Object.assign({},pendingEffect.rect),
       faceRects:(pendingEffect.faceRects||[]).map(r=>Object.assign({},r)),
-      faceMasks:(pendingEffect.faceMasks||[]).map(poly=>(poly||[]).map(p=>({x:p.x,y:p.y}))),
-      autoFace:!!pendingEffect.autoFace, mode:blurMode, shape:pendingEffect.autoFace?'face':blurShape,
+      autoFace:!!pendingEffect.autoFace, mode:blurMode, shape:pendingEffect.autoFace?'ellipse':blurShape,
       intensity:intensity, feather:feather
     };
     effects.push(eff); selectedId=eff.id; pendingEffect=null;
