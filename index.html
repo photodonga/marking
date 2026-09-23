@@ -375,25 +375,6 @@
     #toolbar .save-group{margin-left:auto;}
   }
 
-  /* Wide desktop: keep the controls together instead of stretching them edge-to-edge.
-     Medium/tablet layouts keep the flexible behavior above so nothing gets crushed. */
-  @media (min-width:900px){
-    #toolbar{
-      justify-content:center;
-    }
-    #toolbar .tools{
-      flex:0 0 auto;
-      min-width:max-content;
-    }
-    #toolbar #options-bar{
-      flex:0 1 auto;
-    }
-    #toolbar .save-group{
-      margin-left:8px;
-      flex:0 0 auto;
-    }
-  }
-
   @media (max-width:640px){
     #chrome{top:calc(6px + var(--safe-t));left:6px;right:6px;gap:4px;}
     .brand{display:none;}
@@ -598,12 +579,12 @@
   function strokeWidthNatural(mult){ return longSide() * STROKE_RATIO * (mult||1); }
   // 가림 강도는 사진 전체가 아니라 현재 가림 영역의 짧은 변을 기준으로 계산한다.
   // 블러와 모자이크는 같은 0~100 슬라이더를 쓰지만 시각적 특성이 달라 별도 곡선을 사용한다.
-  function blurRadiusNatural(rect){
+  function blurRadiusNatural(rect, intensityValue){
     // 블러 반경을 과도하게 키우면 얼굴 전체가 피부색 한 덩어리처럼 녹아버린다.
     // 반경은 적당히 유지하고, 아래 anonymizeBlurCanvas()의 축소→확대와 함께
     // 고주파 디테일(눈/코/입/안경 안쪽)만 효과적으로 제거한다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
-    const t = clamp(intensity/100, 0, 1);
+    const t = clamp(intensityValue/100, 0, 1);
     if(t<=0) return 0;
 
     // 50 = 보도용 기본 익명화. 100에서도 얼굴 명암/색 분포는 남도록 상한을 낮춘다.
@@ -616,12 +597,12 @@
     const ratio = 0.012 + 0.072 * Math.pow(t, 1.18);
     return base * ratio * largeFaceBoost;
   }
-  function mosaicBlockNatural(rect){
+  function mosaicBlockNatural(rect, intensityValue){
     // 모자이크는 블러보다 '강도' 변화가 눈에 확실히 보여야 한다.
     // 50에서도 얼굴 식별 디테일이 충분히 깨지고, 100에서는 블록이 확실히 커지도록 범위를 넓힌다.
     // 단, 아래 privacyMosaicCanvas()에서 약한 사전 블러를 넣어 눈/입이 검은 블록으로 튀는 현상은 억제한다.
     const base = Math.max(8, Math.min(rect.w, rect.h));
-    const t = clamp(intensity/100, 0, 1);
+    const t = clamp(intensityValue/100, 0, 1);
     if(t<=0) return 1;
     // 이전 값보다 약 18% 큰 블록을 사용해 작은 얼굴에서도 식별 단서가 남지 않게 한다.
     const ratio = (0.018 + 0.064 * Math.pow(t,0.82)) * 1.18; // 50≈6.4%, 100≈9.7%
@@ -2234,16 +2215,19 @@
 
   // natRect 영역에 대해 현재 shape/mode/intensity 기준으로 처리된 결과 조각을 계산만 하고,
   // 원본 rasterCanvas에는 아직 반영하지 않는다 (실시간 미리보기/재조정을 위해 분리).
-  function computeEffectRegion(natRect, shape, mode, rotation){
+  // 가림 효과의 모든 값은 인자로 받는다. 렌더 중 전역 편집 상태를 바꾸지 않는다.
+  function computeEffectRegion(natRect, shape, mode, rotation, options){
     rotation=rotation||0;
-    const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect) : mosaicBlockNatural(natRect);
+    const effectIntensity = options && Number.isFinite(options.intensity) ? options.intensity : intensity;
+    const effectFeather = options && Number.isFinite(options.feather) ? options.feather : feather;
+    const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect, effectIntensity) : mosaicBlockNatural(natRect, effectIntensity);
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
-    const ft = clamp(feather/100,0,1);
+    const ft = clamp(effectFeather/100,0,1);
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환 폭만 넓힌다.
     // 기존 값은 변화가 너무 미세해 얼굴 타원의 경계가 보였으므로,
     // 블러는 최대 20%, 모자이크는 최대 7%까지 넓게 퍼지도록 조정한다.
     const featherRatio = mode==="mosaic" ? 0.07 : 0.20;
-    const featherPx = feather>0 ? base * featherRatio * Math.pow(ft,1.05) : 0;
+    const featherPx = effectFeather>0 ? base * featherRatio * Math.pow(ft,1.05) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const center={x:natRect.x+natRect.w/2,y:natRect.y+natRect.h/2};
     const corners=[[natRect.x,natRect.y],[natRect.x+natRect.w,natRect.y],[natRect.x+natRect.w,natRect.y+natRect.h],[natRect.x,natRect.y+natRect.h]].map(([x,y])=>rotatePoint({x,y},center,rotation));
@@ -2261,9 +2245,9 @@
 
     let processed;
     if(mode==="blur"){
-      processed = anonymizeBlurCanvas(src, radiusOrBlock, intensity);
+      processed = anonymizeBlurCanvas(src, radiusOrBlock, effectIntensity);
     } else {
-      processed = privacyMosaicCanvas(src, radiusOrBlock, intensity);
+      processed = privacyMosaicCanvas(src, radiusOrBlock, effectIntensity);
     }
 
     // 마스크 생성 (선택 영역 모양 + 블러는 가장자리 페더)
@@ -2312,16 +2296,16 @@
   }
 
   function renderEffectObject(eff){
-    const oldI=intensity, oldF=feather; intensity=eff.intensity; feather=eff.feather;
+    const effectOptions={intensity:eff.intensity, feather:eff.feather};
     const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
     let result;
-    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'ellipse':eff.shape, eff.mode, eff.rotation||0); }
+    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'ellipse':eff.shape, eff.mode, eff.rotation||0, effectOptions); }
     else {
       const overlay=document.createElement('canvas'); overlay.width=naturalW; overlay.height=naturalH;
-      const oc=overlay.getContext('2d'); rs.forEach(r=>{const z=computeEffectRegion(r,'ellipse',eff.mode,eff.rotation||0);oc.drawImage(z.canvas,z.sx,z.sy);});
+      const oc=overlay.getContext('2d'); rs.forEach(r=>{const z=computeEffectRegion(r,'ellipse',eff.mode,eff.rotation||0,effectOptions);oc.drawImage(z.canvas,z.sx,z.sy);});
       result={canvas:overlay,sx:0,sy:0};
     }
-    intensity=oldI; feather=oldF; return result;
+    return result;
   }
 
   // 아직 확정되지 않은 가림 효과의 미리보기를 현재 강도/모드/모양으로 다시 계산
@@ -2331,7 +2315,7 @@
       const rects = pendingEffect.faceRects && pendingEffect.faceRects.length ? pendingEffect.faceRects : [pendingEffect.rect];
       if(rects.length===1){
         const effectShape = pendingEffect.autoFace || blurShape==="face" ? "ellipse" : "rect";
-        const region = computeEffectRegion(rects[0], effectShape, blurMode);
+        const region = computeEffectRegion(rects[0], effectShape, blurMode, 0, {intensity, feather});
         pendingEffect.canvas = region.canvas;
         pendingEffect.sx = region.sx;
         pendingEffect.sy = region.sy;
@@ -2340,7 +2324,7 @@
         const overlay = document.createElement("canvas"); overlay.width=naturalW; overlay.height=naturalH;
         const octx=overlay.getContext("2d");
         rects.forEach(rr=>{
-          const region=computeEffectRegion(rr, "ellipse", blurMode);
+          const region=computeEffectRegion(rr, "ellipse", blurMode, 0, {intensity, feather});
           octx.drawImage(region.canvas, region.sx, region.sy);
         });
         pendingEffect.canvas=overlay; pendingEffect.sx=0; pendingEffect.sy=0;
