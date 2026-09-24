@@ -447,6 +447,7 @@
         <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 4v16M12 4v16M16 4v16M4 8h16M4 12h16M4 16h16" opacity=".72"/></svg></span><span class="label">가림</span></button>
         <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg></span><span class="label">도형</span></button>
         <button class="tool-btn" data-tool="arrow" id="btn-arrow"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg></span><span class="label">화살표</span></button>
+        <button class="tool-btn" data-tool="line" id="btn-line"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/></svg></span><span class="label">직선</span></button>
         <span class="sep"></span>
         <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 5 11l4 4"/><path d="M5 11h8a6 6 0 0 1 6 6"/></svg></button>
         <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 4 4-4 4"/><path d="M19 11h-8a6 6 0 0 0-6 6"/></svg></button>
@@ -511,6 +512,7 @@
   let feather = 72;          // 0-100, 기본은 경계가 드러나지 않는 강한 페더
   let strokeMultCurrent = 1; // 새 객체 생성 시 두께 배율
   let strokeColorCurrent = DEFAULT_COLOR; // 새 객체 생성 시 색상
+  let dashedCurrent = false; // 새 객체 생성 시 점선 여부
   let circleLocked = true;   // 원/타원은 기본적으로 정원(1:1) 유지
   let rectLocked = false;    // 네모는 기본적으로 자유 비율
   let shapeKind = "circle";    // circle | rect
@@ -569,6 +571,7 @@
     blur: document.getElementById("btn-blur"),
     circle: document.getElementById("btn-circle"),
     arrow: document.getElementById("btn-arrow"),
+    line: document.getElementById("btn-line"),
   };
 
   // ---------------- utils ----------------
@@ -833,18 +836,32 @@
     return {x:edge.x*s+outward.x*26,y:edge.y*s+outward.y*26,edgeX:edge.x*s,edgeY:edge.y*s,k:"rotate"};
   }
 
+  // 점선 간격은 선 굵기에 비례해, 두께가 달라져도 점선 비율이 일정하게 보이도록 한다.
+  function dashArrayForStroke(sw){ const d = Math.max(2, sw*2.2); return [d, d*0.85]; }
+  function applyDash(ctx, dashed, sw){ ctx.setLineDash(dashed ? dashArrayForStroke(sw) : []); }
+
   function drawObjectOnCtx(ctx, o, s){
     const sw = strokeWidthNatural(o.strokeMult) * s;
     const col = o.color || DEFAULT_COLOR;
     if(o.type==="circle"){
+      ctx.save(); applyDash(ctx, o.dashed, sw);
       drawCircleShape(ctx, o.cx*s, o.cy*s, o.rx*s, o.ry*s, sw, col);
+      ctx.restore();
     } else if(o.type==="rect"){
       const c=rectCenter(o);
       ctx.save(); ctx.translate(c.x*s,c.y*s); ctx.rotate(o.rotation||0);
+      applyDash(ctx, o.dashed, sw);
       ctx.lineWidth=sw; ctx.strokeStyle=col; ctx.lineJoin="round";
       ctx.strokeRect(-o.w*s/2,-o.h*s/2,o.w*s,o.h*s); ctx.restore();
+    } else if(o.type==="line"){
+      ctx.save(); applyDash(ctx, o.dashed, sw);
+      ctx.lineWidth=sw; ctx.strokeStyle=col; ctx.lineCap="round";
+      ctx.beginPath(); ctx.moveTo(o.x1*s,o.y1*s); ctx.lineTo(o.x2*s,o.y2*s); ctx.stroke();
+      ctx.restore();
     } else {
+      ctx.save(); applyDash(ctx, o.dashed, sw);
       drawArrowShape(ctx, o.x1*s, o.y1*s, o.x2*s, o.y2*s, sw, col);
+      ctx.restore();
     }
   }
 
@@ -878,8 +895,8 @@
     return {r, arm:Math.max(2.2,r*0.38), inset:r+1.5, hit:18};
   }
   function objectClosePoint(o){
-    // 화살표는 화살촉 근처, 도형은 우상단 안쪽에 배치한다.
-    if(o.type==="arrow"){
+    // 화살표·직선은 끝점 근처, 도형은 우상단 안쪽에 배치한다.
+    if(o.type==="arrow" || o.type==="line"){
       const x1=o.x1*scale,y1=o.y1*scale,x2=o.x2*scale,y2=o.y2*scale;
       const dx=x2-x1,dy=y2-y1,len=Math.max(1,Math.hypot(dx,dy));
       const m=closeButtonMetrics(len, len);
@@ -974,6 +991,7 @@
     // 진행중인 미리보기
     if(drag && drag.mode==="create"){
       vctx.save();
+      applyDash(vctx, dashedCurrent, strokeWidthNatural(strokeMultCurrent)*scale);
       if(activeTool==="blur"){
         const r = normRect(drag.startDisp, drag.curDisp);
         vctx.setLineDash([5,4]);
@@ -1008,6 +1026,9 @@
         }
       } else if(activeTool==="arrow"){
         drawArrowShape(vctx, drag.startDisp.x, drag.startDisp.y, drag.curDisp.x, drag.curDisp.y, strokeWidthNatural(strokeMultCurrent)*scale, strokeColorCurrent);
+      } else if(activeTool==="line"){
+        vctx.lineWidth=strokeWidthNatural(strokeMultCurrent)*scale; vctx.strokeStyle=strokeColorCurrent; vctx.lineCap="round";
+        vctx.beginPath(); vctx.moveTo(drag.startDisp.x,drag.startDisp.y); vctx.lineTo(drag.curDisp.x,drag.curDisp.y); vctx.stroke();
       }
       vctx.restore();
     }
@@ -1194,7 +1215,7 @@
   function findObjectAt(dispPt){
     for(let i=objects.length-1;i>=0;i--){
       const o = objects[i];
-      if(o.type==="arrow"){
+      if(o.type==="arrow" || o.type==="line"){
         const d = distToSegment(dispPt.x,dispPt.y, o.x1*scale,o.y1*scale, o.x2*scale,o.y2*scale);
         if(d<=HIT_TOLERANCE) return o;
       } else if(o.type==="circle"){
@@ -1283,7 +1304,7 @@
       g3.appendChild(seg3);
 
       optionsBar.appendChild(g1); optionsBar.appendChild(g2); optionsBar.appendChild(gf); optionsBar.appendChild(g3);
-    } else if(activeTool==="circle" || activeTool==="arrow"){
+    } else if(activeTool==="circle" || activeTool==="arrow" || activeTool==="line"){
       optionsBar.classList.remove("hidden");
       if(activeTool==="circle"){
         const gs=document.createElement("div"); gs.className="opt-group";
@@ -1295,7 +1316,7 @@
       const g = document.createElement("div"); g.className="opt-group";
       const label = document.createElement("span"); label.textContent="굵기";
       g.appendChild(label);
-      if(activeTool==="arrow"){
+      if(activeTool==="arrow" || activeTool==="line"){
         const seg = document.createElement("div"); seg.className="seg";
         [[0.72,"얇게"],[1,"기본"],[1.38,"굵게"]].forEach(([mult,name])=>{
           const b=document.createElement("button"); b.textContent=name;
@@ -1333,6 +1354,19 @@
       gc.appendChild(colorLabel); gc.appendChild(colorInput);
       optionsBar.appendChild(gc);
 
+      {
+        const gdash = document.createElement("label"); gdash.className="opt-group check-opt";
+        const dashCheck = document.createElement("input"); dashCheck.type="checkbox"; dashCheck.checked = dashedCurrent;
+        dashCheck.onchange = ()=>{
+          dashedCurrent = dashCheck.checked;
+          const sel = objects.find(o=>o.id===selectedId);
+          if(sel){ sel.dashed = dashedCurrent; pushHistory(); redraw(); }
+        };
+        const dashText = document.createElement("span"); dashText.textContent = "점선";
+        gdash.appendChild(dashCheck); gdash.appendChild(dashText);
+        optionsBar.appendChild(gdash);
+      }
+
       if(activeTool==="circle"){
         const gl = document.createElement("label"); gl.className="opt-group check-opt";
         const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=shapeKind==="rect"?rectLocked:circleLocked;
@@ -1349,7 +1383,7 @@
         const g = document.createElement("div"); g.className="opt-group";
         const label = document.createElement("span"); label.textContent="굵기";
         g.appendChild(label);
-        if(sel.type==="arrow"){
+        if(sel.type==="arrow" || sel.type==="line"){
           const seg=document.createElement("div"); seg.className="seg";
           [[0.72,"얇게"],[1,"기본"],[1.38,"굵게"]].forEach(([mult,name])=>{
             const b=document.createElement("button"); b.textContent=name;
@@ -1373,6 +1407,15 @@
         colorInput.onchange = ()=>{ pushHistory(); };
         gc.appendChild(colorLabel); gc.appendChild(colorInput);
         optionsBar.appendChild(gc);
+
+        {
+          const gdash = document.createElement("label"); gdash.className="opt-group check-opt";
+          const dashCheck = document.createElement("input"); dashCheck.type="checkbox"; dashCheck.checked = !!sel.dashed;
+          dashCheck.onchange = ()=>{ sel.dashed = dashCheck.checked; dashedCurrent = dashCheck.checked; pushHistory(); redraw(); };
+          const dashText = document.createElement("span"); dashText.textContent = "점선";
+          gdash.appendChild(dashCheck); gdash.appendChild(dashText);
+          optionsBar.appendChild(gdash);
+        }
 
         if(sel.type==="circle" || sel.type==="rect"){
           const gl = document.createElement("label"); gl.className="opt-group check-opt";
@@ -1530,7 +1573,7 @@
       buildOptionsBar(); redraw(); return;
     }
     const objHit = findObjectAt(dp);
-    if(objHit){ selectedId=objHit.id; strokeMultCurrent=objHit.strokeMult||1; drag={mode:"move",obj:objHit,last:dispToNat(dp),snapshot:Object.assign({},objHit)}; buildOptionsBar(); redraw(); return; }
+    if(objHit){ selectedId=objHit.id; strokeMultCurrent=objHit.strokeMult||1; dashedCurrent=!!objHit.dashed; drag={mode:"move",obj:objHit,last:dispToNat(dp),snapshot:Object.assign({},objHit)}; buildOptionsBar(); redraw(); return; }
     const eh=findEffectAt(dp);
     if(eh){
       selectedId=eh.id;
@@ -1549,7 +1592,7 @@
       drag = {mode:"create", startDisp:dp, curDisp:dp}; redraw(); return;
     }
 
-    if(activeTool==="circle" || activeTool==="arrow"){
+    if(activeTool==="circle" || activeTool==="arrow" || activeTool==="line"){
       selectedId = null;
       drag = {mode:"create", startDisp:dp, curDisp:dp};
       redraw();
@@ -1738,8 +1781,8 @@
           }
           if(r.w>3 && r.h>3){
             const obj = shapeKind==="rect"
-              ? {id:genId(), type:"rect", x:r.x, y:r.y, w:r.w, h:r.h, rotation:0, strokeMult:strokeMultCurrent, color:strokeColorCurrent}
-              : {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokeMult:strokeMultCurrent, color:strokeColorCurrent};
+              ? {id:genId(), type:"rect", x:r.x, y:r.y, w:r.w, h:r.h, rotation:0, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent}
+              : {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
             objects.push(obj);
             selectedId = obj.id;
             pushHistory();
@@ -1753,7 +1796,20 @@
       if(activeTool==="arrow"){
         if(moved){
           const n0 = dispToNat(dp0), n1 = dispToNat(dp1);
-          const obj = {id:genId(), type:"arrow", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokeMult:strokeMultCurrent, color:strokeColorCurrent};
+          const obj = {id:genId(), type:"arrow", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
+          objects.push(obj);
+          selectedId = obj.id;
+          pushHistory();
+          buildOptionsBar();
+        }
+        redraw();
+        return;
+      }
+
+      if(activeTool==="line"){
+        if(moved){
+          const n0 = dispToNat(dp0), n1 = dispToNat(dp1);
+          const obj = {id:genId(), type:"line", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
           objects.push(obj);
           selectedId = obj.id;
           pushHistory();
