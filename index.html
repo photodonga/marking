@@ -509,7 +509,6 @@
   let blurShape = "face"; // 기본 가림은 얼굴 인식 + 얼굴 비율 타원
   let intensity = 50;        // 0-100
   let feather = 72;          // 0-100, 기본은 경계가 드러나지 않는 강한 페더
-  let pendingEffect = null;  // 아직 확정되지 않은 가림 효과: {rect, canvas, sx, sy}
   let strokeMultCurrent = 1; // 새 객체 생성 시 두께 배율
   let strokeColorCurrent = DEFAULT_COLOR; // 새 객체 생성 시 색상
   let circleLocked = true;   // 원/타원은 기본적으로 정원(1:1) 유지
@@ -527,8 +526,8 @@
   let pinchGesture = null;
   let suppressPointerUp = new Set();
 
-  let rasterStates = [];     // dataURL 배열
-  let history = [];          // {rasterStateIndex, objects:[...]}
+  // 원본 래스터는 사진을 연 뒤 바뀌지 않으므로(가림은 비파괴) 히스토리에는 마킹 목록만 저장한다.
+  let history = [];          // {objects:[...], effects:[...]}
   let historyIndex = -1;
 
   let drag = null;           // 진행중인 포인터 상호작용 상태
@@ -574,7 +573,6 @@
 
   // ---------------- utils ----------------
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
-  function lerp(a,b,t){ return a + (b-a)*t; }
   function longSide(){ return Math.max(naturalW, naturalH); }
   function strokeWidthNatural(mult){ return longSide() * STROKE_RATIO * (mult||1); }
   // 가림 강도는 사진 전체가 아니라 현재 가림 영역의 짧은 변을 기준으로 계산한다.
@@ -618,51 +616,30 @@
   }
 
   // ---------------- history ----------------
-  function pushHistory(newRaster){
-    let rasterStateIndex;
-    if(newRaster){
-      rasterStates.push(rasterCanvas.toDataURL("image/png"));
-      rasterStateIndex = rasterStates.length - 1;
-      if(rasterStates.length > MAX_HISTORY){
-        // 오래된 항목은 유지하되(참조 인덱스 보존을 위해) 정리는 생략 - 사진 편집 세션은 짧으므로 메모리 여유 내에서 동작
-      }
-    } else {
-      rasterStateIndex = history[historyIndex] ? history[historyIndex].rasterStateIndex : 0;
-    }
+  function pushHistory(){
     history = history.slice(0, historyIndex+1);
-    history.push({ rasterStateIndex, objects: deepCloneObjects(objects), effects: deepCloneObjects(effects) });
+    history.push({ objects: deepCloneObjects(objects), effects: deepCloneObjects(effects) });
     if(history.length > MAX_HISTORY){ history.shift(); }
     historyIndex = history.length - 1;
     updateHistoryButtons();
   }
 
-  function restoreHistoryEntry(entry, cb){
-    const dataUrl = rasterStates[entry.rasterStateIndex];
-    const img = new Image();
-    img.onload = function(){
-      naturalW = img.naturalWidth; naturalH = img.naturalHeight;
-      rasterCanvas.width = naturalW; rasterCanvas.height = naturalH;
-      rasterCtx.clearRect(0,0,naturalW,naturalH);
-      rasterCtx.drawImage(img,0,0);
-      objects = deepCloneObjects(entry.objects);
-      effects = deepCloneObjects(entry.effects || []);
-      selectedId = null;
-      fitCanvas();
-      redraw();
-      if(cb) cb();
-    };
-    img.src = dataUrl;
+  function restoreHistoryEntry(entry){
+    objects = deepCloneObjects(entry.objects);
+    effects = deepCloneObjects(entry.effects || []);
+    selectedId = null;
+    drag = null;
+    buildOptionsBar();
+    redraw();
   }
 
   function undo(){
-    if(pendingEffect){ discardPendingEffect(); redraw(); return; }
     if(historyIndex<=0) return;
     historyIndex--;
     restoreHistoryEntry(history[historyIndex]);
     updateHistoryButtons();
   }
   function redo(){
-    discardPendingEffect();
     if(historyIndex>=history.length-1) return;
     historyIndex++;
     restoreHistoryEntry(history[historyIndex]);
@@ -683,7 +660,6 @@
     reader.onload = function(e){
       const img = new Image();
       img.onload = function(){
-        discardPendingEffect();
         naturalW = img.naturalWidth;
         naturalH = img.naturalHeight;
         rasterCanvas.width = naturalW;
@@ -692,11 +668,11 @@
         rasterCtx.drawImage(img,0,0);
         objects = [];
         effects = [];
+        effectCache.clear();
         selectedId = null;
-        rasterStates = [];
         history = [];
         historyIndex = -1;
-        pushHistory(true);
+        pushHistory();
         placeholder.classList.add("hidden");
         viewCanvas.classList.add("ready");
         btnSave.disabled = false;
@@ -934,7 +910,12 @@
   }
   function objectCloseHit(dp,o){ const cp=objectClosePoint(o); return Math.hypot(dp.x-cp.x,dp.y-cp.y)<=cp.hit; }
 
-  function var_accent_blue(){ return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0a6cff"; }
+  // 강조색은 CSS 변수에서 한 번만 읽는다(매 프레임 getComputedStyle 호출 방지).
+  let accentColorCache = null;
+  function var_accent_blue(){
+    if(accentColorCache==null) accentColorCache = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0a6cff";
+    return accentColorCache;
+  }
 
   function handlePointsDisplay(o, s){
     if(o.type==="rect"){
@@ -981,19 +962,6 @@
       if(eff.id===selectedId) drawEffectSelection(vctx, eff);
       else drawEffectGuide(vctx, eff);
     });
-
-    if(pendingEffect && pendingEffect.canvas){
-      const pc = pendingEffect.canvas;
-      vctx.drawImage(pc, 0,0,pc.width,pc.height,
-        pendingEffect.sx*scale, pendingEffect.sy*scale, pc.width*scale, pc.height*scale);
-      const r = pendingEffect.rect;
-      vctx.save();
-      vctx.setLineDash([4,3]);
-      vctx.lineWidth = 1.05;
-      vctx.strokeStyle = "rgba(255,255,255,0.60)";
-      vctx.strokeRect(r.x*scale, r.y*scale, r.w*scale, r.h*scale);
-      vctx.restore();
-    }
 
     objects.forEach(o=>{
       drawObjectOnCtx(vctx, o, scale);
@@ -1177,7 +1145,7 @@
     objects=objects.filter(o=>o.id!==selectedId);
     effects=effects.filter(o=>o.id!==selectedId);
     if(objects.length+effects.length===before) return false;
-    selectedId=null; pushHistory(false); buildOptionsBar(); redraw();
+    selectedId=null; pushHistory(); buildOptionsBar(); redraw();
     showToast('선택 항목을 삭제했습니다.',900); return true;
   }
 
@@ -1250,7 +1218,6 @@
 
   // ---------------- tool selection ----------------
   function setActiveTool(tool){
-    if(pendingEffect && tool!==activeTool){ commitPendingEffect(); }
     activeTool = tool;
     Object.keys(toolButtons).forEach(k=>{
       toolButtons[k].classList.toggle("active", k===tool);
@@ -1277,8 +1244,8 @@
       const seg1 = document.createElement("div"); seg1.className="seg";
       const bBlur = document.createElement("button"); bBlur.textContent="블러"; bBlur.className = blurMode==="blur"?"active":"";
       const bMosaic = document.createElement("button"); bMosaic.textContent="모자이크"; bMosaic.className = blurMode==="mosaic"?"active":"";
-      bBlur.onclick=()=>{ blurMode="blur"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
-      bMosaic.onclick=()=>{ blurMode="mosaic"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
+      bBlur.onclick=()=>{ blurMode="blur"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory();} buildOptionsBar(); redraw(); };
+      bMosaic.onclick=()=>{ blurMode="mosaic"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory();} buildOptionsBar(); redraw(); };
       seg1.appendChild(bBlur); seg1.appendChild(bMosaic);
       g1.appendChild(seg1);
 
@@ -1290,9 +1257,8 @@
         label2.textContent=`강도 ${Math.round(intensity)}`;
         const selEff=effects.find(e=>e.id===selectedId);
         if(selEff){ selEff.intensity=intensity; redraw(); }
-        recomputePendingPreview();
       };
-      slider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(false); };
+      slider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(); };
       g2.appendChild(label2); g2.appendChild(slider);
 
       const gf = document.createElement("div"); gf.className="opt-group";
@@ -1303,17 +1269,16 @@
         featherLabel.textContent=`페더 ${Math.round(feather)}`;
         const selEff=effects.find(e=>e.id===selectedId);
         if(selEff){ selEff.feather=feather; redraw(); }
-        recomputePendingPreview();
       };
-      featherSlider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(false); };
+      featherSlider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(); };
       gf.appendChild(featherLabel); gf.appendChild(featherSlider);
 
       const g3 = document.createElement("div"); g3.className="opt-group";
       const seg3 = document.createElement("div"); seg3.className="seg";
       const bFace = document.createElement("button"); bFace.textContent="얼굴"; bFace.className = blurShape==="face"?"active":"";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
-      bFace.onclick=()=>{ blurShape="face"; buildOptionsBar(); recomputePendingPreview(); redraw(); };
-      bRect.onclick=()=>{ blurShape="rect"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape="rect";pushHistory(false);} buildOptionsBar(); recomputePendingPreview(); redraw(); };
+      bFace.onclick=()=>{ blurShape="face"; buildOptionsBar(); redraw(); };
+      bRect.onclick=()=>{ blurShape="rect"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape="rect";pushHistory();} buildOptionsBar(); redraw(); };
       seg3.appendChild(bFace); seg3.appendChild(bRect);
       g3.appendChild(seg3);
 
@@ -1338,7 +1303,7 @@
           b.onclick=()=>{
             strokeMultCurrent=mult;
             const sel=objects.find(o=>o.id===selectedId);
-            if(sel){ sel.strokeMult=mult; pushHistory(false); redraw(); }
+            if(sel){ sel.strokeMult=mult; pushHistory(); redraw(); }
             buildOptionsBar();
           };
           seg.appendChild(b);
@@ -1351,7 +1316,7 @@
           const sel = objects.find(o=>o.id===selectedId);
           if(sel){ sel.strokeMult = strokeMultCurrent; redraw(); }
         };
-        slider.onchange = ()=>{ if(objects.find(o=>o.id===selectedId)) pushHistory(false); };
+        slider.onchange = ()=>{ if(objects.find(o=>o.id===selectedId)) pushHistory(); };
         g.appendChild(slider);
       }
       optionsBar.appendChild(g);
@@ -1364,7 +1329,7 @@
         const sel = objects.find(o=>o.id===selectedId);
         if(sel){ sel.color = strokeColorCurrent; redraw(); }
       };
-      colorInput.onchange = ()=>{ if(objects.find(o=>o.id===selectedId)) pushHistory(false); };
+      colorInput.onchange = ()=>{ if(objects.find(o=>o.id===selectedId)) pushHistory(); };
       gc.appendChild(colorLabel); gc.appendChild(colorInput);
       optionsBar.appendChild(gc);
 
@@ -1389,14 +1354,14 @@
           [[0.72,"얇게"],[1,"기본"],[1.38,"굵게"]].forEach(([mult,name])=>{
             const b=document.createElement("button"); b.textContent=name;
             b.className=Math.abs((sel.strokeMult||1)-mult)<0.08?"active":"";
-            b.onclick=()=>{ sel.strokeMult=mult; strokeMultCurrent=mult; pushHistory(false); buildOptionsBar(); redraw(); };
+            b.onclick=()=>{ sel.strokeMult=mult; strokeMultCurrent=mult; pushHistory(); buildOptionsBar(); redraw(); };
             seg.appendChild(b);
           });
           g.appendChild(seg);
         } else {
           const slider = document.createElement("input"); slider.type="range"; slider.min="50"; slider.max="200"; slider.value=String(Math.round((sel.strokeMult||1)*100));
           slider.oninput = ()=>{ sel.strokeMult = Number(slider.value)/100; redraw(); };
-          slider.onchange = ()=>{ pushHistory(false); };
+          slider.onchange = ()=>{ pushHistory(); };
           g.appendChild(slider);
         }
         optionsBar.appendChild(g);
@@ -1405,7 +1370,7 @@
         const colorLabel = document.createElement("span"); colorLabel.textContent="색상";
         const colorInput = document.createElement("input"); colorInput.type="color"; colorInput.value = sel.color || DEFAULT_COLOR;
         colorInput.oninput = ()=>{ sel.color = colorInput.value; strokeColorCurrent = colorInput.value; redraw(); };
-        colorInput.onchange = ()=>{ pushHistory(false); };
+        colorInput.onchange = ()=>{ pushHistory(); };
         gc.appendChild(colorLabel); gc.appendChild(colorInput);
         optionsBar.appendChild(gc);
 
@@ -1421,7 +1386,7 @@
         const gd=document.createElement("div"); gd.className="opt-group";
         const del=document.createElement("button"); del.className="danger-opt"; del.textContent="삭제"; del.title="선택 항목 삭제 (Delete)";
         del.onclick=()=>{
-          objects=objects.filter(o=>o.id!==selectedId); selectedId=null; pushHistory(false); buildOptionsBar(); redraw(); showToast("선택 항목을 삭제했습니다.",1000);
+          objects=objects.filter(o=>o.id!==selectedId); selectedId=null; pushHistory(); buildOptionsBar(); redraw(); showToast("선택 항목을 삭제했습니다.",1000);
         };
         gd.appendChild(del); optionsBar.appendChild(gd);
       } else {
@@ -1581,7 +1546,6 @@
     // 기존 항목이 없는 곳을 누르면 먼저 선택을 해제한다.
     if(selectedId!=null){ selectedId=null; buildOptionsBar(); redraw(); }
     if(activeTool==="blur"){
-      if(pendingEffect) commitPendingEffect();
       drag = {mode:"create", startDisp:dp, curDisp:dp}; redraw(); return;
     }
 
@@ -1722,8 +1686,8 @@
                 id:genId(), type:'effect', rect:Object.assign({},r), faceRects:[],
                 autoFace:false, mode:blurMode, shape:'rect', rotation:0, intensity:intensity, feather:feather
               };
-              effects.push(eff); selectedId=eff.id; pendingEffect=null;
-              pushHistory(false); buildOptionsBar(); redraw();
+              effects.push(eff); selectedId=eff.id;
+              pushHistory(); buildOptionsBar(); redraw();
               showToast("사각형 영역 가림",900);
               return;
             }
@@ -1736,8 +1700,7 @@
               // 조건을 통과한 얼굴만 이목구비 중심으로 자동 가림한다. 조건을 못 넘으면 사용자가 그린 위치를 그대로 가린다.
               // MediaPipe가 반환한 눈·코·입 랜드마크 기반 영역을 그대로 사용한다.
               const faceRects=(faces||[]).map(face=>({x:face.x,y:face.y,w:face.w,h:face.h}));
-              // 비동기 얼굴 인식 결과를 pendingEffect 하나에 보관하면 연속 작업 때
-              // 다음 가림이 이전 가림을 덮어쓸 수 있다. 검출이 끝나는 즉시 독립 효과 객체로 등록한다.
+              // 검출이 끝나는 즉시 독립 효과 객체로 등록한다.
               const eff={
                 id:genId(), type:'effect',
                 rect:Object.assign({}, faceRects.length ? faceRects[0] : r),
@@ -1748,8 +1711,7 @@
               };
               effects.push(eff);
               selectedId=eff.id;
-              pendingEffect=null;
-              pushHistory(false);
+              pushHistory();
               buildOptionsBar();
               redraw();
               if(faceRects.length) showToast("얼굴 위치 보정",1000);
@@ -1780,7 +1742,7 @@
               : {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokeMult:strokeMultCurrent, color:strokeColorCurrent};
             objects.push(obj);
             selectedId = obj.id;
-            pushHistory(false);
+            pushHistory();
             buildOptionsBar();
           }
         }
@@ -1794,14 +1756,14 @@
           const obj = {id:genId(), type:"arrow", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokeMult:strokeMultCurrent, color:strokeColorCurrent};
           objects.push(obj);
           selectedId = obj.id;
-          pushHistory(false);
+          pushHistory();
           buildOptionsBar();
         }
         redraw();
         return;
       }
     } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize" || finishedDrag.mode==="rotate" || finishedDrag.mode==="effectMove" || finishedDrag.mode==="effectResize" || finishedDrag.mode==="effectRotate"){
-      pushHistory(false);
+      pushHistory();
     }
   }
 
@@ -2295,7 +2257,26 @@
     return { canvas: processed, sx, sy };
   }
 
+  // 가림 결과 캐시: 블러/모자이크는 픽셀 연산이라 비싸므로, 효과의 위치·크기·설정이
+  // 바뀌었을 때만 다시 계산한다. 화살표 이동이나 선택 변경 같은 일반 redraw에서는 재사용한다.
+  const effectCache = new Map(); // effect id -> {key, result}
+  function effectCacheKey(eff){
+    return JSON.stringify([eff.rect, eff.faceRects, eff.autoFace, eff.shape, eff.mode, eff.rotation||0, eff.intensity, eff.feather, naturalW, naturalH]);
+  }
   function renderEffectObject(eff){
+    const key = effectCacheKey(eff);
+    const hit = effectCache.get(eff.id);
+    if(hit && hit.key===key) return hit.result;
+    const result = renderEffectObjectUncached(eff);
+    effectCache.set(eff.id, {key, result});
+    // 삭제되었거나 되돌리기로 사라진 효과의 캐시는 정리한다.
+    if(effectCache.size > effects.length + 4){
+      const alive = new Set(effects.map(e=>e.id));
+      for(const id of effectCache.keys()) if(!alive.has(id)) effectCache.delete(id);
+    }
+    return result;
+  }
+  function renderEffectObjectUncached(eff){
     const effectOptions={intensity:eff.intensity, feather:eff.feather};
     const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
     let result;
@@ -2308,53 +2289,6 @@
     return result;
   }
 
-  // 아직 확정되지 않은 가림 효과의 미리보기를 현재 강도/모드/모양으로 다시 계산
-  function recomputePendingPreview(){
-    if(!pendingEffect) return;
-    try{
-      const rects = pendingEffect.faceRects && pendingEffect.faceRects.length ? pendingEffect.faceRects : [pendingEffect.rect];
-      if(rects.length===1){
-        const effectShape = pendingEffect.autoFace || blurShape==="face" ? "ellipse" : "rect";
-        const region = computeEffectRegion(rects[0], effectShape, blurMode, 0, {intensity, feather});
-        pendingEffect.canvas = region.canvas;
-        pendingEffect.sx = region.sx;
-        pendingEffect.sy = region.sy;
-      } else {
-        // 여러 얼굴을 한 번에 선택했을 때 각 얼굴만 독립적으로 가린다.
-        const overlay = document.createElement("canvas"); overlay.width=naturalW; overlay.height=naturalH;
-        const octx=overlay.getContext("2d");
-        rects.forEach(rr=>{
-          const region=computeEffectRegion(rr, "ellipse", blurMode, 0, {intensity, feather});
-          octx.drawImage(region.canvas, region.sx, region.sy);
-        });
-        pendingEffect.canvas=overlay; pendingEffect.sx=0; pendingEffect.sy=0;
-      }
-      redraw();
-    }catch(err){
-      showToast("가림 효과 계산 중 오류: "+(err&&err.message?err.message:err));
-      pendingEffect = null;
-      redraw();
-    }
-  }
-
-  // 확정: 미리보기 결과를 실제 rasterCanvas 픽셀에 합성하고 히스토리에 기록
-  function commitPendingEffect(){
-    if(!pendingEffect) return;
-    const eff={
-      id:genId(), type:'effect', rect:Object.assign({},pendingEffect.rect),
-      faceRects:(pendingEffect.faceRects||[]).map(r=>Object.assign({},r)),
-      autoFace:!!pendingEffect.autoFace, mode:blurMode, shape:(pendingEffect.autoFace||blurShape==='face')?'ellipse':'rect',
-      intensity:intensity, feather:feather
-    };
-    effects.push(eff); selectedId=eff.id; pendingEffect=null;
-    pushHistory(false); buildOptionsBar(); redraw();
-  }
-
-  // 취소: 확정하지 않고 미리보기를 버림
-  function discardPendingEffect(){
-    pendingEffect = null;
-  }
-
   // ---------------- undo/redo buttons ----------------
   btnUndo.addEventListener("click", undo);
   btnRedo.addEventListener("click", redo);
@@ -2363,9 +2297,9 @@
   function clearPhoto(){
     if(!naturalW) return;
     if(!confirm("현재 사진과 모든 마킹을 지울까요?")) return;
-    discardPendingEffect(); naturalW=0; naturalH=0; objects=[]; effects=[]; selectedId=null; drag=null;
+    naturalW=0; naturalH=0; objects=[]; effects=[]; selectedId=null; drag=null;
     rasterCanvas=document.createElement("canvas"); rasterCtx=rasterCanvas.getContext("2d");
-    rasterStates=[]; history=[]; historyIndex=-1;
+    history=[]; historyIndex=-1; effectCache.clear();
     viewCanvas.width=1; viewCanvas.height=1; viewCanvas.classList.remove("ready");
     placeholder.classList.remove("hidden"); btnSave.disabled=true; btnClearPhoto.disabled=true;
     setActiveTool(null); updateHistoryButtons();
@@ -2394,7 +2328,6 @@
       return;
     }
     if(e.key==="Escape"){
-      if(pendingEffect){ discardPendingEffect(); redraw(); return; }
       if(drag){ drag=null; redraw(); return; }
       if(selectedId!=null){ selectedId=null; buildOptionsBar(); redraw(); return; }
       if(activeTool){ setActiveTool(null); }
@@ -2414,7 +2347,6 @@
 
   btnSave.addEventListener("click", async ()=>{
     if(!naturalW) return;
-    if(pendingEffect) commitPendingEffect();
     const format = formatSelect.value;
     const outCanvas = document.createElement("canvas");
     outCanvas.width = naturalW; outCanvas.height = naturalH;
