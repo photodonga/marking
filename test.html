@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹</title>
+<title>마킹 — 모바일 테스트 v4.3.6 검토본</title>
 
 <style>
   :root{
@@ -700,230 +700,140 @@
     #toolbar .tools{grid-template-columns:repeat(4,minmax(0,1fr));}
   }
 
-  /* v4.3.1: single mobile layout authority. PC styles remain unchanged. */
-  @media(max-width:640px){
+
+
+  /* Mobile v4.3.6 review: one mobile layout authority. Desktop rules above stay intact. */
+  .save-format-menu{position:fixed;z-index:1100;width:96px;box-sizing:border-box;padding:4px;background:#292b34;color:#fff;border:1px solid #484a55;border-radius:10px;box-shadow:0 8px 20px #0005;animation:line-menu-in .12s ease-out both;}
+  .save-format-menu[hidden]{display:none!important;}
+  .save-format-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;height:32px;padding:0 9px;background:transparent;border:0;border-radius:6px;color:inherit;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}
+  .save-format-menu button[aria-checked="true"]{background:#36527f;}
+  .save-format-menu button span{color:#87baff;}
+
+  @media (min-width:641px){
+    #options-bar .option-row{display:contents;}
+  }
+
+  @media (max-width:640px){
     #chrome{
       position:absolute;top:auto;bottom:calc(8px + var(--safe-b));
-      left:calc(6px + var(--safe-l));right:calc(6px + var(--safe-r));
-      display:block;height:auto;min-height:0;gap:0;
+      left:calc(8px + var(--safe-l));right:calc(8px + var(--safe-r));
+      display:block;height:auto;min-height:0;z-index:30;pointer-events:none;
     }
     #toolbar{
-      display:flex;align-items:center;justify-content:space-between;
-      box-sizing:border-box;width:100%;height:50px;
-      gap:3px;padding:5px 6px;border-radius:15px;
-      flex-wrap:nowrap;overflow:visible;
+      display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;
+      box-sizing:border-box;width:max-content;max-width:100%;min-width:0;height:50px;
+      gap:clamp(4px,1.3vw,7px);margin:0 auto;padding:5px 6px;overflow:visible;
+      border-radius:16px;touch-action:manipulation;
     }
-    #toolbar .brand,#toolbar .tools > .sep{display:none;}
-    #toolbar .tools{
-      display:flex;align-items:center;justify-content:space-between;
-      flex:1 1 auto;min-width:0;width:auto;gap:2px;
-      overflow:visible;
+    #toolbar .brand{display:none;}
+    #toolbar .tools{display:flex;align-items:center;justify-content:flex-start;flex:0 0 auto;width:auto;min-width:0;gap:1px;overflow:visible;}
+    #toolbar .tools>.sep{display:none;}
+    #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:0;}
+    #toolbar .toolbar-edit{gap:1px;}
+    #toolbar .tools>.toolbar-edit>.tool-btn,
+    #toolbar .toolbar-edit>.tool-btn{
+      display:flex;align-items:center;justify-content:center;box-sizing:border-box;
+      flex:0 0 clamp(27px,8.2vw,36px);width:clamp(27px,8.2vw,36px);min-width:0;
+      height:38px;min-height:38px;margin:0;padding:0;border-radius:10px;
     }
-    #toolbar .tools > .tool-btn,
-    #toolbar .tools > .icon-btn{
-      box-sizing:border-box;display:flex;align-items:center;justify-content:center;
-      flex:0 1 36px;width:36px;min-width:0;height:38px;min-height:38px;
-      margin:0;padding:0;border-radius:10px;
-    }
-    #toolbar .tools > .tool-btn{border:1px solid transparent;}
-    #toolbar .tools > .icon-btn{background:transparent;border:1px solid transparent;}
-    #toolbar .tools > .icon-btn:not(:disabled):hover{background:var(--chip-bg);}
-    #toolbar .tools > .icon-btn svg,
-    #toolbar .tools > .tool-btn .glyph svg{width:19px;height:19px;display:block;}
-    #toolbar .tools > .tool-btn .glyph{display:flex;align-items:center;justify-content:center;margin:0;line-height:1;}
-    #toolbar .tools > .tool-btn .label{display:none;}
-    #toolbar .tools > .line-tool-combo{
-      box-sizing:border-box;display:flex;align-items:stretch;
-      flex:0 1 54px;width:54px;min-width:48px;height:38px;
-      border-radius:10px;overflow:hidden;
-    }
-    #toolbar .line-tool-combo > .tool-btn{
-      box-sizing:border-box;display:flex;align-items:center;justify-content:center;
-      flex:1 1 auto;width:auto;min-width:0;height:38px;min-height:38px;
-      padding:0;margin:0;border-radius:10px 0 0 10px;
-    }
-    #toolbar .line-tool-combo > .tool-btn.active{border-radius:10px 0 0 10px;}
-    #toolbar .line-tool-combo > .tool-btn .glyph{display:flex;align-items:center;justify-content:center;}
-    #toolbar .line-tool-combo > .tool-btn .glyph svg{width:19px;height:19px;display:block;}
-    #toolbar .line-tool-chevron{
-      box-sizing:border-box;flex:0 0 20px;min-width:20px;width:20px;
-      height:38px;padding:0;border-radius:0 10px 10px 0;
-    }
+    #toolbar .tool-btn .label{display:none;}
+    #toolbar .tool-btn .glyph{display:flex;align-items:center;justify-content:center;width:22px;height:22px;margin:0;line-height:0;}
+    #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{display:block;width:19px;height:19px;}
+    #toolbar .line-tool-combo{display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 clamp(46px,13vw,56px);width:clamp(46px,13vw,56px);min-width:0;height:38px;overflow:hidden;border-radius:10px;}
+    #toolbar .line-tool-combo>.tool-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:1 1 auto;width:auto;min-width:0;height:38px;min-height:38px;margin:0;padding:0;border-radius:10px 0 0 10px;}
+    #toolbar .line-tool-chevron{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 19px;width:19px;min-width:19px;height:38px;margin:0;padding:0;border-radius:0 10px 10px 0;}
     #toolbar .line-tool-chevron svg{width:11px;height:11px;}
-    #toolbar .save-group{
-      box-sizing:border-box;display:flex;align-items:stretch;
-      flex:0 0 81px;width:81px;min-width:81px;height:38px;
-      margin:0 0 0 2px;gap:0;border-radius:10px;overflow:hidden;
-    }
-    #toolbar .save-group .save-btn{
-      box-sizing:border-box;flex:0 0 55px;width:55px;min-width:55px;
-      height:38px;min-height:38px;margin:0;padding:0;font-size:12px;
-      border-radius:10px 0 0 10px;
-    }
-    #toolbar .save-group .save-format-wrap{
-      box-sizing:border-box;position:relative;flex:0 0 26px;width:26px;
-      min-width:26px;height:38px;min-height:38px;border-radius:0 10px 10px 0;
-    }
-    #toolbar .save-group #format-select{
-      position:absolute;inset:0;width:100%;height:100%;min-height:0;
-      opacity:0;cursor:pointer;padding:0;z-index:2;
-    }
-    #toolbar .save-group .save-chevron{right:6px;top:50%;width:13px;height:13px;pointer-events:none;}
-    #toolbar .save-group .save-format-wrap::before{
-      content:'';position:absolute;left:0;top:8px;height:22px;
-      border-left:1px solid rgba(255,255,255,.35);
-    }
-    #toolbar .save-group .save-format-wrap[data-format='png']::after{
-      content:'PNG';position:absolute;right:0;bottom:0;font-size:8px;
-      font-weight:700;color:#fff;pointer-events:none;
-    }
-    #options-bar:not(.hidden){
-      box-sizing:border-box;position:absolute;bottom:calc(100% + 6px);
-      left:0;right:0;width:auto;max-width:100%;max-height:min(30dvh,150px);
-      overflow-y:auto;overflow-x:hidden;padding:6px 8px;gap:4px 7px;
-      font-size:11px;z-index:50;box-shadow:0 6px 18px rgba(0,0,0,.14);
-    }
-    #options-bar .seg button{min-height:29px;padding:4px 7px;font-size:11px;}
-    #options-bar .opt-group{gap:4px;}
-    #options-bar input[type='range']{width:clamp(76px,20vw,112px);min-width:76px;max-width:112px;}
-    #options-bar input[type='color']{width:28px;height:28px;}
-    #options-bar.mobile-menu-suspended{display:none!important;}
-    .line-tool-menu{width:120px;padding:3px;border-radius:9px;}
-    .line-tool-menu button{min-height:34px;padding:5px 7px;font-size:11px;gap:5px;}
-    .line-tool-menu svg{width:15px;height:15px;}
-  }
-  @media(prefers-reduced-motion:reduce){#options-bar{animation:none!important;}}
+    #toolbar .toolbar-history{gap:0;margin-left:clamp(3px,1.2vw,6px);padding-left:clamp(3px,1.2vw,6px);border-left:1px solid rgba(45,51,65,.2);}
+    #toolbar .toolbar-history>.icon-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 clamp(27px,7.8vw,34px);width:clamp(27px,7.8vw,34px);min-width:0;height:38px;margin:0;padding:0;border:0;border-radius:9px;background:transparent;}
+    #toolbar .toolbar-delete{margin-left:clamp(3px,1.2vw,7px);}
+    #toolbar .toolbar-delete>#btn-clear-photo{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 clamp(32px,9vw,40px);width:clamp(32px,9vw,40px);min-width:0;height:38px;min-height:38px;margin:0;padding:0;border-radius:10px;}
+    #toolbar .save-group{display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 clamp(72px,20vw,80px);width:clamp(72px,20vw,80px);min-width:0;height:38px;margin:0 0 0 clamp(3px,1.2vw,7px);gap:0;border-radius:10px;overflow:hidden;}
+    #toolbar .save-group .save-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:1 1 auto;width:auto;min-width:0;height:38px;min-height:38px;margin:0;padding:0;border-radius:10px 0 0 10px;font-size:12px;}
+    #toolbar .save-group .save-format-wrap{position:relative;display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 24px;width:24px;min-width:24px;height:38px;min-height:38px;border-radius:0 10px 10px 0;}
+    #toolbar .save-group #format-select{position:absolute;inset:0;z-index:2;width:100%;height:100%;min-height:0;margin:0;padding:0;opacity:0;cursor:pointer;}
+    #toolbar .save-group .save-chevron{position:absolute;top:50%;right:5px;width:12px;height:12px;transform:translateY(-50%);pointer-events:none;}
+    #toolbar .save-group .save-format-wrap::before{content:'';position:absolute;left:0;top:8px;height:22px;border-left:1px solid rgba(255,255,255,.38);}
 
-  /* v4.3.2 — 승인 시안: 모바일 상·하단 툴바의 공통 정렬 체계 */
-  @media (max-width:640px){
-    #toolbar .tools, #toolbar .tools > .line-tool-combo,
-    #toolbar .tools > .tool-btn, #toolbar .tools > .icon-btn,
-    #toolbar .line-tool-combo > .tool-btn, #toolbar .line-tool-chevron,
-    #toolbar .save-group {align-self:center;vertical-align:middle;transform:none;}
-    #toolbar .tools > .line-tool-combo{margin:0;top:auto;bottom:auto;position:relative;}
-    #toolbar .tools > .line-tool-combo > .tool-btn{margin:0;top:auto;bottom:auto;}
-    #toolbar .tools > .tool-btn .glyph, #toolbar .line-tool-combo .glyph{
-      position:static;transform:none;line-height:1;align-items:center;justify-content:center;
-    }
     #options-bar:not(.hidden){
-      display:grid;align-items:center;align-content:center;
-      grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-      column-gap:8px;row-gap:8px;
-      padding:10px 12px;border-radius:13px;
-      max-height:min(36dvh,190px);overflow-x:hidden;overflow-y:auto;
+      position:absolute;left:50%;right:auto;bottom:calc(100% + 7px);transform:translateX(-50%);
+      display:flex;flex-direction:column;align-items:stretch;justify-content:center;
+      box-sizing:border-box;width:100%;max-width:100%;max-height:min(34dvh,156px);min-width:0;
+      gap:5px;padding:7px 8px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+      border-radius:15px;font-size:11px;touch-action:pan-y;box-shadow:0 8px 24px rgba(0,0,0,.18);
     }
-    #options-bar[data-layout="effect"] > .opt-group:nth-child(1){grid-column:1;grid-row:1;justify-content:start;}
-    #options-bar[data-layout="effect"] > .opt-group:nth-child(4){grid-column:2;grid-row:1;justify-content:end;}
-    #options-bar[data-layout="effect"] > .opt-group:nth-child(2){grid-column:1;grid-row:2;}
-    #options-bar[data-layout="effect"] > .opt-group:nth-child(3){grid-column:2;grid-row:2;}
-    #options-bar[data-layout="effect"] > .opt-group:nth-child(2),
-    #options-bar[data-layout="effect"] > .opt-group:nth-child(3){
-      min-width:0;display:flex;flex-wrap:wrap;gap:3px 5px;align-items:center;
-    }
-    #options-bar[data-layout="effect"] input[type="range"]{
-      flex:1 1 100%;width:100%;min-width:0;max-width:100%;margin:0;
-    }
-    #options-bar[data-layout="drawing"]{grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
-    #options-bar[data-layout="drawing"] > .opt-group{min-width:0;max-width:100%;}
-    #options-bar[data-layout="drawing"] > .opt-group:has(.color-palette){grid-column:1 / -1;}
-    #options-bar .opt-group{margin:0;min-height:28px;align-items:center;}
-    #options-bar .seg{max-width:100%;}
-    #options-bar .seg button{min-height:29px;}
-    #options-bar input[type="range"]{touch-action:pan-x;}
+    #options-bar.hidden{display:none;}
+    #options-bar.mobile-menu-suspended{display:none;}
+    #options-bar .option-row{display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;width:100%;min-width:0;gap:clamp(3px,1.4vw,7px);}
+    #options-bar .opt-group{display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:0;min-height:34px;margin:0;gap:4px;white-space:nowrap;}
+    #options-bar .seg{display:flex;align-items:center;box-sizing:border-box;max-width:100%;min-width:0;gap:2px;padding:2px;border-radius:10px;}
+    #options-bar .seg button{box-sizing:border-box;flex:0 1 auto;min-width:0;min-height:34px;padding:5px 7px;border-radius:8px;font-size:clamp(10px,2.9vw,12px);line-height:1;white-space:nowrap;touch-action:manipulation;}
+
+    /* Effect panel: tool selectors on row one, paired sliders on row two. */
+    #options-bar[data-layout="effect"] .option-row:first-child{justify-content:space-between;}
+    #options-bar[data-layout="effect"] .option-mode .seg,
+    #options-bar[data-layout="effect"] .option-target .seg{width:100%;}
+    #options-bar[data-layout="effect"] .option-mode,
+    #options-bar[data-layout="effect"] .option-target{flex:0 1 49%;}
+    #options-bar[data-layout="effect"] .option-mode .seg button,
+    #options-bar[data-layout="effect"] .option-target .seg button{flex:1 1 0;padding-left:4px;padding-right:4px;}
+    #options-bar[data-layout="effect"] .effect-sliders{gap:clamp(6px,2vw,12px);}
+    #options-bar[data-layout="effect"] .option-slider{display:grid;grid-template-rows:auto 28px;align-items:center;justify-content:stretch;flex:1 1 0;min-width:0;gap:0;}
+    #options-bar[data-layout="effect"] .effect-value-label{display:block;box-sizing:border-box;width:100%;min-height:20px;flex:none;white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;}
+    #options-bar[data-layout="effect"] input[type="range"]{box-sizing:border-box;width:100%;min-width:0;max-width:none;height:28px;margin:0;background:transparent;touch-action:pan-x;}
+    #options-bar[data-layout="effect"] input[type="range"]::-webkit-slider-runnable-track{height:4px;border-radius:3px;background:var(--chip-border);}
+    #options-bar[data-layout="effect"] input[type="range"]::-webkit-slider-thumb{margin-top:-6px;width:16px;height:16px;}
+    #options-bar[data-layout="effect"] input[type="range"]::-moz-range-track{height:4px;border-radius:3px;background:var(--chip-border);}
+    #options-bar[data-layout="effect"] input[type="range"]::-moz-range-thumb{width:16px;height:16px;}
+
+    /* Drawing panels: preserve shape switch; use the same two-row control system. */
+    #options-bar[data-layout="drawing"] .drawing-primary{justify-content:space-between;}
+    #options-bar[data-layout="drawing"] .drawing-secondary{justify-content:space-between;}
+    #options-bar[data-layout="drawing"] .option-shape{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-shape .seg button{padding-left:5px;padding-right:5px;}
+    #options-bar[data-layout="drawing"] .option-color{flex:1 1 auto;justify-content:flex-start;gap:3px;}
+    #options-bar[data-layout="drawing"] .option-color>span{font-size:10px;}
+    #options-bar[data-layout="drawing"] .annotation-palette{display:flex;align-items:center;justify-content:space-between;flex:1 1 auto;min-width:0;gap:1px;}
+    #options-bar[data-layout="drawing"] .palette-swatch{position:relative;box-sizing:border-box;flex:0 1 clamp(25px,7.8vw,34px);width:clamp(25px,7.8vw,34px);min-width:25px;height:34px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;outline:none;touch-action:manipulation;}
+    #options-bar[data-layout="drawing"] .palette-swatch::before{content:'';position:absolute;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);border:1px solid rgba(80,80,80,.45);border-radius:50%;background:var(--swatch);}
+    #options-bar[data-layout="drawing"] .palette-swatch.selected::before{outline:2px solid #2478e9;outline-offset:2px;}
+    #options-bar[data-layout="drawing"] .palette-swatch.selected::after{font-size:12px;}
+    #options-bar[data-layout="drawing"] .check-opt{flex:0 0 auto;min-height:34px;gap:4px;padding:0 2px;font-size:clamp(9px,2.7vw,11px);}
+    #options-bar[data-layout="drawing"] .check-opt input{width:16px;height:16px;margin:0;flex:0 0 16px;}
+    #options-bar[data-layout="drawing"] .option-stroke{flex:1 1 auto;justify-content:flex-start;gap:4px;}
+    #options-bar[data-layout="drawing"] .option-stroke>span,
+    #options-bar[data-layout="drawing"] .option-line-style>span{font-size:10px;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg{flex:1 1 auto;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg button{flex:1 1 0;padding-left:clamp(4px,1.8vw,8px);padding-right:clamp(4px,1.8vw,8px);}
+    #options-bar[data-layout="drawing"] .option-line-style{flex:0 0 auto;gap:4px;}
+    #options-bar[data-layout="drawing"] .option-line-style .seg button{padding-left:clamp(5px,2vw,9px);padding-right:clamp(5px,2vw,9px);}
+    #options-bar[data-layout="drawing"] .option-lock{min-height:34px;}
+    #options-bar[data-layout="drawing"] .selected-options .danger-opt{min-height:34px;padding:4px 8px;}
+
     #workarea,#view-canvas{touch-action:none;overscroll-behavior:contain;}
+    #footer-note{display:none;}
+    .line-tool-menu{width:120px;padding:4px;border-radius:10px;}
+    .line-tool-menu button{min-height:36px;padding:6px 8px;font-size:12px;}
   }
-  @media(max-width:365px){
-    #options-bar:not(.hidden){column-gap:5px;padding:8px;}
-    #options-bar .seg button{padding:4px 5px;font-size:10px;}
+  @media (max-width:365px){
+    #toolbar{gap:3px;padding-left:4px;padding-right:4px;}
+    #toolbar .toolbar-edit>.tool-btn{flex-basis:27px;width:27px;}
+    #toolbar .line-tool-combo{flex-basis:45px;width:45px;}
+    #toolbar .line-tool-chevron{flex-basis:18px;width:18px;min-width:18px;}
+    #toolbar .toolbar-history>.icon-btn{flex-basis:27px;width:27px;}
+    #toolbar .toolbar-delete>#btn-clear-photo{flex-basis:32px;width:32px;}
+    #toolbar .save-group{flex-basis:72px;width:72px;}
+    #options-bar:not(.hidden){padding:6px;gap:4px;}
+    #options-bar .seg button{padding-left:4px;padding-right:4px;font-size:10px;}
+    #options-bar[data-layout="drawing"] .option-color{gap:1px;}
+    #options-bar[data-layout="drawing"] .option-color>span{font-size:9px;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex-basis:25px;width:25px;min-width:25px;}
+    #options-bar[data-layout="drawing"] .option-shape .seg button{padding-left:4px;padding-right:4px;font-size:9.5px;}
+    #options-bar[data-layout="drawing"] .check-opt{font-size:9px;}
   }
-
-/* v4.3.3 MOBILE ONLY: consistent compact layout; native select replaced with anchored menu */
-@media(max-width:640px){
- #options-bar:not(.hidden){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 9px;padding:8px 10px;align-content:center;justify-content:stretch;max-height:min(30dvh,160px);}
- #options-bar .opt-group{min-width:0;max-width:100%;justify-content:flex-start;gap:5px;}
- #options-bar .seg{display:flex;width:100%;min-width:0;box-sizing:border-box;}
- #options-bar .seg button{flex:1 1 0;min-width:0;padding:5px 3px;white-space:nowrap;}
- #options-bar[data-layout="effect"]>.opt-group:nth-child(1){grid-area:1/1;}
- #options-bar[data-layout="effect"]>.opt-group:nth-child(4){grid-area:1/2;}
- #options-bar[data-layout="effect"]>.opt-group:nth-child(2){grid-area:2/1;}
- #options-bar[data-layout="effect"]>.opt-group:nth-child(3){grid-area:2/2;}
- #options-bar[data-layout="drawing"]>.opt-group{grid-column:auto;grid-row:auto;}
- #options-bar[data-layout="drawing"]>.opt-group:has(.annotation-palette){grid-column:1/-1;grid-row:1;}
- #options-bar[data-layout="drawing"]>.opt-group:has(.annotation-palette) .annotation-palette{flex:1;justify-content:space-evenly;}
- #options-bar[data-layout="drawing"]>.opt-group:has(.seg):not(:has(.annotation-palette)){min-width:0;}
- #options-bar[data-layout="drawing"]>.opt-group.check-opt{justify-content:flex-end;}
- #toolbar .save-group #format-select{display:none;}
- #toolbar .save-group .save-format-wrap{cursor:pointer;}
- #toolbar .save-group .save-format-wrap:focus-visible{outline:2px solid white;outline-offset:-3px;}
-}
-.save-format-menu{position:fixed;z-index:1100;width:96px;box-sizing:border-box;padding:4px;background:#292b34;color:#fff;border:1px solid #484a55;border-radius:10px;box-shadow:0 8px 20px #0005;animation:line-menu-in .12s ease-out both;}
-.save-format-menu[hidden]{display:none!important;}
-.save-format-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;height:34px;padding:0 9px;background:transparent;border:0;border-radius:6px;color:inherit;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}
-.save-format-menu button[aria-checked="true"]{background:#36527f;}
-.save-format-menu button span{color:#87baff;}
-
-/* v4.3.4 — approved design 2; shared touch UI for iOS Safari and Android Chrome */
-@media (max-width:640px){
- #toolbar{gap:0!important;padding:5px 7px!important;justify-content:space-between!important;}
- #toolbar .tools{flex:1 1 auto!important;justify-content:flex-start!important;gap:2px!important;}
- #toolbar .tools>.tool-btn{flex:0 1 36px!important;width:36px!important;}
- #toolbar .tools>.line-tool-combo{flex:0 1 54px!important;min-width:45px!important;}
- #toolbar .tools>#btn-undo{margin-left:auto!important;border-left:1px solid rgba(45,51,65,.18)!important;border-radius:0!important;padding-left:3px!important;}
- #toolbar .tools>#btn-redo{margin-right:auto!important;}
- #toolbar .tools>#btn-clear-photo{margin-left:7px!important;position:relative!important;}
- #toolbar .save-group{margin-left:9px!important;flex:0 0 81px!important;}
- #options-bar[data-layout="drawing"]:not(.hidden){display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:auto auto!important;gap:9px 7px!important;padding:10px 10px!important;align-items:center!important;align-content:center!important;max-height:none!important;}
- #options-bar[data-layout="drawing"]>.opt-group{grid-column:auto!important;grid-row:auto!important;min-width:0!important;justify-content:center!important;gap:4px!important;}
- #options-bar[data-layout="drawing"]>.opt-group:has(.annotation-palette){grid-column:1 / 3!important;grid-row:2!important;justify-content:flex-start!important;}
- #options-bar[data-layout="drawing"]>.opt-group.check-opt{grid-column:3!important;grid-row:2!important;justify-content:center!important;white-space:nowrap!important;}
- #options-bar[data-layout="drawing"]>.opt-group:has(.seg):not(:has(.annotation-palette)){grid-row:1!important;}
- #options-bar[data-layout="drawing"]>.opt-group>span{font-size:10px!important;}
- #options-bar[data-layout="drawing"] .annotation-palette{display:flex!important;justify-content:space-between!important;gap:3px!important;width:100%!important;}
- #options-bar[data-layout="drawing"] .seg button{padding:5px 4px!important;font-size:10px!important;}
- #options-bar[data-layout="drawing"] .check-opt span{font-size:10px!important;}
-}
-@media (max-width:370px){
- #toolbar{padding:5px 4px!important;}
- #toolbar .tools{gap:0!important;}
- #toolbar .tools>.tool-btn{flex-basis:30px!important;}
- #toolbar .tools>.line-tool-combo{flex-basis:47px!important;min-width:43px!important;}
- #toolbar .tools>.icon-btn{flex-basis:28px!important;width:28px!important;}
- #toolbar .tools>#btn-clear-photo{margin-left:3px!important;}
- #toolbar .save-group{margin-left:4px!important;flex-basis:75px!important;width:75px!important;min-width:75px!important;}
- #toolbar .save-group .save-btn{flex-basis:50px!important;width:50px!important;min-width:50px!important;}
- #toolbar .save-group .save-format-wrap{flex-basis:25px!important;width:25px!important;min-width:25px!important;}
-}
-
-/* v4.3.5: approved design 2 - explicit four-group toolbar and stable option rows */
-@media(max-width:640px){
- #toolbar{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:0!important;padding:6px 7px!important;box-sizing:border-box!important;width:100%!important;}
- #toolbar .tools{display:flex!important;flex:1 1 auto!important;min-width:0!important;width:auto!important;align-items:center!important;justify-content:space-between!important;gap:0!important;overflow:visible!important;}
- #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;align-items:center;justify-content:center;gap:0;min-width:0;flex:0 0 auto;}
- #toolbar .toolbar-edit{gap:1px;}
- #toolbar .toolbar-history{gap:1px;border-left:1px solid rgba(50,55,65,.19);padding-left:clamp(3px,1vw,7px);margin-left:clamp(3px,1vw,8px);}
- #toolbar .toolbar-delete{margin-left:clamp(4px,1.6vw,10px);}
- #toolbar .toolbar-edit>.tool-btn{width:clamp(27px,8vw,36px)!important;min-width:0!important;flex:0 0 auto!important;height:40px!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;}
- #toolbar .toolbar-edit>.line-tool-combo{height:40px!important;min-width:0!important;flex:0 0 auto!important;}
- #toolbar .toolbar-edit .line-tool-combo>.tool-btn{height:40px!important;min-width:0!important;width:clamp(26px,7.5vw,34px)!important;padding:0!important;}
- #toolbar .toolbar-edit .line-tool-chevron{height:40px!important;min-width:19px!important;flex:0 0 19px!important;}
- #toolbar .toolbar-history>.icon-btn{height:40px!important;width:clamp(26px,7vw,32px)!important;min-width:0!important;flex:0 0 auto!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;}
- #toolbar .toolbar-delete>#btn-clear-photo{width:clamp(32px,9vw,40px)!important;height:40px!important;min-width:0!important;margin:0!important;flex:0 0 auto!important;}
- #toolbar .save-group{flex:0 0 78px!important;width:78px!important;min-width:78px!important;margin-left:clamp(5px,2vw,12px)!important;height:40px!important;}
- #toolbar .save-group .save-btn{width:53px!important;min-width:53px!important;flex:0 0 53px!important;}
- #toolbar .save-group .save-format-wrap{width:25px!important;min-width:25px!important;flex:0 0 25px!important;}
- #options-bar[data-layout="drawing"]:not(.hidden){display:grid!important;grid-template-columns:minmax(0,1.08fr) minmax(0,1.1fr) minmax(0,.95fr)!important;grid-template-rows:auto auto!important;gap:9px 6px!important;padding:10px 12px!important;align-items:center!important;overflow:hidden!important;}
- #options-bar[data-layout="drawing"]>.opt-group{min-width:0!important;max-width:100%!important;grid-column:auto!important;grid-row:auto!important;justify-content:center!important;gap:3px!important;}
- #options-bar[data-layout="drawing"]>.opt-group:nth-child(1){grid-column:1!important;grid-row:1!important;}
- #options-bar[data-layout="drawing"]>.opt-group:nth-child(2){grid-column:2!important;grid-row:1!important;}
- #options-bar[data-layout="drawing"]>.opt-group:nth-child(4){grid-column:3!important;grid-row:1!important;}
- #options-bar[data-layout="drawing"]>.opt-group:nth-child(3){grid-column:1/3!important;grid-row:2!important;justify-content:flex-start!important;}
- #options-bar[data-layout="drawing"]>.opt-group:nth-child(5){grid-column:3!important;grid-row:2!important;justify-content:flex-end!important;}
- #options-bar[data-layout="drawing"] .seg{min-width:0!important;max-width:100%!important;}
- #options-bar[data-layout="drawing"] .seg button{min-width:0!important;padding:7px 4px!important;font-size:clamp(9px,2.5vw,12px)!important;}
- #options-bar[data-layout="drawing"] .annotation-palette{width:100%!important;justify-content:space-between!important;gap:4px!important;}
- #options-bar[data-layout="drawing"] .palette-swatch{width:clamp(21px,6.3vw,28px)!important;height:clamp(21px,6.3vw,28px)!important;min-width:0!important;}
- #options-bar[data-layout="drawing"] .check-opt{white-space:nowrap!important;}
-}
+  @media (prefers-reduced-motion:reduce){
+    .line-tool-menu,.save-format-menu{animation:none;}
+    #toolbar *,#options-bar *{transition:none;}
+  }
 </style>
 </head>
 <body>
@@ -1435,7 +1345,7 @@
   }
 
   function appendLineStyleControl(container, selectedObject){
-    const group=document.createElement("div"); group.className="opt-group";
+    const group=document.createElement("div"); group.className="opt-group option-line-style";
     group.setAttribute("role","group"); group.setAttribute("aria-label","선 스타일");
     const seg=document.createElement("div"); seg.className="seg";
     const current=selectedObject ? !!selectedObject.dashed : dashedCurrent;
@@ -1999,7 +1909,7 @@
     optionsBar.scrollLeft = 0;
     if(activeTool==="blur"){
       optionsBar.classList.remove("hidden");
-      const g1 = document.createElement("div"); g1.className="opt-group";
+      const g1 = document.createElement("div"); g1.className="opt-group option-mode";
       const seg1 = document.createElement("div"); seg1.className="seg";
       const bBlur = document.createElement("button"); bBlur.textContent="블러"; bBlur.className = blurMode==="blur"?"active":"";
       const bMosaic = document.createElement("button"); bMosaic.textContent="모자이크"; bMosaic.className = blurMode==="mosaic"?"active":"";
@@ -2021,7 +1931,7 @@
       seg1.appendChild(bBlur); seg1.appendChild(bMosaic);
       g1.appendChild(seg1);
 
-      const g2 = document.createElement("div"); g2.className="opt-group";
+      const g2 = document.createElement("div"); g2.className="opt-group option-slider option-intensity";
       const label2 = document.createElement("span"); label2.className="effect-value-label"; label2.textContent=`강도 ${Math.round(effectValueToSlider(intensity,blurMode,'intensity'))}`;
       const slider = document.createElement("input"); slider.type="range"; slider.min="0"; slider.max="100"; slider.value=String(effectValueToSlider(intensity,blurMode,'intensity'));
       slider.oninput = ()=>{
@@ -2033,7 +1943,7 @@
       slider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(); };
       g2.appendChild(label2); g2.appendChild(slider);
 
-      const gf = document.createElement("div"); gf.className="opt-group";
+      const gf = document.createElement("div"); gf.className="opt-group option-slider option-feather";
       const featherLabel = document.createElement("span"); featherLabel.className="effect-value-label"; featherLabel.textContent=`페더 ${Math.round(effectValueToSlider(feather,blurMode,'feather'))}`;
       const featherSlider = document.createElement("input"); featherSlider.type="range"; featherSlider.min="0"; featherSlider.max="100"; featherSlider.value=String(effectValueToSlider(feather,blurMode,'feather'));
       featherSlider.oninput=()=>{
@@ -2045,7 +1955,7 @@
       featherSlider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(); };
       gf.appendChild(featherLabel); gf.appendChild(featherSlider);
 
-      const g3 = document.createElement("div"); g3.className="opt-group";
+      const g3 = document.createElement("div"); g3.className="opt-group option-target";
       const seg3 = document.createElement("div"); seg3.className="seg";
       const bFace = document.createElement("button"); bFace.textContent="얼굴"; bFace.className = blurShape==="face"?"active":"";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
@@ -2058,19 +1968,19 @@
     } else if(activeTool==="circle" || activeTool==="arrow" || activeTool==="line"){
       optionsBar.classList.remove("hidden");
       if(activeTool==="circle"){
-        const gs=document.createElement("div"); gs.className="opt-group";
+        const gs=document.createElement("div"); gs.className="opt-group option-shape";
         const segs=document.createElement("div"); segs.className="seg";
         [["circle","원/타원"],["rect","네모"]].forEach(([k,n])=>{ const b=document.createElement("button"); b.textContent=n; b.className=shapeKind===k?"active":""; b.onclick=()=>{shapeKind=k;buildOptionsBar();}; segs.appendChild(b); });
         gs.appendChild(segs); optionsBar.appendChild(gs);
       }
 
-      const g = document.createElement("div"); g.className="opt-group";
+      const g = document.createElement("div"); g.className="opt-group option-stroke";
       const label = document.createElement("span"); label.textContent="굵기";
       g.appendChild(label);
       appendStrokePresets(g, objects.find(o=>o.id===selectedId));
       optionsBar.appendChild(g);
 
-      const gc = document.createElement("div"); gc.className="opt-group";
+      const gc = document.createElement("div"); gc.className="opt-group option-color";
       const colorLabel = document.createElement("span"); colorLabel.textContent="색상";
       gc.appendChild(colorLabel);
       appendColorPalette(gc, strokeColorCurrent, hex=>{
@@ -2083,7 +1993,7 @@
       appendLineStyleControl(optionsBar, objects.find(o=>o.id===selectedId));
 
       if(activeTool==="circle"){
-        const gl = document.createElement("label"); gl.className="opt-group check-opt";
+        const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
         const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=shapeKind==="rect"?rectLocked:circleLocked;
         lockCheck.onchange=()=>{ if(shapeKind==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
         const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지";
@@ -2095,13 +2005,13 @@
       if(sel){
         optionsBar.classList.remove("hidden");
 
-        const g = document.createElement("div"); g.className="opt-group";
+        const g = document.createElement("div"); g.className="opt-group option-stroke";
         const label = document.createElement("span"); label.textContent="굵기";
         g.appendChild(label);
         appendStrokePresets(g, sel);
         optionsBar.appendChild(g);
 
-        const gc = document.createElement("div"); gc.className="opt-group";
+        const gc = document.createElement("div"); gc.className="opt-group option-color";
         const colorLabel = document.createElement("span"); colorLabel.textContent="색상";
         gc.appendChild(colorLabel);
         appendColorPalette(gc, sel.color||DEFAULT_COLOR, hex=>{
@@ -2113,7 +2023,7 @@
         appendLineStyleControl(optionsBar, sel);
 
         if(sel.type==="circle" || sel.type==="rect"){
-          const gl = document.createElement("label"); gl.className="opt-group check-opt";
+          const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
           const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=sel.type==="rect"?rectLocked:circleLocked;
           lockCheck.onchange=()=>{ if(sel.type==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
           const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형 유지":"정원 유지";
@@ -2121,7 +2031,7 @@
           optionsBar.appendChild(gl);
         }
 
-        const gd=document.createElement("div"); gd.className="opt-group";
+        const gd=document.createElement("div"); gd.className="opt-group selected-options";
         const del=document.createElement("button"); del.className="danger-opt"; del.textContent="삭제"; del.title="선택 항목 삭제 (Delete)";
         del.onclick=()=>{
           objects=objects.filter(o=>o.id!==selectedId); selectedId=null; pushHistory(); buildOptionsBar(); redraw(); showToast("선택 항목을 삭제했습니다.",1000);
@@ -2133,7 +2043,41 @@
     } else {
       optionsBar.classList.add("hidden");
     }
+
+    if(window.matchMedia("(max-width:640px)").matches && !optionsBar.classList.contains("hidden")){
+      const nodes=Array.from(optionsBar.children);
+      const makeRow=(name)=>{const row=document.createElement("div");row.className="option-row "+name;return row;};
+      const row1=makeRow(optionsBar.dataset.layout==="effect"?"effect-primary":"drawing-primary");
+      const row2=makeRow(optionsBar.dataset.layout==="effect"?"effect-sliders":"drawing-secondary");
+      if(optionsBar.dataset.layout==="effect" && nodes.length===4){
+        row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
+        optionsBar.append(row1,row2);
+      } else if(optionsBar.dataset.layout==="drawing" && activeTool==="circle" && nodes.length===5){
+        row1.append(nodes[0],nodes[2],nodes[4]); row2.append(nodes[1],nodes[3]);
+        optionsBar.append(row1,row2);
+      } else if(optionsBar.dataset.layout==="drawing" && nodes.length===3){
+        row1.append(nodes[1]); row2.append(nodes[0],nodes[2]);
+        optionsBar.append(row1,row2);
+      } else if(optionsBar.dataset.layout==="selection"){
+        const color=nodes.find(n=>n.classList.contains("option-color"));
+        const lock=nodes.find(n=>n.classList.contains("option-lock"));
+        const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
+        const line=nodes.find(n=>n.classList.contains("option-line-style"));
+        const del=nodes.find(n=>n.classList.contains("selected-options"));
+        if(color && stroke && line){
+          if(lock) row1.append(color,lock); else row1.append(color);
+          row2.append(stroke,line); if(del) row2.append(del);
+          optionsBar.append(row1,row2);
+        }
+      }
+    }
   }
+
+  // Rebuild the option wrappers when orientation crosses the mobile/desktop breakpoint.
+  const mobileLayoutQuery=window.matchMedia("(max-width:640px)");
+  const refreshOptionsLayout=()=>{if(activeTool || selectedId!==null) buildOptionsBar();};
+  if(mobileLayoutQuery.addEventListener) mobileLayoutQuery.addEventListener("change",refreshOptionsLayout);
+  else if(mobileLayoutQuery.addListener) mobileLayoutQuery.addListener(refreshOptionsLayout);
 
   // ---------------- native zoom guard ----------------
   // iOS Safari의 더블탭/페이지 확대는 편집 좌표와 어긋나므로 앱 안에서는 막고,
