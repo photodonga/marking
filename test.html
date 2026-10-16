@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 — 모바일 테스트 v4.3.6 검토본</title>
+<title>마킹 — 모바일 테스트 v4.3.7 디자인 2안</title>
 
 <style>
   :root{
@@ -786,6 +786,20 @@
     #options-bar[data-layout="effect"] input[type="range"]::-moz-range-thumb{width:16px;height:16px;}
 
     /* Drawing panels: preserve shape switch; use the same two-row control system. */
+    /* Approved design 2: drawing controls in row 1, color and lock in row 2. */
+    #options-bar[data-layout="drawing"] .drawing-primary{display:flex;justify-content:space-between;gap:4px;}
+    #options-bar[data-layout="drawing"] .drawing-secondary{display:flex;justify-content:space-between;gap:4px;}
+    #options-bar[data-layout="drawing"] .drawing-primary .opt-group{flex:0 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-stroke{flex:1 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-line-style{flex:0 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .seg button{padding-left:clamp(3px,1.2vw,7px);padding-right:clamp(3px,1.2vw,7px);}
+    #options-bar[data-layout="drawing"] .drawing-secondary .option-color{flex:1 1 auto;min-width:0;}
+    #options-bar[data-layout="drawing"] .drawing-secondary .option-lock{flex:0 0 auto;}
+    #options-bar[data-layout="selection"] .drawing-primary{display:flex;gap:4px;justify-content:space-between;}
+    #options-bar[data-layout="selection"] .drawing-secondary{display:flex;gap:4px;justify-content:space-between;}
+    #options-bar[data-layout="selection"] .drawing-secondary .option-color{flex:1 1 auto;min-width:0;}
+    #options-bar[data-layout="selection"] .drawing-secondary .annotation-palette{display:flex;flex:1 1 auto;min-width:0;justify-content:space-between;}
+    #options-bar[data-layout="selection"] .drawing-secondary .option-lock{flex:0 0 auto;}
     #options-bar[data-layout="drawing"] .drawing-primary{justify-content:space-between;}
     #options-bar[data-layout="drawing"] .drawing-secondary{justify-content:space-between;}
     #options-bar[data-layout="drawing"] .option-shape{flex:0 0 auto;}
@@ -2053,10 +2067,10 @@
         row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
         optionsBar.append(row1,row2);
       } else if(optionsBar.dataset.layout==="drawing" && activeTool==="circle" && nodes.length===5){
-        row1.append(nodes[0],nodes[2],nodes[4]); row2.append(nodes[1],nodes[3]);
+        row1.append(nodes[0],nodes[1],nodes[3]); row2.append(nodes[2],nodes[4]);
         optionsBar.append(row1,row2);
       } else if(optionsBar.dataset.layout==="drawing" && nodes.length===3){
-        row1.append(nodes[1]); row2.append(nodes[0],nodes[2]);
+        row1.append(nodes[0],nodes[2]); row2.append(nodes[1]);
         optionsBar.append(row1,row2);
       } else if(optionsBar.dataset.layout==="selection"){
         const color=nodes.find(n=>n.classList.contains("option-color"));
@@ -2065,8 +2079,8 @@
         const line=nodes.find(n=>n.classList.contains("option-line-style"));
         const del=nodes.find(n=>n.classList.contains("selected-options"));
         if(color && stroke && line){
-          if(lock) row1.append(color,lock); else row1.append(color);
-          row2.append(stroke,line); if(del) row2.append(del);
+          row1.append(stroke,line);
+          row2.append(color); if(lock) row2.append(lock); if(del) row2.append(del);
           optionsBar.append(row1,row2);
         }
       }
