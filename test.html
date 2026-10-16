@@ -2320,16 +2320,16 @@
     if(!isEffect && !isDrawing && !isSelection) return;
     const row1=createOptionRow(isEffect?"effect-primary":"drawing-primary");
     const row2=createOptionRow(isEffect?"effect-sliders":"drawing-secondary");
-      if(isEffect && nodes.length===4){
+  if(isEffect && nodes.length===4){
         row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
         optionsBar.append(row1,row2);
-      } else if(isDrawing && activeTool==="circle" && nodes.length===5){
+  } else if(isDrawing && activeTool==="circle" && nodes.length===5){
         row1.append(nodes[0],nodes[1]); row2.append(nodes[2],nodes[3],nodes[4]);
         optionsBar.append(row1,row2);
-      } else if(isDrawing && nodes.length===3){
+  } else if(isDrawing && nodes.length===3){
         row1.append(nodes[0],nodes[2],nodes[1]);
         optionsBar.append(row1);
-      } else if(isSelection){
+  } else if(isSelection){
         const color=nodes.find(n=>n.classList.contains("option-color"));
         const lock=nodes.find(n=>n.classList.contains("option-lock"));
         const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
@@ -2340,7 +2340,7 @@
           row2.append(color); if(lock) row2.append(lock); if(del) row2.append(del);
           optionsBar.append(row1,row2);
         }
-      }
+  }
   }
 
   function buildOptionsBar(){
