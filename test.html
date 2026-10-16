@@ -930,67 +930,55 @@
     .line-tool-menu,.save-format-menu{animation:none;}
     #toolbar *,#options-bar *{transition:none;}
   }
-  /* v4.4.1: exclusive replacement panels; no competing popup animations */
-  #options-bar.menu-replaced,#options-bar.mobile-menu-suspended{visibility:hidden!important;pointer-events:none!important;display:flex!important;}
-  .line-tool-menu,.save-format-menu{
-    position:fixed;z-index:1100;box-sizing:border-box;display:flex;flex-direction:row;
-    align-items:center;justify-content:center;gap:7px;width:auto;height:auto;
-    padding:7px 10px;background:#22252d;color:#e9edf7;
-    border:1px solid #3e4351;border-radius:15px;
-    box-shadow:0 10px 28px rgba(0,0,0,.22);
-    animation:none!important;transform:none!important;transition:none!important;
-  }
-  .line-tool-menu[hidden],.save-format-menu[hidden]{display:none!important;}
-  .line-tool-menu button,.save-format-menu button{
-    display:flex;align-items:center;justify-content:center;gap:8px;
-    flex:1 1 0;width:auto;min-width:0;height:38px;min-height:38px;
-    padding:5px 10px;border:1px solid #464b58;border-radius:10px;
-    background:#30343f;color:#e9edf7;font-size:13px;font-weight:600;
-    white-space:nowrap;box-sizing:border-box;
-  }
-  .line-tool-menu button[aria-checked="true"],.save-format-menu button[aria-checked="true"]{background:#3285f5;color:white;border-color:#3285f5;}
-  .line-tool-menu button:hover,.save-format-menu button:hover{background:#4267a3;color:white;}
-  .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:2px;color:inherit;}
-  .line-tool-menu svg{flex:0 0 18px;width:18px;height:18px;}
+  /* Consolidated dock + popover rules (test only).
+     The original base styles and mobile option layouts remain unchanged. */
+  #options-bar.menu-replaced{visibility:hidden!important;pointer-events:none!important;}
+  #options-bar.mobile-menu-suspended{visibility:hidden!important;pointer-events:none!important;}
   #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
   #toolbar .line-tool-chevron svg,#toolbar .save-chevron{stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
   #toolbar .save-format-wrap #format-select{opacity:0;pointer-events:none;}
-  @media(max-width:640px){
-    .line-tool-menu,.save-format-menu{gap:5px;padding:5px 7px;}
-    .line-tool-menu button,.save-format-menu button{height:34px;min-height:34px;padding:4px 7px;font-size:12px;}
-  }
-  /* v4.4.2 compact floating iOS-style popovers */
   .line-tool-menu,.save-format-menu{
+    position:fixed;z-index:1100;box-sizing:border-box;
     display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
-    gap:2px;padding:4px;border-radius:13px;
-    background:rgba(43,47,57,.96);border:1px solid rgba(150,160,181,.27);
+    gap:2px;width:auto;height:auto;padding:4px;border-radius:13px;
+    background:rgba(43,47,57,.96);color:#e9edf7;
+    border:1px solid rgba(150,160,181,.27);
     box-shadow:0 10px 28px rgba(0,0,0,.3);
     backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
-    transform-origin:bottom center;
-    animation:markingPopoverIn .12s ease-out both!important;
+    transform-origin:bottom center;animation:markingPopoverIn .12s ease-out both;
   }
-  @keyframes markingPopoverIn{from{opacity:0;transform:translateY(4px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+  .line-tool-menu[hidden],.save-format-menu[hidden]{display:none!important;}
   .line-tool-menu button,.save-format-menu button{
-    flex:0 0 auto;width:100%;min-height:29px;height:29px;
-    justify-content:flex-start;gap:6px;padding:3px 7px;
-    font-size:12px;font-weight:550;border:0;border-radius:8px;background:transparent;
+    display:flex;align-items:center;justify-content:flex-start;
+    box-sizing:border-box;flex:0 0 auto;width:100%;height:29px;min-height:29px;
+    gap:6px;padding:3px 7px;border:0;border-radius:8px;
+    background:transparent;color:#e9edf7;font-size:12px;font-weight:550;white-space:nowrap;
   }
   .line-tool-menu button[aria-checked="true"],.save-format-menu button[aria-checked="true"]{
-    background:rgba(75,126,205,.32);border-color:transparent;
+    background:rgba(75,126,205,.32);color:#fff;
   }
+  .line-tool-menu button:hover,.save-format-menu button:hover{background:rgba(75,126,205,.45);}
   .line-tool-menu svg{flex:0 0 15px;width:15px;height:15px;}
-  .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:auto;}
-  @media(max-width:640px){
-    .line-tool-menu,.save-format-menu{padding:4px;gap:2px;}
-    .line-tool-menu button,.save-format-menu button{height:29px;min-height:29px;padding:3px 6px;font-size:12px;}
+  .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:auto;color:inherit;}
+  @keyframes markingPopoverIn{
+    from{opacity:0;transform:translateY(4px) scale(.98)}
+    to{opacity:1;transform:translateY(0) scale(1)}
   }
-  /* v4.4.3: exclusive compact popover and balanced dock */
-  #options-bar.menu-replaced{visibility:hidden!important;pointer-events:none!important;}
   @media(min-width:641px){
-    #toolbar{min-width:min(710px,calc(100vw - 24px));justify-content:space-between;padding-left:14px;padding-right:14px;}
-    #toolbar .save-group{flex:0 0 152px;width:152px;margin-left:10px;}
-    #toolbar .save-group .save-btn{flex:1 1 auto;min-width:0;font-size:14px;}
-    #toolbar .save-group .save-format-wrap{flex:0 0 25px;width:25px;}
+    #toolbar{
+      box-sizing:border-box;width:max-content;min-width:0;
+      max-width:calc(100vw - 24px);
+      justify-content:center;gap:8px;padding:7px 13px;overflow-x:auto;
+    }
+    #toolbar .tools{flex:0 0 auto;gap:3px;}
+    #toolbar .toolbar-edit>.tool-btn{flex:0 0 40px;width:40px;height:40px;}
+    #toolbar .toolbar-history>.icon-btn{flex:0 0 36px;width:36px;height:40px;}
+    #toolbar .toolbar-delete>#btn-clear-photo{flex:0 0 40px;width:40px;height:40px;}
+    #toolbar .toolbar-history{margin-left:5px;padding-left:9px;}
+    #toolbar .toolbar-delete{margin-left:6px;}
+    #toolbar .save-group{flex:0 0 132px;width:132px;margin-left:8px;height:40px;}
+    #toolbar .save-group .save-btn{height:40px;min-height:40px;font-size:14px;}
+    #toolbar .save-group .save-format-wrap{flex:0 0 24px;width:24px;height:40px;}
     #toolbar .save-group .save-chevron{right:6px;width:11px;}
   }
   @media(max-width:640px){
@@ -998,23 +986,8 @@
     #toolbar .save-group .save-btn{flex:1 1 auto;min-width:0;}
     #toolbar .save-group .save-format-wrap{flex:0 0 22px;width:22px;}
   }
-  /* v4.4.4: compact centered dock; no stretched empty middle */
-  @media(min-width:641px){
-    #toolbar{
-      box-sizing:border-box;width:max-content!important;min-width:0!important;
-      max-width:calc(100vw - 24px)!important;
-      justify-content:center!important;gap:8px!important;
-      padding:7px 13px!important;overflow-x:auto;
-    }
-    #toolbar .tools{flex:0 0 auto!important;gap:3px!important;}
-    #toolbar .toolbar-edit>.tool-btn{flex:0 0 40px!important;width:40px!important;height:40px!important;}
-    #toolbar .toolbar-history>.icon-btn{flex:0 0 36px!important;width:36px!important;height:40px!important;}
-    #toolbar .toolbar-delete>#btn-clear-photo{flex:0 0 40px!important;width:40px!important;height:40px!important;}
-    #toolbar .toolbar-history{margin-left:5px!important;padding-left:9px!important;}
-    #toolbar .toolbar-delete{margin-left:6px!important;}
-    #toolbar .save-group{flex:0 0 132px!important;width:132px!important;margin-left:8px!important;height:40px!important;}
-    #toolbar .save-group .save-btn{height:40px!important;min-height:40px!important;font-size:14px!important;}
-    #toolbar .save-group .save-format-wrap{flex:0 0 24px!important;width:24px!important;height:40px!important;}
+  @media(prefers-reduced-motion:reduce){
+    .line-tool-menu,.save-format-menu{animation:none;}
   }
 </style>
 </head>
