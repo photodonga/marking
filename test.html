@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 — 모바일 테스트 v4.3.9 PC 하단 툴바 정렬</title>
+<title>마킹 — 테스트 v4.4.0 컴팩트 하단 도구막대</title>
 
 <style>
   :root{
@@ -743,6 +743,45 @@
     #toolbar .tool-btn,#toolbar .icon-btn{flex-shrink:0;}
     #options-bar:not(.hidden){display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;position:static;transform:none;width:max-content;max-width:calc(100vw - 28px);height:auto;padding:9px 16px;overflow-x:auto;overflow-y:hidden;}
     #options-bar .option-row{display:contents;}
+  }
+
+  /* v4.4.0 compact reference-matched bottom dock */
+  @media (min-width:641px){
+    #chrome{top:auto;bottom:calc(12px + var(--safe-b));left:10px;right:10px;display:flex;flex-direction:column-reverse;align-items:center;gap:7px;}
+    #toolbar{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:6px;width:max-content;max-width:calc(100vw - 20px);min-height:0;height:54px;margin:0 auto;padding:5px 9px;border-radius:17px;overflow-x:auto;overflow-y:hidden;}
+    #toolbar .brand{display:none;}
+    #toolbar .tools{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;flex:0 0 auto;min-width:0;width:auto;gap:0;}
+    #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;flex:0 0 auto;gap:2px;}
+    #toolbar .toolbar-history{margin-left:7px;padding-left:7px;border-left:1px solid rgba(49,54,65,.23);}
+    #toolbar .toolbar-delete{margin-left:7px;}
+    #toolbar .tool-btn{display:flex;align-items:center;justify-content:center;width:40px;height:40px;min-height:40px;padding:0;border-radius:10px;}
+    #toolbar .tool-btn .label{display:none;}
+    #toolbar .tool-btn .glyph{display:flex;align-items:center;justify-content:center;width:21px;height:21px;line-height:0;}
+    #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{width:19px;height:19px;}
+    #toolbar .line-tool-combo{display:flex;flex-direction:row;align-items:stretch;width:60px;height:40px;overflow:hidden;border-radius:10px;}
+    #toolbar .line-tool-combo>.tool-btn{width:38px;height:40px;border-radius:10px 0 0 10px;}
+    #toolbar .line-tool-chevron{display:flex;align-items:center;justify-content:center;width:22px;height:40px;padding:0;border-radius:0 10px 10px 0;}
+    #toolbar .line-tool-chevron svg{width:12px;height:12px;}
+    #toolbar .toolbar-history>.icon-btn{display:flex;align-items:center;justify-content:center;width:35px;height:40px;padding:0;border:0;border-radius:9px;background:transparent;}
+    #toolbar .toolbar-delete>#btn-clear-photo{width:40px;height:40px;border-radius:10px;}
+    #toolbar .save-group{display:flex;align-items:stretch;flex:0 0 104px;width:104px;height:40px;margin-left:9px;gap:0;overflow:hidden;border-radius:10px;}
+    #toolbar .save-group .save-btn{display:flex;align-items:center;justify-content:center;flex:1 1 auto;width:auto;min-width:0;height:40px;min-height:40px;padding:0;border-radius:10px 0 0 10px;font-size:13px;}
+    #toolbar .save-group .save-format-wrap{position:relative;display:flex;flex:0 0 27px;width:27px;height:40px;border-radius:0 10px 10px 0;}
+    #toolbar .save-group #format-select{position:absolute;inset:0;width:100%;height:100%;padding:0;opacity:0;cursor:pointer;}
+    #toolbar .save-group .save-chevron{position:absolute;top:50%;right:7px;width:12px;height:12px;transform:translateY(-50%);pointer-events:none;}
+    #toolbar .save-group .save-format-wrap::before{content:'';position:absolute;left:0;top:8px;height:24px;border-left:1px solid rgba(255,255,255,.36);}
+    #options-bar:not(.hidden){position:static;transform:none;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:7px;width:max-content;max-width:calc(100vw - 20px);min-height:0;height:auto;margin:0 auto;padding:8px 11px;border-radius:15px;overflow-x:auto;overflow-y:hidden;font-size:12px;}
+    #options-bar .option-row{display:contents;}
+    #options-bar .opt-group{gap:4px;min-height:34px;}
+    #options-bar .seg{gap:2px;padding:2px;}
+    #options-bar .seg button{min-height:34px;padding:6px 10px;font-size:12px;}
+    #options-bar .palette-swatch{width:31px;height:31px;min-width:31px;}
+    #options-bar .option-slider input[type="range"]{width:110px;max-width:110px;}
+  }
+  @media (max-width:640px){
+    #toolbar{gap:3px;padding:4px 5px;}
+    #options-bar:not(.hidden){padding:6px 7px;gap:4px;}
+    #options-bar .option-row{gap:3px;}
   }
 
   /* Mobile v4.3.6 review: one mobile layout authority. Desktop rules above stay intact. */
