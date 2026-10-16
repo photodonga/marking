@@ -998,6 +998,24 @@
     #toolbar .save-group .save-btn{flex:1 1 auto;min-width:0;}
     #toolbar .save-group .save-format-wrap{flex:0 0 22px;width:22px;}
   }
+  /* v4.4.4: compact centered dock; no stretched empty middle */
+  @media(min-width:641px){
+    #toolbar{
+      box-sizing:border-box;width:max-content!important;min-width:0!important;
+      max-width:calc(100vw - 24px)!important;
+      justify-content:center!important;gap:8px!important;
+      padding:7px 13px!important;overflow-x:auto;
+    }
+    #toolbar .tools{flex:0 0 auto!important;gap:3px!important;}
+    #toolbar .toolbar-edit>.tool-btn{flex:0 0 40px!important;width:40px!important;height:40px!important;}
+    #toolbar .toolbar-history>.icon-btn{flex:0 0 36px!important;width:36px!important;height:40px!important;}
+    #toolbar .toolbar-delete>#btn-clear-photo{flex:0 0 40px!important;width:40px!important;height:40px!important;}
+    #toolbar .toolbar-history{margin-left:5px!important;padding-left:9px!important;}
+    #toolbar .toolbar-delete{margin-left:6px!important;}
+    #toolbar .save-group{flex:0 0 132px!important;width:132px!important;margin-left:8px!important;height:40px!important;}
+    #toolbar .save-group .save-btn{height:40px!important;min-height:40px!important;font-size:14px!important;}
+    #toolbar .save-group .save-format-wrap{flex:0 0 24px!important;width:24px!important;height:40px!important;}
+  }
 </style>
 </head>
 <body>
