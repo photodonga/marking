@@ -2304,12 +2304,19 @@
 
   }
 
+  // Stateless row factory shared by mobile option layouts.
+  function createOptionRow(name){
+    const row=document.createElement("div");
+    row.className="option-row "+name;
+    return row;
+  }
+
   function arrangeMobileOptions(){
     if(mobileLayoutQuery.matches && !optionsBar.classList.contains("hidden")){
       const nodes=Array.from(optionsBar.children);
-      const makeRow=(name)=>{const row=document.createElement("div");row.className="option-row "+name;return row;};
-      const row1=makeRow(optionsBar.dataset.layout==="effect"?"effect-primary":"drawing-primary");
-      const row2=makeRow(optionsBar.dataset.layout==="effect"?"effect-sliders":"drawing-secondary");
+
+      const row1=createOptionRow(optionsBar.dataset.layout==="effect"?"effect-primary":"drawing-primary");
+      const row2=createOptionRow(optionsBar.dataset.layout==="effect"?"effect-sliders":"drawing-secondary");
       if(optionsBar.dataset.layout==="effect" && nodes.length===4){
         row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
         optionsBar.append(row1,row2);
