@@ -15,4 +15,21 @@ for (const [index, code] of scriptBlocks.entries()) {
 for (const name of ['buildOptionsBar', 'arrangeMobileOptions', 'fitCanvas']) {
   if (!new RegExp(`\\bfunction\\s+${name}\\s*\\(`).test(html)) fail(`Missing essential function: ${name}`);
 }
+// DOM contract: duplicate IDs can silently route event listeners to the wrong control.
+const ids = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map(match => match[1]);
+const seen = new Set();
+for (const id of ids) {
+  if (seen.has(id)) fail(`Duplicate HTML id: ${id}`);
+  seen.add(id);
+}
+for (const id of ['app', 'toolbar', 'options-bar', 'workarea', 'view-canvas',
+  'fileInput', 'btn-pick-photo', 'btn-save', 'format-select', 'btn-undo', 'btn-redo']) {
+  if (!seen.has(id)) fail(`Missing essential HTML control: #${id}`);
+}
+const editorCode = scriptBlocks.join('\\n');
+for (const name of ['handleSaveClick', 'handleEditorKeydown', 'decorateOptionIcons']) {
+  if (!new RegExp(`\\\\bfunction\\\\s+${name}\\\\s*\\\\(`).test(editorCode)) {
+    fail(`Missing editor behavior: ${name}`);
+  }
+}
 if (!process.exitCode) console.log('PASS: Marking test.html static checks');
