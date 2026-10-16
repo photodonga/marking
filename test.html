@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 — 테스트 v4.4.2 컴팩트 팝오버</title>
+<title>마킹 — 테스트 v4.4.3 메뉴 전환 및 저장 비율</title>
 
 <style>
   :root{
@@ -983,6 +983,20 @@
   @media(max-width:640px){
     .line-tool-menu,.save-format-menu{padding:4px;gap:2px;}
     .line-tool-menu button,.save-format-menu button{height:29px;min-height:29px;padding:3px 6px;font-size:12px;}
+  }
+  /* v4.4.3: exclusive compact popover and balanced dock */
+  #options-bar.menu-replaced{visibility:hidden!important;pointer-events:none!important;}
+  @media(min-width:641px){
+    #toolbar{min-width:min(710px,calc(100vw - 24px));justify-content:space-between;padding-left:14px;padding-right:14px;}
+    #toolbar .save-group{flex:0 0 152px;width:152px;margin-left:10px;}
+    #toolbar .save-group .save-btn{flex:1 1 auto;min-width:0;font-size:14px;}
+    #toolbar .save-group .save-format-wrap{flex:0 0 25px;width:25px;}
+    #toolbar .save-group .save-chevron{right:6px;width:11px;}
+  }
+  @media(max-width:640px){
+    #toolbar .save-group{flex:0 0 94px;width:94px;}
+    #toolbar .save-group .save-btn{flex:1 1 auto;min-width:0;}
+    #toolbar .save-group .save-format-wrap{flex:0 0 22px;width:22px;}
   }
 </style>
 </head>
@@ -1986,7 +2000,7 @@
   }
   function openLineMenu(){
     if(typeof closeSaveFormatMenu==='function')closeSaveFormatMenu();
-    /* Compact floating menu: keep existing options panel visible */
+    optionsBar.classList.add('menu-replaced');
     lineToolMenu.hidden = false;
     lineMenuButton.setAttribute("aria-expanded", "true");
     positionLineMenu();
@@ -3292,7 +3306,7 @@
   function showSaveFormatMenu(){
     if(!saveFormatMenu.hidden){closeSaveFormatMenu();return;}
     closeLineMenu();
-    /* Compact floating menu: keep existing options panel visible */
+    optionsBar.classList.add('menu-replaced');
     saveFormatMenu.querySelectorAll('button').forEach(b=>{
       const on=b.dataset.format===formatSelect.value;
       b.setAttribute('aria-checked',String(on));b.querySelector('span').style.visibility=on?'visible':'hidden';
