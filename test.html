@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 — 모바일 테스트 v4.3.8 하단 공통 배치</title>
+<title>마킹 — 모바일 테스트 v4.3.9 PC 하단 툴바 정렬</title>
 
 <style>
   :root{
@@ -727,6 +727,22 @@
       box-sizing:border-box;
       margin:0 auto;
     }
+  }
+
+  /* Desktop dock structural reset: toolbar children must not stack or stretch. */
+  @media (min-width:641px){
+    :root{--editor-top:0px;--editor-bottom:0px;}
+    #chrome{position:absolute;top:auto;bottom:calc(14px + var(--safe-b));left:14px;right:14px;display:flex;flex-direction:column-reverse;align-items:center;width:auto;height:auto;gap:8px;}
+    #toolbar{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:10px;width:max-content;max-width:calc(100vw - 28px);height:auto;min-height:52px;padding:7px 12px;overflow-x:auto;overflow-y:hidden;}
+    #toolbar .brand{display:block;flex:0 0 auto;}
+    #toolbar .tools{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start;flex:0 0 auto;width:auto;min-width:0;gap:5px;}
+    #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;flex:0 0 auto;gap:4px;}
+    #toolbar .toolbar-history,#toolbar .toolbar-delete{margin-left:8px;}
+    #toolbar .line-tool-combo{display:flex;flex-direction:row;align-items:stretch;flex:0 0 auto;}
+    #toolbar .save-group{display:flex;flex-direction:row;align-items:center;flex:0 0 auto;width:auto;margin-left:10px;}
+    #toolbar .tool-btn,#toolbar .icon-btn{flex-shrink:0;}
+    #options-bar:not(.hidden){display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;position:static;transform:none;width:max-content;max-width:calc(100vw - 28px);height:auto;padding:9px 16px;overflow-x:auto;overflow-y:hidden;}
+    #options-bar .option-row{display:contents;}
   }
 
   /* Mobile v4.3.6 review: one mobile layout authority. Desktop rules above stay intact. */
