@@ -2312,8 +2312,8 @@
   }
 
   function arrangeMobileOptions(){
-    if(mobileLayoutQuery.matches && !optionsBar.classList.contains("hidden")){
-      const nodes=Array.from(optionsBar.children);
+    if(!mobileLayoutQuery.matches || optionsBar.classList.contains("hidden")) return;
+    const nodes=Array.from(optionsBar.children);
 
       const row1=createOptionRow(optionsBar.dataset.layout==="effect"?"effect-primary":"drawing-primary");
       const row2=createOptionRow(optionsBar.dataset.layout==="effect"?"effect-sliders":"drawing-secondary");
@@ -2338,7 +2338,6 @@
           optionsBar.append(row1,row2);
         }
       }
-    }
   }
 
   function buildOptionsBar(){
