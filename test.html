@@ -1217,7 +1217,9 @@
     const height = chromeEl.getBoundingClientRect().height;
     const inset = Math.ceil(height + (mobile ? 24 : 24));
     const root = document.documentElement;
-    const top = mobile ? "0px" : inset + "px";
+    // Desktop dock floats over the image: it must not reserve space above it.
+    // Reserving the dock height at the top made the image jump when options opened.
+    const top = "0px";
     const bottom = mobile ? inset + "px" : "0px";
     if(root.style.getPropertyValue("--editor-top")===top && root.style.getPropertyValue("--editor-bottom")===bottom) return;
     root.style.setProperty("--editor-top",top);
