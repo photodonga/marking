@@ -1123,6 +1123,40 @@
     #options-bar .option-vector-icon{width:12px;height:12px;flex-basis:12px;margin-right:1px;}
     #options-bar[data-layout="drawing"] .palette-swatch{flex-basis:27px;width:27px;min-width:27px;}
   }
+
+@media(max-width:640px){
+ #options-bar:not(.hidden){width:max-content;max-width:calc(100vw - 12px);padding:4px 6px;gap:3px;max-height:130px;border-radius:13px;overflow-x:hidden;}
+ #options-bar .option-row{width:auto;max-width:100%;gap:4px;flex-wrap:nowrap;justify-content:center;}
+ #options-bar .opt-group{gap:3px;min-height:0;flex:0 0 auto;}
+ #options-bar .seg{gap:1px;padding:1px;min-width:0;}
+ #options-bar .seg button{box-sizing:border-box;min-height:25px;height:25px;padding:2px 5px;font-size:10px;gap:0;border-radius:6px;}
+ #options-bar .option-vector-icon{width:14px;height:14px;flex:0 0 14px;margin:0;}
+ #options-bar .option-mode button,#options-bar .option-target button,#options-bar .option-shape button{font-size:0;min-width:28px!important;width:28px!important;padding:3px;}
+ #options-bar .option-mode .option-vector-icon,#options-bar .option-target .option-vector-icon,#options-bar .option-shape .option-vector-icon{width:17px;height:17px;flex-basis:17px;}
+ #options-bar[data-layout="effect"] .effect-primary{gap:5px;justify-content:center;}
+ #options-bar[data-layout="effect"] .effect-primary .seg{gap:3px;}
+ #options-bar[data-layout="effect"] .effect-sliders{display:flex;flex-direction:row;gap:9px;width:100%;align-items:center;justify-content:center;}
+ #options-bar[data-layout="effect"] .effect-sliders>.option-slider{display:flex;flex-direction:row;align-items:center;flex:1 1 0;min-width:0;width:auto;gap:4px;}
+ #options-bar[data-layout="effect"] .effect-sliders .effect-value-label{white-space:nowrap;font-size:10px;}
+ #options-bar[data-layout="effect"] .effect-sliders input[type="range"]{flex:1 1 auto;width:55px;max-width:95px;min-width:35px;height:15px;margin:0;}
+ #options-bar[data-layout="drawing"] .drawing-primary,#options-bar[data-layout="drawing"] .drawing-secondary{gap:5px;justify-content:center;}
+ #options-bar[data-layout="drawing"] .option-stroke .seg button{padding:2px 5px;min-width:27px!important;}
+ #options-bar[data-layout="drawing"] .option-line-style .seg button{font-size:0;min-width:29px!important;width:29px!important;padding:3px;}
+ #options-bar[data-layout="drawing"] .option-line-style .option-vector-icon{width:18px;height:18px;flex-basis:18px;}
+ #options-bar[data-layout="drawing"] .annotation-palette{gap:4px;}
+ #options-bar[data-layout="drawing"] .palette-swatch{width:21px;min-width:21px;flex:0 0 21px;height:21px;}
+ #options-bar[data-layout="drawing"] .option-color{flex:0 0 auto;}
+ #options-bar[data-layout="drawing"] .option-lock{font-size:10px;gap:3px;}
+ #options-bar[data-layout="drawing"] .option-lock input{width:14px;height:14px;margin:0;}
+ #options-bar[data-layout="drawing"] .option-row:only-child{gap:4px;}
+}
+@media(max-width:375px){
+ #options-bar:not(.hidden){padding:4px;max-width:calc(100vw - 8px);}
+ #options-bar .option-row{gap:3px;}
+ #options-bar[data-layout="drawing"] .option-stroke .seg button{min-width:24px!important;padding:2px 3px;}
+ #options-bar[data-layout="drawing"] .palette-swatch{width:18px;min-width:18px;flex-basis:18px;height:18px;}
+ #options-bar[data-layout="drawing"] .annotation-palette{gap:3px;}
+}
 </style>
 </head>
 <body>
@@ -2357,9 +2391,6 @@
       "사각형":'<rect x="5" y="5" width="14" height="14" rx="2"/>',
       "원/타원":'<ellipse cx="12" cy="12" rx="8" ry="6"/>',
       "네모":'<rect x="4.5" y="4.5" width="15" height="15" rx="2"/>',
-      "얇게":'<path d="M4 12h16" stroke-width="1.2"/>',
-      "보통":'<path d="M4 12h16" stroke-width="2.5"/>',
-      "굵게":'<path d="M4 12h16" stroke-width="4"/>',
       "실선":'<path d="M4 12h16"/>',
       "점선":'<path d="M4 12h16" stroke-dasharray="3 4"/>',
       "삭제":'<path d="M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12M10 10v6M14 10v6"/>'
@@ -2387,8 +2418,8 @@
         row1.append(nodes[0],nodes[1],nodes[3]); row2.append(nodes[2],nodes[4]);
         optionsBar.append(row1,row2);
       } else if(optionsBar.dataset.layout==="drawing" && nodes.length===3){
-        row1.append(nodes[0],nodes[2]); row2.append(nodes[1]);
-        optionsBar.append(row1,row2);
+        row1.append(nodes[0],nodes[2],nodes[1]);
+        optionsBar.append(row1);
       } else if(optionsBar.dataset.layout==="selection"){
         const color=nodes.find(n=>n.classList.contains("option-color"));
         const lock=nodes.find(n=>n.classList.contains("option-lock"));
