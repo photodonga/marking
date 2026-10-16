@@ -834,6 +834,55 @@
     .line-tool-menu,.save-format-menu{animation:none;}
     #toolbar *,#options-bar *{transition:none;}
   }
+
+
+  /* Desktop toolbar follows the approved bottom-centered mobile arrangement. */
+  @media (min-width:641px){
+    #chrome{
+      top:auto;bottom:calc(12px + var(--safe-b));left:50%;right:auto;
+      width:max-content;max-width:calc(100% - 24px);transform:translateX(-50%);
+      display:flex;flex-direction:column-reverse;align-items:center;gap:7px;
+    }
+    #toolbar{
+      display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;
+      width:max-content;max-width:100%;min-width:0;height:48px;
+      gap:6px;margin:0;padding:5px 7px;overflow:visible;border-radius:15px;
+    }
+    #toolbar .brand{display:none;}
+    #toolbar .tools{display:flex;align-items:center;flex:0 0 auto;width:auto;min-width:0;gap:1px;overflow:visible;}
+    #toolbar .tools>.sep{display:none;}
+    #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:0;}
+    #toolbar .toolbar-edit{gap:1px;}
+    #toolbar .toolbar-edit>.tool-btn{
+      display:flex;align-items:center;justify-content:center;box-sizing:border-box;
+      flex:0 0 36px;width:36px;min-width:36px;height:38px;min-height:38px;margin:0;padding:0;border-radius:9px;
+    }
+    #toolbar .tool-btn .label{display:none;}
+    #toolbar .tool-btn .glyph{display:flex;align-items:center;justify-content:center;width:22px;height:22px;margin:0;line-height:0;}
+    #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{display:block;width:19px;height:19px;}
+    #toolbar .line-tool-combo{display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 48px;width:48px;min-width:48px;height:38px;overflow:hidden;border-radius:9px;}
+    #toolbar .line-tool-combo>.tool-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 28px;width:28px;min-width:28px;height:38px;min-height:38px;margin:0;padding:0;border-radius:9px 0 0 9px;}
+    #toolbar .line-tool-chevron{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 20px;width:20px;min-width:20px;height:38px;margin:0;padding:0;border-radius:0 9px 9px 0;}
+    #toolbar .line-tool-chevron svg{width:11px;height:11px;}
+    #toolbar .toolbar-history{gap:0;margin-left:5px;padding-left:5px;border-left:1px solid rgba(45,51,65,.2);}
+    #toolbar .toolbar-history>.icon-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 36px;width:36px;min-width:36px;height:38px;margin:0;padding:0;border:0;border-radius:9px;background:transparent;}
+    #toolbar .toolbar-delete{margin-left:5px;}
+    #toolbar .toolbar-delete>#btn-clear-photo{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 38px;width:38px;min-width:38px;height:38px;min-height:38px;margin:0;padding:0;border-radius:9px;}
+    #toolbar .save-group{display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 80px;width:80px;min-width:80px;height:38px;margin:0 0 0 5px;gap:0;border-radius:9px;overflow:hidden;}
+    #toolbar .save-group .save-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 55px;width:55px;min-width:55px;height:38px;min-height:38px;margin:0;padding:0;border-radius:9px 0 0 9px;font-size:12px;}
+    #toolbar .save-group .save-format-wrap{position:relative;display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 25px;width:25px;min-width:25px;height:38px;min-height:38px;border-radius:0 9px 9px 0;}
+    #toolbar .save-group #format-select{position:absolute;inset:0;z-index:2;width:100%;height:100%;min-height:0;margin:0;padding:0;opacity:0;cursor:pointer;}
+    #toolbar .save-group .save-chevron{position:absolute;top:50%;right:6px;width:12px;height:12px;transform:translateY(-50%);pointer-events:none;}
+    #toolbar .save-group .save-format-wrap::before{content:'';position:absolute;left:0;top:8px;height:22px;border-left:1px solid rgba(255,255,255,.38);}
+    #options-bar:not(.hidden){
+      position:relative;left:auto;right:auto;bottom:auto;transform:none;
+      display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;
+      box-sizing:border-box;width:max-content;max-width:100%;min-width:0;
+      max-height:min(28vh,150px);gap:10px;padding:7px 10px;overflow:auto;
+      border-radius:13px;font-size:11px;box-shadow:0 8px 24px rgba(0,0,0,.18);
+    }
+  }
+
 </style>
 </head>
 <body>
@@ -976,12 +1025,11 @@
   // 1차 안정화: 설정 패널은 항상 툴바의 형제로 유지한다.
   // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
   function syncEditorInsets(){
-    const mobile = window.matchMedia("(max-width: 640px)").matches;
     const height = chromeEl.getBoundingClientRect().height;
-    const inset = Math.ceil(height + (mobile ? 24 : 24));
+    const inset = Math.ceil(height + 24);
     const root = document.documentElement;
-    const top = mobile ? "0px" : inset + "px";
-    const bottom = mobile ? inset + "px" : "0px";
+    const top = "0px";
+    const bottom = inset + "px";
     if(root.style.getPropertyValue("--editor-top")===top && root.style.getPropertyValue("--editor-bottom")===bottom) return;
     root.style.setProperty("--editor-top",top);
     root.style.setProperty("--editor-bottom",bottom);
