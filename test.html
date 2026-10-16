@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 — 테스트 v4.4.0 컴팩트 하단 도구막대</title>
+<title>마킹 — 테스트 v4.4.1 선택 패널 통합</title>
 
 <style>
   :root{
@@ -929,6 +929,35 @@
   @media (prefers-reduced-motion:reduce){
     .line-tool-menu,.save-format-menu{animation:none;}
     #toolbar *,#options-bar *{transition:none;}
+  }
+  /* v4.4.1: exclusive replacement panels; no competing popup animations */
+  #options-bar.menu-replaced,#options-bar.mobile-menu-suspended{visibility:hidden!important;pointer-events:none!important;display:flex!important;}
+  .line-tool-menu,.save-format-menu{
+    position:fixed;z-index:1100;box-sizing:border-box;display:flex;flex-direction:row;
+    align-items:center;justify-content:center;gap:7px;width:auto;height:auto;
+    padding:7px 10px;background:#22252d;color:#e9edf7;
+    border:1px solid #3e4351;border-radius:15px;
+    box-shadow:0 10px 28px rgba(0,0,0,.22);
+    animation:none!important;transform:none!important;transition:none!important;
+  }
+  .line-tool-menu[hidden],.save-format-menu[hidden]{display:none!important;}
+  .line-tool-menu button,.save-format-menu button{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    flex:1 1 0;width:auto;min-width:0;height:38px;min-height:38px;
+    padding:5px 10px;border:1px solid #464b58;border-radius:10px;
+    background:#30343f;color:#e9edf7;font-size:13px;font-weight:600;
+    white-space:nowrap;box-sizing:border-box;
+  }
+  .line-tool-menu button[aria-checked="true"],.save-format-menu button[aria-checked="true"]{background:#3285f5;color:white;border-color:#3285f5;}
+  .line-tool-menu button:hover,.save-format-menu button:hover{background:#4267a3;color:white;}
+  .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:2px;color:inherit;}
+  .line-tool-menu svg{flex:0 0 18px;width:18px;height:18px;}
+  #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  #toolbar .line-tool-chevron svg,#toolbar .save-chevron{stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  #toolbar .save-format-wrap #format-select{opacity:0;pointer-events:none;}
+  @media(max-width:640px){
+    .line-tool-menu,.save-format-menu{gap:5px;padding:5px 7px;}
+    .line-tool-menu button,.save-format-menu button{height:34px;min-height:34px;padding:4px 7px;font-size:12px;}
   }
 </style>
 </head>
@@ -1906,20 +1935,33 @@
       b.setAttribute("aria-checked", String(b.dataset.lineKind === preferredLineTool));
     });
   }
+  function positionReplacementMenu(menu){
+    const toolbarRect=document.getElementById('toolbar').getBoundingClientRect();
+    const optionRect=optionsBar.getBoundingClientRect();
+    const hasOptions=!optionsBar.classList.contains('hidden') && optionRect.width>0;
+    const width=Math.min(window.innerWidth-16,Math.max(toolbarRect.width,hasOptions?optionRect.width:toolbarRect.width));
+    menu.style.width=width+'px';
+    menu.style.height=(hasOptions?Math.max(48,optionRect.height):50)+'px';
+    menu.style.left=Math.max(8,(window.innerWidth-width)/2)+'px';
+    const desiredTop=hasOptions?optionRect.top:toolbarRect.top-parseFloat(menu.style.height)-7;
+    menu.style.top=Math.max(8,desiredTop)+'px';
+  }
+  function restoreOptionsAfterMenu(){
+    if(lineToolMenu.hidden && (typeof saveFormatMenu==='undefined' || saveFormatMenu.hidden)){
+      optionsBar.classList.remove('menu-replaced','mobile-menu-suspended');
+    }
+  }
   function positionLineMenu(){
-    const r = lineToolCombo.getBoundingClientRect();
-    const mobile = window.matchMedia("(max-width: 640px)").matches;
-    const w = mobile ? 120 : 156;
-    lineToolMenu.style.left = Math.max(8, Math.min(r.left, window.innerWidth-w-8)) + "px";
-    lineToolMenu.style.top = mobile ? Math.max(8, r.top-lineToolMenu.offsetHeight-6) + "px" : Math.max(8, Math.min(r.bottom+5, window.innerHeight-lineToolMenu.offsetHeight-8)) + "px";
+    positionReplacementMenu(lineToolMenu);
   }
   function closeLineMenu(){
-    optionsBar.classList.remove("mobile-menu-suspended");
     lineToolMenu.hidden = true;
+    optionsBar.classList.remove('menu-replaced','mobile-menu-suspended');
     lineMenuButton.setAttribute("aria-expanded", "false");
   }
   function openLineMenu(){
-    if(window.matchMedia("(max-width: 640px)").matches) optionsBar.classList.add("mobile-menu-suspended");
+    if(typeof closeSaveFormatMenu==='function')closeSaveFormatMenu();
+    optionsBar.classList.add('menu-replaced');
     lineToolMenu.hidden = false;
     lineMenuButton.setAttribute("aria-expanded", "true");
     positionLineMenu();
@@ -3221,25 +3263,22 @@
   }
   // Mobile custom format menu: avoid oversized native iOS picker.
   const saveFormatMenu=document.getElementById('save-format-menu');
-  function closeSaveFormatMenu(){saveFormatMenu.hidden=true;}
+  function closeSaveFormatMenu(){saveFormatMenu.hidden=true;optionsBar.classList.remove('menu-replaced','mobile-menu-suspended');}
   function showSaveFormatMenu(){
-    if(!window.matchMedia('(max-width:640px)').matches)return;
     if(!saveFormatMenu.hidden){closeSaveFormatMenu();return;}
-    if(typeof closeLineToolMenu==='function')closeLineToolMenu();
-    optionsBar.classList.add('mobile-menu-suspended');
+    closeLineMenu();
+    optionsBar.classList.add('menu-replaced');
     saveFormatMenu.querySelectorAll('button').forEach(b=>{
       const on=b.dataset.format===formatSelect.value;
       b.setAttribute('aria-checked',String(on));b.querySelector('span').style.visibility=on?'visible':'hidden';
     });
     saveFormatMenu.hidden=false;
-    const r=saveFormatWrap.getBoundingClientRect();
-    saveFormatMenu.style.left=Math.max(8,Math.min(innerWidth-104,r.right-96))+'px';
-    saveFormatMenu.style.top=Math.max(8,r.top-saveFormatMenu.offsetHeight-6)+'px';
+    positionReplacementMenu(saveFormatMenu);
   }
   saveFormatWrap.setAttribute('tabindex','0');
   saveFormatWrap.setAttribute('role','button');
   saveFormatWrap.setAttribute('aria-label','JPG PNG 저장 형식 선택');
-  saveFormatWrap.addEventListener('click',e=>{if(window.matchMedia('(max-width:640px)').matches){e.preventDefault();showSaveFormatMenu();}});
+  saveFormatWrap.addEventListener('click',e=>{{e.preventDefault();showSaveFormatMenu();}});
   saveFormatWrap.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showSaveFormatMenu();}});
   saveFormatMenu.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
     formatSelect.value=b.dataset.format;
@@ -3251,6 +3290,8 @@
       closeSaveFormatMenu();optionsBar.classList.remove('mobile-menu-suspended');
     }
   });
+  window.addEventListener('resize',()=>{if(!saveFormatMenu.hidden)positionReplacementMenu(saveFormatMenu);},{passive:true});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!saveFormatMenu.hidden){closeSaveFormatMenu();saveFormatWrap.focus();e.stopImmediatePropagation();}},true);
   btnSave.addEventListener("click", handleSaveClick);
 
   // ---------------- init ----------------
