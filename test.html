@@ -1071,6 +1071,58 @@
     #options-bar .option-vector-icon{width:12px;height:12px;flex-basis:12px;margin-right:0;}
     #options-bar[data-layout="drawing"] .palette-swatch{flex-basis:29px;width:29px;}
   }
+
+  /* Mobile option panel layout correction: no overlapping segments or stretched controls. */
+  @media(max-width:640px){
+    #options-bar:not(.hidden){
+      width:min(420px,calc(100vw - 16px));max-width:calc(100vw - 16px);
+      padding:8px;gap:8px;max-height:220px;overflow-x:hidden;overflow-y:auto;
+      align-items:stretch;justify-content:flex-start;
+    }
+    #options-bar .option-row{
+      display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;
+      box-sizing:border-box;width:100%;min-width:0;gap:7px;
+    }
+    #options-bar .opt-group{
+      display:flex;align-items:center;justify-content:flex-start;
+      flex:0 1 auto;min-width:0;max-width:100%;gap:5px;
+    }
+    #options-bar .seg{
+      display:inline-flex;align-items:center;flex:0 0 auto;
+      box-sizing:border-box;width:max-content;max-width:100%;
+      padding:2px;gap:2px;overflow:hidden;
+    }
+    #options-bar .seg button{
+      display:inline-flex;align-items:center;justify-content:center;
+      flex:0 0 auto!important;width:auto!important;min-width:0!important;
+      height:34px;min-height:34px;padding:5px 7px;
+      font-size:11px;line-height:1;white-space:nowrap;
+    }
+    #options-bar .option-vector-icon{width:13px;height:13px;flex:0 0 13px;margin-right:2px;}
+    #options-bar[data-layout="effect"] .effect-primary{justify-content:space-between;gap:6px;}
+    #options-bar[data-layout="effect"] .effect-primary>.opt-group{flex:0 0 auto;}
+    #options-bar[data-layout="effect"] .effect-sliders{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;}
+    #options-bar[data-layout="effect"] .effect-sliders>.option-slider{display:flex;flex-direction:column;align-items:stretch;min-width:0;width:100%;gap:4px;}
+    #options-bar[data-layout="effect"] .effect-sliders input[type="range"]{width:100%;min-width:0;}
+    #options-bar[data-layout="drawing"] .drawing-primary{justify-content:flex-start;gap:7px;}
+    #options-bar[data-layout="drawing"] .drawing-secondary{justify-content:space-between;gap:6px;}
+    #options-bar[data-layout="drawing"] .option-stroke{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg button{padding-left:6px;padding-right:6px;}
+    #options-bar[data-layout="drawing"] .option-line-style{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-color{flex:1 1 auto;min-width:0;}
+    #options-bar[data-layout="drawing"] .annotation-palette{display:flex;align-items:center;justify-content:flex-start;gap:4px;min-width:0;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex:0 0 30px;width:30px;min-width:30px;}
+    #options-bar[data-layout="drawing"] .option-lock{flex:0 0 auto;white-space:nowrap;}
+    #options-bar[data-layout="selection"] .drawing-primary{justify-content:flex-start;}
+    #options-bar[data-layout="selection"] .drawing-secondary{justify-content:flex-start;}
+  }
+  @media(max-width:370px){
+    #options-bar:not(.hidden){padding:7px 6px;}
+    #options-bar .option-row{gap:5px;}
+    #options-bar .seg button{padding:5px 5px;font-size:10px;}
+    #options-bar .option-vector-icon{width:12px;height:12px;flex-basis:12px;margin-right:1px;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex-basis:27px;width:27px;min-width:27px;}
+  }
 </style>
 </head>
 <body>
