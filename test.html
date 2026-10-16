@@ -2316,7 +2316,7 @@
     const nodes=Array.from(optionsBar.children);
     const isEffect=optionsBar.dataset.layout==="effect";
     const isDrawing=optionsBar.dataset.layout==="drawing";
-    const isSelection=isSelection;
+    const isSelection=optionsBar.dataset.layout==="selection";
     const row1=createOptionRow(isEffect?"effect-primary":"drawing-primary");
       const row2=createOptionRow(isEffect?"effect-sliders":"drawing-secondary");
       if(isEffect && nodes.length===4){
@@ -2328,7 +2328,7 @@
       } else if(isDrawing && nodes.length===3){
         row1.append(nodes[0],nodes[2],nodes[1]);
         optionsBar.append(row1);
-      } else if(optionsBar.dataset.layout==="selection"){
+      } else if(isSelection){
         const color=nodes.find(n=>n.classList.contains("option-color"));
         const lock=nodes.find(n=>n.classList.contains("option-lock"));
         const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
