@@ -28,7 +28,7 @@ for (const id of ['app', 'toolbar', 'options-bar', 'workarea', 'view-canvas',
 }
 const editorCode = scriptBlocks.join('\\n');
 for (const name of ['handleSaveClick', 'handleEditorKeydown', 'decorateOptionIcons']) {
-  if (!new RegExp(`\\\\bfunction\\\\s+${name}\\\\s*\\\\(`).test(editorCode)) {
+  if (!new RegExp(`\\bfunction\\s+${name}\\s*\\(`).test(editorCode)) {
     fail(`Missing editor behavior: ${name}`);
   }
 }
