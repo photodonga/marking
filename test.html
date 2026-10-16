@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 — 테스트 v4.4.3 메뉴 전환 및 저장 비율</title>
+<title>마킹 — 테스트 벡터 툴바 시안 적용</title>
 
 <style>
   :root{
@@ -970,20 +970,20 @@
       max-width:calc(100vw - 24px);
       justify-content:center;gap:8px;padding:7px 13px;overflow-x:auto;
     }
-    #toolbar .tools{flex:0 0 auto;gap:3px;}
+    #toolbar .tools{flex:0 0 auto;gap:8px;}
     #toolbar .toolbar-edit>.tool-btn{flex:0 0 40px;width:40px;height:40px;}
-    #toolbar .toolbar-history>.icon-btn{flex:0 0 36px;width:36px;height:40px;}
+    #toolbar .toolbar-history>.icon-btn{flex:0 0 36px;width:36px;height:36px;}
     #toolbar .toolbar-delete>#btn-clear-photo{flex:0 0 40px;width:40px;height:40px;}
-    #toolbar .toolbar-history{margin-left:5px;padding-left:9px;}
-    #toolbar .toolbar-delete{margin-left:6px;}
-    #toolbar .save-group{flex:0 0 132px;width:132px;margin-left:8px;height:40px;}
-    #toolbar .save-group .save-btn{height:40px;min-height:40px;font-size:14px;}
+    #toolbar .toolbar-history{margin-left:12px;padding-left:8px;}
+    #toolbar .toolbar-delete{margin-left:12px;}
+    #toolbar .save-group{flex:0 0 96px;width:96px;margin-left:8px;height:40px;}
+    #toolbar .save-group .save-btn{flex:0 0 72px;width:72px;height:40px;min-height:40px;font-size:14px;}
     #toolbar .save-group .save-format-wrap{flex:0 0 24px;width:24px;height:40px;}
     #toolbar .save-group .save-chevron{right:6px;width:11px;}
   }
   @media(max-width:640px){
-    #toolbar .save-group{flex:0 0 94px;width:94px;}
-    #toolbar .save-group .save-btn{flex:1 1 auto;min-width:0;}
+    #toolbar .save-group{flex:0 0 88px;width:88px;}
+    #toolbar .save-group .save-btn{flex:1 1 auto;width:auto;min-width:0;}
     #toolbar .save-group .save-format-wrap{flex:0 0 22px;width:22px;}
   }
   @media(prefers-reduced-motion:reduce){
@@ -1000,6 +1000,25 @@
   #options-bar .seg button,#options-bar .danger-opt{display:inline-flex;align-items:center;justify-content:center;}
   @media(max-width:640px){
     #options-bar .option-vector-icon{width:13px;height:13px;flex-basis:13px;margin-right:2px;}
+  }
+  /* Approved vector toolbar geometry; PC 40/36/40, split-save 72+24. */
+  @media(min-width:641px){
+    #toolbar{min-height:56px;column-gap:8px;}
+    #toolbar .toolbar-edit{gap:8px;}
+    #toolbar .toolbar-history{gap:8px;}
+    #toolbar .save-group{max-width:96px;}
+    #toolbar .save-group .save-format-wrap{min-width:24px;}
+    #options-bar[data-layout="drawing"]{gap:12px;}
+    #options-bar[data-layout="drawing"] .opt-group{gap:8px;}
+    #options-bar[data-layout="drawing"] .seg{gap:0;}
+    #options-bar[data-layout="drawing"] .seg button{min-width:38px;}
+    #options-bar[data-layout="drawing"] .option-color .annotation-palette{gap:8px;}
+  }
+  @media(max-width:640px){
+    #toolbar{max-width:100vw;box-sizing:border-box;}
+    #toolbar .tools{min-width:0;}
+    #options-bar .option-row{max-width:100%;box-sizing:border-box;}
+    #options-bar .option-vector-icon{flex-shrink:0;}
   }
 </style>
 </head>
