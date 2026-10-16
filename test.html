@@ -2275,6 +2275,65 @@
     });
   });
 
+  // Option rendering is split from editing state and event handlers.
+  // Keep icon definitions stable across toolbar rebuilds.
+  const OPTION_ICON_PATHS=Object.freeze({
+      "블러":'<path d="M12 3C9.4 7 6 10.4 6 14a6 6 0 0 0 12 0c0-3.6-3.4-7-6-11Z"/>',
+      "모자이크":'<rect x="4" y="4" width="2.8" height="2.8" rx=".35"/><rect x="8" y="4" width="2.8" height="2.8" rx=".35"/><rect x="12" y="4" width="2.8" height="2.8" rx=".35"/><rect x="16" y="4" width="2.8" height="2.8" rx=".35"/><rect x="4" y="8" width="2.8" height="2.8" rx=".35"/><rect x="8" y="8" width="2.8" height="2.8" rx=".35"/><rect x="12" y="8" width="2.8" height="2.8" rx=".35"/><rect x="16" y="8" width="2.8" height="2.8" rx=".35"/><rect x="4" y="12" width="2.8" height="2.8" rx=".35"/><rect x="8" y="12" width="2.8" height="2.8" rx=".35"/><rect x="12" y="12" width="2.8" height="2.8" rx=".35"/><rect x="16" y="12" width="2.8" height="2.8" rx=".35"/><rect x="4" y="16" width="2.8" height="2.8" rx=".35"/><rect x="8" y="16" width="2.8" height="2.8" rx=".35"/><rect x="12" y="16" width="2.8" height="2.8" rx=".35"/><rect x="16" y="16" width="2.8" height="2.8" rx=".35"/>',
+      "얼굴":'<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M15 10h.01M9 15q3 3 6 0"/>',
+      "사각형":'<rect x="5" y="5" width="14" height="14" rx="2"/>',
+      "원/타원":'<ellipse cx="12" cy="12" rx="8" ry="6"/>',
+      "네모":'<rect x="4.5" y="4.5" width="15" height="15" rx="2"/>',
+      "실선":'<path d="M4 12h16"/>',
+      "점선":'<path d="M4 12h16" stroke-dasharray="3 4"/>',
+      "삭제":'<path d="M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12M10 10v6M14 10v6"/>'
+    });
+
+  function decorateOptionIcons(){
+    optionsBar.querySelectorAll('button').forEach(button=>{
+      const label=button.textContent.trim();
+      const paths=OPTION_ICON_PATHS[label];
+      if(!paths || button.querySelector('svg'))return;
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('viewBox','0 0 24 24');
+      svg.setAttribute('aria-hidden','true');
+      svg.classList.add('option-vector-icon');
+      svg.innerHTML=paths;
+      button.prepend(svg);
+    });
+
+  }
+
+  function arrangeMobileOptions(){
+    if(mobileLayoutQuery.matches && !optionsBar.classList.contains("hidden")){
+      const nodes=Array.from(optionsBar.children);
+      const makeRow=(name)=>{const row=document.createElement("div");row.className="option-row "+name;return row;};
+      const row1=makeRow(optionsBar.dataset.layout==="effect"?"effect-primary":"drawing-primary");
+      const row2=makeRow(optionsBar.dataset.layout==="effect"?"effect-sliders":"drawing-secondary");
+      if(optionsBar.dataset.layout==="effect" && nodes.length===4){
+        row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
+        optionsBar.append(row1,row2);
+      } else if(optionsBar.dataset.layout==="drawing" && activeTool==="circle" && nodes.length===5){
+        row1.append(nodes[0],nodes[1]); row2.append(nodes[2],nodes[3],nodes[4]);
+        optionsBar.append(row1,row2);
+      } else if(optionsBar.dataset.layout==="drawing" && nodes.length===3){
+        row1.append(nodes[0],nodes[2],nodes[1]);
+        optionsBar.append(row1);
+      } else if(optionsBar.dataset.layout==="selection"){
+        const color=nodes.find(n=>n.classList.contains("option-color"));
+        const lock=nodes.find(n=>n.classList.contains("option-lock"));
+        const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
+        const line=nodes.find(n=>n.classList.contains("option-line-style"));
+        const del=nodes.find(n=>n.classList.contains("selected-options"));
+        if(color && stroke && line){
+          row1.append(stroke,line);
+          row2.append(color); if(lock) row2.append(lock); if(del) row2.append(del);
+          optionsBar.append(row1,row2);
+        }
+      }
+    }
+  }
+
   function buildOptionsBar(){
     optionsBar.innerHTML = "";
     // 모바일 패널은 기존 컨트롤을 재사용하면서 도구별 공통 그리드만 적용한다.
@@ -2419,59 +2478,12 @@
       optionsBar.classList.add("hidden");
     }
 
-    // Shared inline SVG symbols for option controls; text stays for accessibility.
-    const optionIcons={
-      "블러":'<path d="M12 3C9.4 7 6 10.4 6 14a6 6 0 0 0 12 0c0-3.6-3.4-7-6-11Z"/>',
-      "모자이크":'<rect x="4" y="4" width="2.8" height="2.8" rx=".35"/><rect x="8" y="4" width="2.8" height="2.8" rx=".35"/><rect x="12" y="4" width="2.8" height="2.8" rx=".35"/><rect x="16" y="4" width="2.8" height="2.8" rx=".35"/><rect x="4" y="8" width="2.8" height="2.8" rx=".35"/><rect x="8" y="8" width="2.8" height="2.8" rx=".35"/><rect x="12" y="8" width="2.8" height="2.8" rx=".35"/><rect x="16" y="8" width="2.8" height="2.8" rx=".35"/><rect x="4" y="12" width="2.8" height="2.8" rx=".35"/><rect x="8" y="12" width="2.8" height="2.8" rx=".35"/><rect x="12" y="12" width="2.8" height="2.8" rx=".35"/><rect x="16" y="12" width="2.8" height="2.8" rx=".35"/><rect x="4" y="16" width="2.8" height="2.8" rx=".35"/><rect x="8" y="16" width="2.8" height="2.8" rx=".35"/><rect x="12" y="16" width="2.8" height="2.8" rx=".35"/><rect x="16" y="16" width="2.8" height="2.8" rx=".35"/>',
-      "얼굴":'<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M15 10h.01M9 15q3 3 6 0"/>',
-      "사각형":'<rect x="5" y="5" width="14" height="14" rx="2"/>',
-      "원/타원":'<ellipse cx="12" cy="12" rx="8" ry="6"/>',
-      "네모":'<rect x="4.5" y="4.5" width="15" height="15" rx="2"/>',
-      "실선":'<path d="M4 12h16"/>',
-      "점선":'<path d="M4 12h16" stroke-dasharray="3 4"/>',
-      "삭제":'<path d="M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12M10 10v6M14 10v6"/>'
-    };
-    optionsBar.querySelectorAll('button').forEach(button=>{
-      const label=button.textContent.trim();
-      const paths=optionIcons[label];
-      if(!paths || button.querySelector('svg'))return;
-      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-      svg.setAttribute('viewBox','0 0 24 24');
-      svg.setAttribute('aria-hidden','true');
-      svg.classList.add('option-vector-icon');
-      svg.innerHTML=paths;
-      button.prepend(svg);
-    });
-    if(window.matchMedia("(max-width:640px)").matches && !optionsBar.classList.contains("hidden")){
-      const nodes=Array.from(optionsBar.children);
-      const makeRow=(name)=>{const row=document.createElement("div");row.className="option-row "+name;return row;};
-      const row1=makeRow(optionsBar.dataset.layout==="effect"?"effect-primary":"drawing-primary");
-      const row2=makeRow(optionsBar.dataset.layout==="effect"?"effect-sliders":"drawing-secondary");
-      if(optionsBar.dataset.layout==="effect" && nodes.length===4){
-        row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
-        optionsBar.append(row1,row2);
-      } else if(optionsBar.dataset.layout==="drawing" && activeTool==="circle" && nodes.length===5){
-        row1.append(nodes[0],nodes[1]); row2.append(nodes[2],nodes[3],nodes[4]);
-        optionsBar.append(row1,row2);
-      } else if(optionsBar.dataset.layout==="drawing" && nodes.length===3){
-        row1.append(nodes[0],nodes[2],nodes[1]);
-        optionsBar.append(row1);
-      } else if(optionsBar.dataset.layout==="selection"){
-        const color=nodes.find(n=>n.classList.contains("option-color"));
-        const lock=nodes.find(n=>n.classList.contains("option-lock"));
-        const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
-        const line=nodes.find(n=>n.classList.contains("option-line-style"));
-        const del=nodes.find(n=>n.classList.contains("selected-options"));
-        if(color && stroke && line){
-          row1.append(stroke,line);
-          row2.append(color); if(lock) row2.append(lock); if(del) row2.append(del);
-          optionsBar.append(row1,row2);
-        }
-      }
-    }
+    decorateOptionIcons();
+    arrangeMobileOptions();
   }
 
   // Rebuild the option wrappers when orientation crosses the mobile/desktop breakpoint.
+  // Shared breakpoint for layout updates and toolbar rendering.
   const mobileLayoutQuery=window.matchMedia("(max-width:640px)");
   const refreshOptionsLayout=()=>{if(activeTool || selectedId!==null) buildOptionsBar();};
   if(mobileLayoutQuery.addEventListener) mobileLayoutQuery.addEventListener("change",refreshOptionsLayout);
