@@ -32,4 +32,35 @@ for (const name of ['handleSaveClick', 'handleEditorKeydown', 'decorateOptionIco
     fail(`Missing editor behavior: ${name}`);
   }
 }
+// CSS syntax guard: count braces outside comments and quoted strings.
+// This catches accidental truncation during staged CSS consolidation.
+const styleBlocks = [...html.matchAll(/<style(?:\\s[^>]*)?>([\\s\\S]*?)<\\/style>/gi)].map(match => match[1]);
+if (styleBlocks.length !== 1) fail('Expected exactly one inline style block');
+for (const css of styleBlocks) {
+  let depth = 0;
+  let quote = '';
+  let comment = false;
+  for (let i = 0; i < css.length; i++) {
+    const ch = css[i], next = css[i + 1];
+    if (comment) {
+      if (ch === '*' && next === '/') { comment = false; i++; }
+      continue;
+    }
+    if (quote) {
+      if (ch === '\\\\') { i++; continue; }
+      if (ch === quote) quote = '';
+      continue;
+    }
+    if (ch === '/' && next === '*') { comment = true; i++; continue; }
+    if (ch === '"' || ch === "'") { quote = ch; continue; }
+    if (ch === '{') depth++;
+    if (ch === '}') {
+      depth--;
+      if (depth < 0) { fail('Unexpected CSS closing brace'); break; }
+    }
+  }
+  if (depth !== 0) fail(`Unbalanced CSS braces: ${depth}`);
+  if (comment) fail('Unterminated CSS comment');
+  if (quote) fail('Unterminated CSS string');
+}
 if (!process.exitCode) console.log('PASS: Marking test.html static checks');
