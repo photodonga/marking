@@ -893,6 +893,37 @@
  #toolbar .save-group .save-btn{flex-basis:50px!important;width:50px!important;min-width:50px!important;}
  #toolbar .save-group .save-format-wrap{flex-basis:25px!important;width:25px!important;min-width:25px!important;}
 }
+
+/* v4.3.5: approved design 2 - explicit four-group toolbar and stable option rows */
+@media(max-width:640px){
+ #toolbar{display:flex!important;flex-direction:row!important;align-items:center!important;justify-content:space-between!important;gap:0!important;padding:6px 7px!important;box-sizing:border-box!important;width:100%!important;}
+ #toolbar .tools{display:flex!important;flex:1 1 auto!important;min-width:0!important;width:auto!important;align-items:center!important;justify-content:space-between!important;gap:0!important;overflow:visible!important;}
+ #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;align-items:center;justify-content:center;gap:0;min-width:0;flex:0 0 auto;}
+ #toolbar .toolbar-edit{gap:1px;}
+ #toolbar .toolbar-history{gap:1px;border-left:1px solid rgba(50,55,65,.19);padding-left:clamp(3px,1vw,7px);margin-left:clamp(3px,1vw,8px);}
+ #toolbar .toolbar-delete{margin-left:clamp(4px,1.6vw,10px);}
+ #toolbar .toolbar-edit>.tool-btn{width:clamp(27px,8vw,36px)!important;min-width:0!important;flex:0 0 auto!important;height:40px!important;padding:0!important;display:flex!important;align-items:center!important;justify-content:center!important;}
+ #toolbar .toolbar-edit>.line-tool-combo{height:40px!important;min-width:0!important;flex:0 0 auto!important;}
+ #toolbar .toolbar-edit .line-tool-combo>.tool-btn{height:40px!important;min-width:0!important;width:clamp(26px,7.5vw,34px)!important;padding:0!important;}
+ #toolbar .toolbar-edit .line-tool-chevron{height:40px!important;min-width:19px!important;flex:0 0 19px!important;}
+ #toolbar .toolbar-history>.icon-btn{height:40px!important;width:clamp(26px,7vw,32px)!important;min-width:0!important;flex:0 0 auto!important;margin:0!important;padding:0!important;border:0!important;background:transparent!important;}
+ #toolbar .toolbar-delete>#btn-clear-photo{width:clamp(32px,9vw,40px)!important;height:40px!important;min-width:0!important;margin:0!important;flex:0 0 auto!important;}
+ #toolbar .save-group{flex:0 0 78px!important;width:78px!important;min-width:78px!important;margin-left:clamp(5px,2vw,12px)!important;height:40px!important;}
+ #toolbar .save-group .save-btn{width:53px!important;min-width:53px!important;flex:0 0 53px!important;}
+ #toolbar .save-group .save-format-wrap{width:25px!important;min-width:25px!important;flex:0 0 25px!important;}
+ #options-bar[data-layout="drawing"]:not(.hidden){display:grid!important;grid-template-columns:minmax(0,1.08fr) minmax(0,1.1fr) minmax(0,.95fr)!important;grid-template-rows:auto auto!important;gap:9px 6px!important;padding:10px 12px!important;align-items:center!important;overflow:hidden!important;}
+ #options-bar[data-layout="drawing"]>.opt-group{min-width:0!important;max-width:100%!important;grid-column:auto!important;grid-row:auto!important;justify-content:center!important;gap:3px!important;}
+ #options-bar[data-layout="drawing"]>.opt-group:nth-child(1){grid-column:1!important;grid-row:1!important;}
+ #options-bar[data-layout="drawing"]>.opt-group:nth-child(2){grid-column:2!important;grid-row:1!important;}
+ #options-bar[data-layout="drawing"]>.opt-group:nth-child(4){grid-column:3!important;grid-row:1!important;}
+ #options-bar[data-layout="drawing"]>.opt-group:nth-child(3){grid-column:1/3!important;grid-row:2!important;justify-content:flex-start!important;}
+ #options-bar[data-layout="drawing"]>.opt-group:nth-child(5){grid-column:3!important;grid-row:2!important;justify-content:flex-end!important;}
+ #options-bar[data-layout="drawing"] .seg{min-width:0!important;max-width:100%!important;}
+ #options-bar[data-layout="drawing"] .seg button{min-width:0!important;padding:7px 4px!important;font-size:clamp(9px,2.5vw,12px)!important;}
+ #options-bar[data-layout="drawing"] .annotation-palette{width:100%!important;justify-content:space-between!important;gap:4px!important;}
+ #options-bar[data-layout="drawing"] .palette-swatch{width:clamp(21px,6.3vw,28px)!important;height:clamp(21px,6.3vw,28px)!important;min-width:0!important;}
+ #options-bar[data-layout="drawing"] .check-opt{white-space:nowrap!important;}
+}
 </style>
 </head>
 <body>
@@ -900,17 +931,18 @@
   <div id="chrome">
     <header id="toolbar">
       <div class="brand">마킹</div>
-      <div class="tools">
+      <div class="tools"><div class="toolbar-edit">
         <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 4v16M12 4v16M16 4v16M4 8h16M4 12h16M4 16h16" opacity=".72"/></svg></span><span class="label">가림</span></button>
         <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg></span><span class="label">도형</span></button>
         <div class="line-tool-combo" id="line-tool-combo" role="group" aria-label="선 도구">
           <button class="tool-btn" data-tool="arrow" id="btn-arrow" aria-label="화살표 도구" title="화살표 도구"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg></span><span class="label">화살표</span></button>
           <button class="line-tool-chevron" id="btn-line-menu" type="button" aria-label="선 도구 종류 선택" aria-haspopup="menu" aria-expanded="false" aria-controls="line-tool-menu"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
         </div>
-        <span class="sep"></span>
+        </div><div class="toolbar-history">
         <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 5 11l4 4"/><path d="M5 11h8a6 6 0 0 1 6 6"/></svg></button>
         <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 4 4-4 4"/><path d="M19 11h-8a6 6 0 0 0-6 6"/></svg></button>
-        <button class="icon-btn" id="btn-clear-photo" title="사진 삭제" aria-label="사진 삭제" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></svg></button>
+        </div><div class="toolbar-delete"><button class="icon-btn" id="btn-clear-photo" title="사진 삭제" aria-label="사진 삭제" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></svg></button>
+        </div>
       </div>
       <div class="save-group" role="group" aria-label="사진 저장">
         <button class="save-btn" id="btn-save" disabled>저장</button>
