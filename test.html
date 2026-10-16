@@ -836,6 +836,31 @@
     #options-bar:not(.hidden){column-gap:5px;padding:8px;}
     #options-bar .seg button{padding:4px 5px;font-size:10px;}
   }
+
+/* v4.3.3 MOBILE ONLY: consistent compact layout; native select replaced with anchored menu */
+@media(max-width:640px){
+ #options-bar:not(.hidden){display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 9px;padding:8px 10px;align-content:center;justify-content:stretch;max-height:min(30dvh,160px);}
+ #options-bar .opt-group{min-width:0;max-width:100%;justify-content:flex-start;gap:5px;}
+ #options-bar .seg{display:flex;width:100%;min-width:0;box-sizing:border-box;}
+ #options-bar .seg button{flex:1 1 0;min-width:0;padding:5px 3px;white-space:nowrap;}
+ #options-bar[data-layout="effect"]>.opt-group:nth-child(1){grid-area:1/1;}
+ #options-bar[data-layout="effect"]>.opt-group:nth-child(4){grid-area:1/2;}
+ #options-bar[data-layout="effect"]>.opt-group:nth-child(2){grid-area:2/1;}
+ #options-bar[data-layout="effect"]>.opt-group:nth-child(3){grid-area:2/2;}
+ #options-bar[data-layout="drawing"]>.opt-group{grid-column:auto;grid-row:auto;}
+ #options-bar[data-layout="drawing"]>.opt-group:has(.annotation-palette){grid-column:1/-1;grid-row:1;}
+ #options-bar[data-layout="drawing"]>.opt-group:has(.annotation-palette) .annotation-palette{flex:1;justify-content:space-evenly;}
+ #options-bar[data-layout="drawing"]>.opt-group:has(.seg):not(:has(.annotation-palette)){min-width:0;}
+ #options-bar[data-layout="drawing"]>.opt-group.check-opt{justify-content:flex-end;}
+ #toolbar .save-group #format-select{display:none;}
+ #toolbar .save-group .save-format-wrap{cursor:pointer;}
+ #toolbar .save-group .save-format-wrap:focus-visible{outline:2px solid white;outline-offset:-3px;}
+}
+.save-format-menu{position:fixed;z-index:1100;width:96px;box-sizing:border-box;padding:4px;background:#292b34;color:#fff;border:1px solid #484a55;border-radius:10px;box-shadow:0 8px 20px #0005;animation:line-menu-in .12s ease-out both;}
+.save-format-menu[hidden]{display:none!important;}
+.save-format-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;height:34px;padding:0 9px;background:transparent;border:0;border-radius:6px;color:inherit;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}
+.save-format-menu button[aria-checked="true"]{background:#36527f;}
+.save-format-menu button span{color:#87baff;}
 </style>
 </head>
 <body>
@@ -870,6 +895,7 @@
     <div id="options-bar" class="hidden"></div>
   </div>
 
+  <div id="save-format-menu" class="save-format-menu" role="menu" aria-label="저장 형식 선택" hidden><button type="button" role="menuitemradio" data-format="jpeg">JPG <span>✓</span></button><button type="button" role="menuitemradio" data-format="png">PNG <span>✓</span></button></div>
   <main id="workarea">
     <div id="placeholder">
       <button class="ph-icon" id="btn-pick-photo" type="button" aria-label="사진 선택">＋</button>
@@ -1894,6 +1920,7 @@
   Object.keys(toolButtons).filter(key=>key!=="line").forEach(key=>{
     toolButtons[key].addEventListener("click", ()=>{
       if(!naturalW) return;
+      closeSaveFormatMenu();optionsBar.classList.remove('mobile-menu-suspended');
       const selectedTool = key === "arrow" ? preferredLineTool : key;
       setActiveTool(activeTool===selectedTool ? null : selectedTool);
     });
@@ -3043,6 +3070,20 @@
 
     outCanvas.toBlob(async (blob)=>{
       if(!blob){ showToast("저장에 실패했습니다."); return; }
+      // On iOS/Android prefer the system share sheet with Save Image / Save to Files.
+      if(window.matchMedia('(max-width:640px)').matches && navigator.share && navigator.canShare){
+        try{
+          const file=new File([blob],filename,{type:mime});
+          if(navigator.canShare({files:[file]})){
+            await navigator.share({files:[file]});
+            showToast('저장 또는 공유할 위치를 선택하세요.');
+            return;
+          }
+        }catch(err){
+          if(err && err.name==='AbortError')return;
+          // Share failed or unsupported: fall through to browser download.
+        }
+      }
       const downloads = await getDownloads();
       if(!downloads){
         // Claude 아티팩트 환경이 아닐 때(예: 독립 실행, GitHub Pages)는
@@ -3074,6 +3115,38 @@
       }
     }, mime, quality);
   }
+  // Mobile custom format menu: avoid oversized native iOS picker.
+  const saveFormatMenu=document.getElementById('save-format-menu');
+  function closeSaveFormatMenu(){saveFormatMenu.hidden=true;}
+  function showSaveFormatMenu(){
+    if(!window.matchMedia('(max-width:640px)').matches)return;
+    if(!saveFormatMenu.hidden){closeSaveFormatMenu();return;}
+    if(typeof closeLineToolMenu==='function')closeLineToolMenu();
+    optionsBar.classList.add('mobile-menu-suspended');
+    saveFormatMenu.querySelectorAll('button').forEach(b=>{
+      const on=b.dataset.format===formatSelect.value;
+      b.setAttribute('aria-checked',String(on));b.querySelector('span').style.visibility=on?'visible':'hidden';
+    });
+    saveFormatMenu.hidden=false;
+    const r=saveFormatWrap.getBoundingClientRect();
+    saveFormatMenu.style.left=Math.max(8,Math.min(innerWidth-104,r.right-96))+'px';
+    saveFormatMenu.style.top=Math.max(8,r.top-saveFormatMenu.offsetHeight-6)+'px';
+  }
+  saveFormatWrap.setAttribute('tabindex','0');
+  saveFormatWrap.setAttribute('role','button');
+  saveFormatWrap.setAttribute('aria-label','JPG PNG 저장 형식 선택');
+  saveFormatWrap.addEventListener('click',e=>{if(window.matchMedia('(max-width:640px)').matches){e.preventDefault();showSaveFormatMenu();}});
+  saveFormatWrap.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showSaveFormatMenu();}});
+  saveFormatMenu.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    formatSelect.value=b.dataset.format;
+    formatSelect.dispatchEvent(new Event('change',{bubbles:true}));
+    closeSaveFormatMenu();optionsBar.classList.remove('mobile-menu-suspended');
+  }));
+  document.addEventListener('pointerdown',e=>{
+    if(!saveFormatMenu.hidden&&!saveFormatMenu.contains(e.target)&&!saveFormatWrap.contains(e.target)){
+      closeSaveFormatMenu();optionsBar.classList.remove('mobile-menu-suspended');
+    }
+  });
   btnSave.addEventListener("click", handleSaveClick);
 
   // ---------------- init ----------------
