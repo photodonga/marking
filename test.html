@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹 — 모바일 테스트 v4.3.7 디자인 2안</title>
+<title>마킹 — 모바일 테스트 v4.3.8 하단 공통 배치</title>
 
 <style>
   :root{
@@ -701,6 +701,33 @@
   }
 
 
+
+  /* Desktop bottom dock: same bottom-up order as mobile, without changing tools. */
+  @media (min-width:641px){
+    #chrome{
+      top:auto;
+      bottom:calc(14px + var(--safe-b));
+      left:calc(14px + var(--safe-l));
+      right:calc(14px + var(--safe-r));
+      display:flex;
+      flex-direction:column-reverse;
+      align-items:center;
+      gap:8px;
+    }
+    #toolbar{
+      width:max-content;
+      max-width:100%;
+      box-sizing:border-box;
+      margin:0 auto;
+      overflow-x:auto;
+    }
+    #options-bar:not(.hidden){
+      width:max-content;
+      max-width:100%;
+      box-sizing:border-box;
+      margin:0 auto;
+    }
+  }
 
   /* Mobile v4.3.6 review: one mobile layout authority. Desktop rules above stay intact. */
   .save-format-menu{position:fixed;z-index:1100;width:96px;box-sizing:border-box;padding:4px;background:#292b34;color:#fff;border:1px solid #484a55;border-radius:10px;box-shadow:0 8px 20px #0005;animation:line-menu-in .12s ease-out both;}
