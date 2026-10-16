@@ -2317,8 +2317,9 @@
     const isEffect=optionsBar.dataset.layout==="effect";
     const isDrawing=optionsBar.dataset.layout==="drawing";
     const isSelection=optionsBar.dataset.layout==="selection";
+    if(!isEffect && !isDrawing && !isSelection) return;
     const row1=createOptionRow(isEffect?"effect-primary":"drawing-primary");
-      const row2=createOptionRow(isEffect?"effect-sliders":"drawing-secondary");
+    const row2=createOptionRow(isEffect?"effect-sliders":"drawing-secondary");
       if(isEffect && nodes.length===4){
         row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
         optionsBar.append(row1,row2);
