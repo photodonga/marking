@@ -1222,7 +1222,8 @@
     if(root.style.getPropertyValue("--editor-top")===top && root.style.getPropertyValue("--editor-bottom")===bottom) return;
     root.style.setProperty("--editor-top",top);
     root.style.setProperty("--editor-bottom",bottom);
-    if(naturalW){ fitCanvas(); redraw(); }
+    // Toolbar/option-panel changes must not change the displayed photo scale.
+    // Only actual viewport resize events call fitCanvas().
   }
   const chromeObserver = new ResizeObserver(()=>requestAnimationFrame(syncEditorInsets));
   chromeObserver.observe(chromeEl);
