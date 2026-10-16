@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>마킹</title>
+<title>마킹 — 사진 마킹 도구</title>
 
 <style>
   :root{
@@ -64,6 +64,13 @@
     -webkit-font-smoothing:antialiased;
     overscroll-behavior:none;
     user-select:none;
+    -webkit-user-select:none;
+    -webkit-touch-callout:none;
+  }
+  #app, #app *{
+    -webkit-user-select:none;
+    user-select:none;
+    -webkit-touch-callout:none;
   }
   #app{
     position:relative;
@@ -311,6 +318,10 @@
     border:1.5px solid rgba(255,255,255,0.18);
     display:flex;align-items:center;justify-content:center;
     font-size:22px;color:#b7b7bc;
+    font-family:inherit;
+    -webkit-appearance:none;appearance:none;
+    cursor:pointer;
+    touch-action:manipulation;
   }
   #placeholder p{margin:0;font-size:14px;letter-spacing:.2px;}
   #placeholder .ph-sub{margin:0;font-size:12.5px;color:#6f6f76;letter-spacing:.1px;}
@@ -379,11 +390,14 @@
     #chrome{top:calc(6px + var(--safe-t));left:6px;right:6px;gap:4px;}
     .brand{display:none;}
     #toolbar{gap:4px;padding:5px 6px;border-radius:20px;}
-    .tools{gap:2px;}
-    .tool-btn{padding:6px 8px;font-size:12px;}
+    .tools{gap:1px;min-width:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;}
+    .tools::-webkit-scrollbar{display:none;}
+    .tools>.tool-btn{flex:1 1 28px;min-width:28px;padding:6px 4px;font-size:12px;}
     .tool-btn .label{display:none;}
-    .icon-btn{width:31px;height:31px;}
-    .save-group{gap:5px;}
+    .tools>.icon-btn{flex:0 1 30px;min-width:28px;width:30px;height:30px;}
+    .tools>.sep{flex:0 0 1px;margin:0 1px;}
+    #toolbar{gap:3px;}
+    .save-group{gap:5px;flex:0 0 auto;}
     #format-select{padding:6px 7px;font-size:12px;}
     .save-btn{padding:7px 12px;font-size:12.5px;}
     #options-bar{gap:3px;padding:6px 5px;border-radius:14px;font-size:10px;width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;touch-action:pan-y;}
@@ -437,93 +451,783 @@
   }
 
 
-  .settings-notice{display:none;}
-  @media(max-width:900px),(pointer:coarse){.settings-notice{display:block;font-size:11px;line-height:1.5;color:var(--ink-soft);}}
-  /* Marking: device-specific workspace, shared image engine */
-  #app{height:100dvh;}
-  #chrome{left:calc(12px + var(--safe-l));right:calc(12px + var(--safe-r));gap:8px;}
-  #toolbar{border-radius:16px;justify-content:flex-start;}
-  #toolbar .tools{flex:1;min-width:0;}
-  #toolbar .save-group{margin-left:auto;}
-  #toolbar .brand{color:#20283a;}
-  #options-bar{align-self:center;max-width:100%;background:var(--glass-strong);min-height:48px;}
-  #workarea{top:132px;bottom:78px;left:var(--safe-l);right:var(--safe-r);}
-  #view-controls{position:absolute;bottom:calc(32px + var(--safe-b));left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:25;white-space:nowrap;}
-  #view-controls button,#options-toggle{border:1px solid rgba(255,255,255,.16);background:#303238;color:#fff;border-radius:10px;padding:9px 13px;font:13px var(--font);cursor:pointer;}
-  #view-controls button:disabled{opacity:.35;}
-  #view-controls button[aria-pressed="true"]{background:var(--accent);}
-  #options-toggle{display:none;}
-  button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #60a5fa;outline-offset:3px;}
-  #footer-note .privacy{display:none;}
-  #footer-note{font-size:10px;bottom:8px;}
-  @media(max-width:900px),(pointer:coarse){
-    #chrome{inset:0;pointer-events:none;}
-    #toolbar{position:absolute;top:calc(8px + var(--safe-t));left:calc(10px + var(--safe-l));right:calc(10px + var(--safe-r));height:52px;padding:4px 8px;overflow:visible;}
-    #toolbar .brand{display:block;font-size:16px;}
-    #toolbar .tools{position:fixed;bottom:calc(10px + var(--safe-b));left:calc(10px + var(--safe-l));right:calc(10px + var(--safe-r));height:58px;display:flex;justify-content:space-around;background:#f0f2f6;border:1px solid #cfd4df;border-radius:18px;padding:4px;pointer-events:auto;}
-    .tool-btn{min-width:44px;min-height:48px;padding:4px 8px;flex-direction:column;gap:1px;border-radius:12px;font-size:11px;}
-    .tool-btn .label{display:block;}
-    .icon-btn{min-width:44px;width:44px;height:48px;border-radius:12px;}
-    .sep{display:none;}
-    .save-btn{height:44px;font-size:14px;padding:8px 14px;}
-    #format-select{height:44px;font-size:14px;padding:6px;}
-    #toolbar #btn-clear-photo{display:flex;}
+  /* ===== Phase 1: responsive layout stabilization (visual theme unchanged) ===== */
+  :root { --editor-top: 84px; --editor-bottom: 0px; }
+  #workarea { top:var(--editor-top); bottom:var(--editor-bottom); }
+  #chrome { min-width:0; }
+  #toolbar { min-width:0; max-width:100%; }
+  #options-bar { min-width:0; max-width:100%; }
+  #options-bar .opt-group { flex-shrink:0; }
+  #options-bar .seg button { min-height:34px; }
+  @media (min-width:641px) {
+    #chrome { gap:8px; }
+    #toolbar { overflow-x:auto; overflow-y:hidden; justify-content:flex-start; }
+    #toolbar .tools { flex:0 0 auto; min-width:max-content; }
+    #toolbar .save-group { margin-left:auto; }
+    #options-bar { width:max-content; max-width:100%; overflow-x:auto; overflow-y:hidden; }
+    #options-bar input[type="range"] { width:110px; }
+  }
+  @media (max-width:640px) {
+    #chrome {
+      top:auto;
+      bottom:calc(8px + var(--safe-b));
+      left:calc(8px + var(--safe-l));
+      right:calc(8px + var(--safe-r));
+      gap:6px;
+      flex-direction:column-reverse;
+    }
+    #toolbar {
+      display:grid;
+      grid-template-columns:minmax(0,1fr);
+      gap:5px;
+      padding:7px;
+      overflow:visible;
+      border-radius:20px;
+    }
+    #toolbar .tools {
+      display:grid;
+      grid-template-columns:repeat(4,minmax(0,1fr)) repeat(3,44px);
+      gap:3px;
+      width:100%;
+      min-width:0;
+      overflow:visible;
+      align-items:center;
+    }
+    #toolbar .tools > .tool-btn {
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      width:100%;
+      min-width:0;
+      min-height:44px;
+      padding:8px 0;
+    }
+    #toolbar .tools > .icon-btn {
+      width:44px;
+      height:44px;
+      min-width:44px;
+      justify-self:center;
+    }
+    #toolbar .tools > .sep { display:none; }
+    #toolbar .save-group {
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      width:100%;
+      min-width:0;
+    }
+    #toolbar #format-select { min-height:40px; padding:8px 12px; }
+    #toolbar .save-btn { min-height:40px; padding:8px 20px; }
+    #options-bar {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+      justify-content:center;
+      gap:7px 10px;
+      width:100%;
+      max-width:100%;
+      max-height:min(38dvh,190px);
+      overflow-x:hidden;
+      overflow-y:auto;
+      touch-action:pan-y;
+      overscroll-behavior:contain;
+      padding:9px 10px;
+      font-size:12px;
+    }
+    #options-bar.hidden { display:none; }
+    #options-bar .opt-group { flex:0 0 auto; gap:6px; min-width:0; }
+    #options-bar .seg button { font-size:12px; padding:7px 10px; min-height:36px; }
+    #options-bar input[type="range"] {
+      width:clamp(84px,24vw,132px);
+      min-width:84px;
+      max-width:132px;
+      height:4px;
+      flex:0 0 auto;
+    }
+    #options-bar input[type="color"] { width:34px; height:34px; }
+    #footer-note { display:none; }
+  }
+  @media (max-width:390px) {
+    #toolbar .tools { grid-template-columns:repeat(4,minmax(0,1fr)); }
+    #toolbar .tools > .icon-btn { width:100%; }
+    #toolbar .tools > #btn-undo { grid-column:1; }
+    #toolbar .tools > #btn-redo { grid-column:2; }
+    #toolbar .tools > #btn-clear-photo { grid-column:3; }
+  }
+  /* Slider drag stability: numeric labels must not change flex widths at 9→10→100. */
+  #options-bar .effect-value-label {
+    display:inline-block;
+    flex:0 0 7.5ch;
+    width:7.5ch;
+    white-space:nowrap;
+    font-variant-numeric:tabular-nums;
+  }
+  #options-bar .opt-group > input[type="range"] { flex-shrink:0; }
+  #toolbar, #options-bar { overflow-anchor:none; }
+  @media (min-width:641px) {
+    #options-bar .effect-value-label { flex-basis:7.5ch; }
+  }
+  @media (prefers-reduced-motion:reduce) {
+    #toolbar *, #options-bar * { transition:none !important; }
+  }
+
+  /* Stable save controls and keyboard-visible focus across browsers. */
+  .save-group{align-items:center;min-width:max-content;}
+  #format-select,.save-btn{box-sizing:border-box;height:38px;line-height:normal;align-self:center;flex-shrink:0;}
+  #format-select{
+    appearance:none;-webkit-appearance:none;
+    width:92px;min-width:92px;max-width:92px;
+    padding:0 28px 0 12px;
+    border-radius:999px;
+    background-color:var(--chip-bg);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' fill='none' stroke='%235c6575' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;background-size:14px 14px;
+    text-align:left;
+  }
+  #toolbar #format-select{background-color:rgba(255,255,255,.52);}
+
+  .save-btn{display:inline-flex;align-items:center;justify-content:center;padding:0 16px;}
+  #format-select:focus:not(:focus-visible){outline:none;}
+  #format-select:focus-visible,.save-btn:focus-visible,.palette-swatch:focus-visible{outline:2px solid #2478e9;outline-offset:2px;}
+  .annotation-palette{display:inline-flex;align-items:center;gap:5px;flex-wrap:nowrap;}
+  .palette-swatch{appearance:none;box-sizing:border-box;width:25px;height:25px;min-width:25px;padding:0;border-radius:50%;border:1px solid rgba(80,80,80,.4);background:var(--swatch);cursor:pointer;position:relative;}
+  .palette-swatch.selected{outline:2px solid #2478e9;outline-offset:2px;}
+  .palette-swatch.selected::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;color:#fff;text-shadow:0 1px 2px #333;}
+  .palette-swatch[style*="#FFFFFF"].selected::after,.palette-swatch[style*="#FFD400"].selected::after{color:#111;text-shadow:none;}
+  @media(max-width:640px){.annotation-palette{gap:3px}.palette-swatch{width:22px;height:22px;min-width:22px}}
+
+
+
+  /* v4.1: unified split-save control, preserving native accessible format select. */
+  #toolbar .save-group{
+    display:inline-flex;align-items:stretch;justify-content:flex-end;
+    gap:0;flex:0 0 auto;width:auto;min-width:0;
+    border-radius:11px;overflow:hidden;
+    box-shadow:0 2px 7px rgba(13,93,196,.15);
+  }
+  #toolbar .save-group .save-btn{
+    height:40px;min-height:40px;box-sizing:border-box;
+    border:0;border-radius:0;background:#1677f9;color:#fff;
+    padding:0 16px;font-size:13px;font-weight:650;line-height:1;
+    white-space:nowrap;flex:0 0 auto;
+  }
+  #toolbar .save-group .save-btn:disabled{opacity:.55;}
+  #toolbar .save-group .save-format-wrap{
+    position:relative;display:flex;align-items:stretch;
+    height:40px;min-height:40px;width:72px;min-width:72px;
+    background:#0964d7;color:white;flex:0 0 72px;
+  }
+  #toolbar .save-group #format-select{
+    appearance:none;-webkit-appearance:none;display:block;
+    box-sizing:border-box;height:40px;min-height:40px;
+    width:100%;min-width:0;max-width:none;
+    margin:0;border:0;border-radius:0;
+    padding:0 23px 0 12px;
+    background:#0964d7 none;color:white;
+    font-family:inherit;font-size:12px;font-weight:650;
+    line-height:40px;text-align:left;cursor:pointer;
+  }
+  #toolbar .save-group .save-chevron{
+    position:absolute;right:8px;top:50%;transform:translateY(-50%);
+    width:12px;height:12px;pointer-events:none;
+  }
+  #toolbar .save-group :is(.save-btn,#format-select):focus-visible{
+    outline:2px solid #fff;outline-offset:-3px;z-index:1;
+  }
+  @media(max-width:640px){
+    #toolbar .save-group{width:auto;gap:0;}
+    #toolbar .save-group .save-btn{padding:0 12px;}
+    #toolbar .save-group .save-format-wrap{width:62px;min-width:62px;flex-basis:62px;}
+    #toolbar .save-group #format-select{padding-left:9px;padding-right:19px;}
+    #toolbar .save-group .save-chevron{right:5px;}
+  }
+  @media(max-width:390px){
+    #toolbar .save-group{width:auto;min-width:0;}
+  }
+
+  /* v4.2: PC split-save button 94+56; mobile 64+54. */
+  #toolbar .save-group .save-btn{
+    width:94px;min-width:94px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+  }
+  #toolbar .save-group .save-format-wrap{
+    width:56px;min-width:56px;flex:0 0 56px;
+  }
+  #toolbar .save-group #format-select{
+    font-size:11px;padding-left:7px;padding-right:17px;
+  }
+  #toolbar .save-group .save-chevron{width:10px;height:10px;right:4px;}
+  @media(max-width:640px){
+    #toolbar .save-group .save-btn{width:64px;min-width:64px;padding:0;}
+    #toolbar .save-group .save-format-wrap{
+      width:54px;min-width:54px;flex:0 0 54px;
+    }
+    #toolbar .save-group #format-select{font-size:11px;padding-left:7px;padding-right:16px;}
+    #toolbar .save-group .save-chevron{right:3px;}
+  }
+
+  /* v4.3: only the arrow/straight-line toolbar slot changes. */
+  #toolbar .line-tool-combo{display:flex;align-items:stretch;position:relative;min-width:0;flex:0 0 auto;}
+  #toolbar .line-tool-combo > .tool-btn{border-radius:999px 0 0 999px;padding-right:7px;min-width:0;}
+  #toolbar .line-tool-chevron{display:flex;align-items:center;justify-content:center;flex:0 0 28px;min-width:28px;border:1px solid transparent;border-left:1px solid var(--chip-border);border-radius:0 999px 999px 0;background:transparent;color:#20283a;cursor:pointer;padding:0;touch-action:manipulation;}
+  #toolbar .line-tool-chevron svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  #toolbar .line-tool-combo:has(>.tool-btn.active) > .line-tool-chevron{background:var(--accent);color:var(--accent-ink);border-left-color:rgba(255,255,255,.45);}
+  #toolbar .line-tool-combo > .tool-btn.active{border-radius:999px 0 0 999px;}
+  #toolbar .line-tool-chevron:hover{background:var(--chip-bg);}
+  #toolbar .line-tool-combo:has(>.tool-btn.active) > .line-tool-chevron:hover{background:var(--accent);}
+  #toolbar .line-tool-chevron:focus-visible,.line-tool-menu button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  .line-tool-menu{position:fixed;z-index:1000;width:156px;box-sizing:border-box;padding:5px;background:#fff;border:1px solid rgba(40,55,75,.18);border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.18);animation:line-menu-in .13s ease-out both;}
+  .line-tool-menu[hidden]{display:none!important;}
+  .line-tool-menu button{display:flex;align-items:center;gap:9px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#20283a;font:inherit;font-size:13px;cursor:pointer;text-align:left;}
+  .line-tool-menu button:hover,.line-tool-menu button[aria-checked="true"]{background:#eaf2ff;}
+  .line-tool-menu svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+  .line-tool-menu .line-menu-check{margin-left:auto;color:#1976d2;visibility:hidden;}
+  .line-tool-menu [aria-checked="true"] .line-menu-check{visibility:visible;}
+  @keyframes line-menu-in{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  @media(prefers-reduced-motion:reduce){.line-tool-menu{animation:none;}}
+  @media(max-width:700px){
+    #toolbar .tools > .line-tool-combo{flex:1 1 45px;min-width:45px;}
+    #toolbar .line-tool-combo > .tool-btn{flex:1 1 auto;min-width:25px;padding:6px 2px;justify-content:center;}
+    #toolbar .line-tool-chevron{flex:0 0 22px;min-width:22px;}
+  }
+  @media(max-width:540px){
+    #toolbar .tools{grid-template-columns:repeat(3,minmax(0,1fr)) repeat(3,44px);}
+    #toolbar .tools > .line-tool-combo{width:100%;min-width:0;min-height:44px;}
+    #toolbar .line-tool-combo > .tool-btn{min-height:44px;}
+    #toolbar .line-tool-chevron{flex-basis:28px;min-width:28px;}
+  }
+  @media(max-width:390px){
+    #toolbar .tools{grid-template-columns:repeat(4,minmax(0,1fr));}
+  }
+
+
+
+  /* Desktop bottom dock: same bottom-up order as mobile, without changing tools. */
+  @media (min-width:641px){
+    #chrome{
+      top:auto;
+      bottom:calc(14px + var(--safe-b));
+      left:calc(14px + var(--safe-l));
+      right:calc(14px + var(--safe-r));
+      display:flex;
+      flex-direction:column-reverse;
+      align-items:center;
+      gap:8px;
+    }
+    #toolbar{
+      width:max-content;
+      max-width:100%;
+      box-sizing:border-box;
+      margin:0 auto;
+      overflow-x:auto;
+    }
+    #options-bar:not(.hidden){
+      width:max-content;
+      max-width:100%;
+      box-sizing:border-box;
+      margin:0 auto;
+    }
+  }
+
+  /* Desktop dock structural reset: toolbar children must not stack or stretch. */
+  @media (min-width:641px){
+    :root{--editor-top:0px;--editor-bottom:0px;}
+    #chrome{position:absolute;top:auto;bottom:calc(14px + var(--safe-b));left:14px;right:14px;display:flex;flex-direction:column-reverse;align-items:center;width:auto;height:auto;gap:8px;}
+    #toolbar{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:10px;width:max-content;max-width:calc(100vw - 28px);height:auto;min-height:52px;padding:7px 12px;overflow-x:auto;overflow-y:hidden;}
+    #toolbar .brand{display:block;flex:0 0 auto;}
+    #toolbar .tools{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:flex-start;flex:0 0 auto;width:auto;min-width:0;gap:5px;}
+    #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;flex:0 0 auto;gap:4px;}
+    #toolbar .toolbar-history,#toolbar .toolbar-delete{margin-left:8px;}
+    #toolbar .line-tool-combo{display:flex;flex-direction:row;align-items:stretch;flex:0 0 auto;}
+    #toolbar .save-group{display:flex;flex-direction:row;align-items:center;flex:0 0 auto;width:auto;margin-left:10px;}
+    #toolbar .tool-btn,#toolbar .icon-btn{flex-shrink:0;}
+    #options-bar:not(.hidden){display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;position:static;transform:none;width:max-content;max-width:calc(100vw - 28px);height:auto;padding:9px 16px;overflow-x:auto;overflow-y:hidden;}
+    #options-bar .option-row{display:contents;}
+  }
+
+  /* v4.4.0 compact reference-matched bottom dock */
+  @media (min-width:641px){
+    #chrome{top:auto;bottom:calc(12px + var(--safe-b));left:10px;right:10px;display:flex;flex-direction:column-reverse;align-items:center;gap:7px;}
+    #toolbar{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:6px;width:max-content;max-width:calc(100vw - 20px);min-height:0;height:54px;margin:0 auto;padding:5px 9px;border-radius:17px;overflow-x:auto;overflow-y:hidden;}
     #toolbar .brand{display:none;}
-    #workarea{top:calc(70px + var(--safe-t));bottom:calc(126px + var(--safe-b));}
-    #view-controls{bottom:calc(74px + var(--safe-b));gap:4px;}
-    #view-controls button{min-height:44px;padding:7px 10px;font-size:12px;}
-    #options-toggle{display:block;position:absolute;right:calc(12px + var(--safe-r));top:calc(70px + var(--safe-t));pointer-events:auto;min-height:44px;z-index:3;font-size:13px;}
-    #options-bar{display:none!important;position:absolute;bottom:calc(126px + var(--safe-b));left:calc(10px + var(--safe-l));right:calc(10px + var(--safe-r));width:auto;max-height:46dvh;overflow:auto;touch-action:pan-y;flex-direction:column;align-items:stretch;padding:16px;gap:14px;border-radius:20px;font-size:14px;z-index:4;}
-    #app.options-open #options-bar:not(.hidden){display:flex!important;}
-    #options-bar .opt-group{gap:12px;justify-content:space-between;flex:none;}
-    #options-bar .seg{display:flex;flex:1;}
-    #options-bar .seg button{min-height:44px;flex:1;font-size:13px;padding:6px;}
-    #options-bar input[type=range]{width:60%;max-width:none;min-width:120px;height:24px;flex:1;}
-    #options-bar input[type=color]{width:48px;height:44px;}
+    #toolbar .tools{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;flex:0 0 auto;min-width:0;width:auto;gap:0;}
+    #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;flex:0 0 auto;gap:2px;}
+    #toolbar .toolbar-history{margin-left:7px;padding-left:7px;border-left:1px solid rgba(49,54,65,.23);}
+    #toolbar .toolbar-delete{margin-left:7px;}
+    #toolbar .tool-btn{display:flex;align-items:center;justify-content:center;width:40px;height:40px;min-height:40px;padding:0;border-radius:10px;}
+    #toolbar .tool-btn .label{display:none;}
+    #toolbar .tool-btn .glyph{display:flex;align-items:center;justify-content:center;width:21px;height:21px;line-height:0;}
+    #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{width:19px;height:19px;}
+    #toolbar .line-tool-combo{display:flex;flex-direction:row;align-items:stretch;width:60px;height:40px;overflow:hidden;border-radius:10px;}
+    #toolbar .line-tool-combo>.tool-btn{width:38px;height:40px;border-radius:10px 0 0 10px;}
+    #toolbar .line-tool-chevron{display:flex;align-items:center;justify-content:center;width:22px;height:40px;padding:0;border-radius:0 10px 10px 0;}
+    #toolbar .line-tool-chevron svg{width:12px;height:12px;}
+    #toolbar .toolbar-history>.icon-btn{display:flex;align-items:center;justify-content:center;width:35px;height:40px;padding:0;border:0;border-radius:9px;background:transparent;}
+    #toolbar .toolbar-delete>#btn-clear-photo{width:40px;height:40px;border-radius:10px;}
+    #toolbar .save-group{display:flex;align-items:stretch;flex:0 0 104px;width:104px;height:40px;margin-left:9px;gap:0;overflow:hidden;border-radius:10px;}
+    #toolbar .save-group .save-btn{display:flex;align-items:center;justify-content:center;flex:1 1 auto;width:auto;min-width:0;height:40px;min-height:40px;padding:0;border-radius:10px 0 0 10px;font-size:13px;}
+    #toolbar .save-group .save-format-wrap{position:relative;display:flex;flex:0 0 27px;width:27px;height:40px;border-radius:0 10px 10px 0;}
+    #toolbar .save-group #format-select{position:absolute;inset:0;width:100%;height:100%;padding:0;opacity:0;cursor:pointer;}
+    #toolbar .save-group .save-chevron{position:absolute;top:50%;right:7px;width:12px;height:12px;transform:translateY(-50%);pointer-events:none;}
+    #toolbar .save-group .save-format-wrap::before{content:'';position:absolute;left:0;top:8px;height:24px;border-left:1px solid rgba(255,255,255,.36);}
+    #options-bar:not(.hidden){position:static;transform:none;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:7px;width:max-content;max-width:calc(100vw - 20px);min-height:0;height:auto;margin:0 auto;padding:8px 11px;border-radius:15px;overflow-x:auto;overflow-y:hidden;font-size:12px;}
+    #options-bar .option-row{display:contents;}
+    #options-bar .opt-group{gap:4px;min-height:34px;}
+    #options-bar .seg{gap:2px;padding:2px;}
+    #options-bar .seg button{min-height:34px;padding:6px 10px;font-size:12px;}
+    #options-bar .palette-swatch{width:31px;height:31px;min-width:31px;}
+    #options-bar .option-slider input[type="range"]{width:110px;max-width:110px;}
+  }
+  @media (max-width:640px){
+    #toolbar{gap:3px;padding:4px 5px;}
+    #options-bar:not(.hidden){padding:6px 7px;gap:4px;}
+    #options-bar .option-row{gap:3px;}
+  }
+
+  /* Mobile v4.3.6 review: one mobile layout authority. Desktop rules above stay intact. */
+  .save-format-menu{position:fixed;z-index:1100;width:96px;box-sizing:border-box;padding:4px;background:#292b34;color:#fff;border:1px solid #484a55;border-radius:10px;box-shadow:0 8px 20px #0005;animation:line-menu-in .12s ease-out both;}
+  .save-format-menu[hidden]{display:none!important;}
+  .save-format-menu button{display:flex;justify-content:space-between;align-items:center;width:100%;height:32px;padding:0 9px;background:transparent;border:0;border-radius:6px;color:inherit;font-size:12px;font-weight:600;font-family:inherit;cursor:pointer;}
+  .save-format-menu button[aria-checked="true"]{background:#36527f;}
+  .save-format-menu button span{color:#87baff;}
+
+  @media (min-width:641px){
+    #options-bar .option-row{display:contents;}
+  }
+
+  @media (max-width:640px){
+    #chrome{
+      position:absolute;top:auto;bottom:calc(8px + var(--safe-b));
+      left:calc(8px + var(--safe-l));right:calc(8px + var(--safe-r));
+      display:block;height:auto;min-height:0;z-index:30;pointer-events:none;
+    }
+    #toolbar{
+      display:flex;align-items:center;justify-content:center;flex-wrap:nowrap;
+      box-sizing:border-box;width:max-content;max-width:100%;min-width:0;height:50px;
+      gap:clamp(4px,1.3vw,7px);margin:0 auto;padding:5px 6px;overflow:visible;
+      border-radius:16px;touch-action:manipulation;
+    }
+    #toolbar .brand{display:none;}
+    #toolbar .tools{display:flex;align-items:center;justify-content:flex-start;flex:0 0 auto;width:auto;min-width:0;gap:1px;overflow:visible;}
+    #toolbar .tools>.sep{display:none;}
+    #toolbar .toolbar-edit,#toolbar .toolbar-history,#toolbar .toolbar-delete{display:flex;align-items:center;justify-content:center;flex:0 0 auto;min-width:0;}
+    #toolbar .toolbar-edit{gap:1px;}
+    #toolbar .tools>.toolbar-edit>.tool-btn,
+    #toolbar .toolbar-edit>.tool-btn{
+      display:flex;align-items:center;justify-content:center;box-sizing:border-box;
+      flex:0 0 clamp(27px,8.2vw,36px);width:clamp(27px,8.2vw,36px);min-width:0;
+      height:38px;min-height:38px;margin:0;padding:0;border-radius:10px;
+    }
+    #toolbar .tool-btn .label{display:none;}
+    #toolbar .tool-btn .glyph{display:flex;align-items:center;justify-content:center;width:22px;height:22px;margin:0;line-height:0;}
+    #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{display:block;width:19px;height:19px;}
+    #toolbar .line-tool-combo{display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 clamp(46px,13vw,56px);width:clamp(46px,13vw,56px);min-width:0;height:38px;overflow:hidden;border-radius:10px;}
+    #toolbar .line-tool-combo>.tool-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:1 1 auto;width:auto;min-width:0;height:38px;min-height:38px;margin:0;padding:0;border-radius:10px 0 0 10px;}
+    #toolbar .line-tool-chevron{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 19px;width:19px;min-width:19px;height:38px;margin:0;padding:0;border-radius:0 10px 10px 0;}
+    #toolbar .line-tool-chevron svg{width:11px;height:11px;}
+    #toolbar .toolbar-history{gap:0;margin-left:clamp(3px,1.2vw,6px);padding-left:clamp(3px,1.2vw,6px);border-left:1px solid rgba(45,51,65,.2);}
+    #toolbar .toolbar-history>.icon-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 clamp(27px,7.8vw,34px);width:clamp(27px,7.8vw,34px);min-width:0;height:38px;margin:0;padding:0;border:0;border-radius:9px;background:transparent;}
+    #toolbar .toolbar-delete{margin-left:clamp(3px,1.2vw,7px);}
+    #toolbar .toolbar-delete>#btn-clear-photo{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:0 0 clamp(32px,9vw,40px);width:clamp(32px,9vw,40px);min-width:0;height:38px;min-height:38px;margin:0;padding:0;border-radius:10px;}
+    #toolbar .save-group{display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 clamp(72px,20vw,80px);width:clamp(72px,20vw,80px);min-width:0;height:38px;margin:0 0 0 clamp(3px,1.2vw,7px);gap:0;border-radius:10px;overflow:hidden;}
+    #toolbar .save-group .save-btn{display:flex;align-items:center;justify-content:center;box-sizing:border-box;flex:1 1 auto;width:auto;min-width:0;height:38px;min-height:38px;margin:0;padding:0;border-radius:10px 0 0 10px;font-size:12px;}
+    #toolbar .save-group .save-format-wrap{position:relative;display:flex;align-items:stretch;box-sizing:border-box;flex:0 0 24px;width:24px;min-width:24px;height:38px;min-height:38px;border-radius:0 10px 10px 0;}
+    #toolbar .save-group #format-select{position:absolute;inset:0;z-index:2;width:100%;height:100%;min-height:0;margin:0;padding:0;opacity:0;cursor:pointer;}
+    #toolbar .save-group .save-chevron{position:absolute;top:50%;right:5px;width:12px;height:12px;transform:translateY(-50%);pointer-events:none;}
+    #toolbar .save-group .save-format-wrap::before{content:'';position:absolute;left:0;top:8px;height:22px;border-left:1px solid rgba(255,255,255,.38);}
+
+    #options-bar:not(.hidden){
+      position:absolute;left:50%;right:auto;bottom:calc(100% + 7px);transform:translateX(-50%);
+      display:flex;flex-direction:column;align-items:stretch;justify-content:center;
+      box-sizing:border-box;width:100%;max-width:100%;max-height:min(34dvh,156px);min-width:0;
+      gap:5px;padding:7px 8px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
+      border-radius:15px;font-size:11px;touch-action:pan-y;box-shadow:0 8px 24px rgba(0,0,0,.18);
+    }
+    #options-bar.hidden{display:none;}
+    #options-bar.mobile-menu-suspended{display:none;}
+    #options-bar .option-row{display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;width:100%;min-width:0;gap:clamp(3px,1.4vw,7px);}
+    #options-bar .opt-group{display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:0;min-height:34px;margin:0;gap:4px;white-space:nowrap;}
+    #options-bar .seg{display:flex;align-items:center;box-sizing:border-box;max-width:100%;min-width:0;gap:2px;padding:2px;border-radius:10px;}
+    #options-bar .seg button{box-sizing:border-box;flex:0 1 auto;min-width:0;min-height:34px;padding:5px 7px;border-radius:8px;font-size:clamp(10px,2.9vw,12px);line-height:1;white-space:nowrap;touch-action:manipulation;}
+
+    /* Effect panel: tool selectors on row one, paired sliders on row two. */
+    #options-bar[data-layout="effect"] .option-row:first-child{justify-content:space-between;}
+    #options-bar[data-layout="effect"] .option-mode .seg,
+    #options-bar[data-layout="effect"] .option-target .seg{width:100%;}
+    #options-bar[data-layout="effect"] .option-mode,
+    #options-bar[data-layout="effect"] .option-target{flex:0 1 49%;}
+    #options-bar[data-layout="effect"] .option-mode .seg button,
+    #options-bar[data-layout="effect"] .option-target .seg button{flex:1 1 0;padding-left:4px;padding-right:4px;}
+    #options-bar[data-layout="effect"] .effect-sliders{gap:clamp(6px,2vw,12px);}
+    #options-bar[data-layout="effect"] .option-slider{display:grid;grid-template-rows:auto 28px;align-items:center;justify-content:stretch;flex:1 1 0;min-width:0;gap:0;}
+    #options-bar[data-layout="effect"] .effect-value-label{display:block;box-sizing:border-box;width:100%;min-height:20px;flex:none;white-space:nowrap;font-size:10px;font-variant-numeric:tabular-nums;}
+    #options-bar[data-layout="effect"] input[type="range"]{box-sizing:border-box;width:100%;min-width:0;max-width:none;height:28px;margin:0;background:transparent;touch-action:pan-x;}
+    #options-bar[data-layout="effect"] input[type="range"]::-webkit-slider-runnable-track{height:4px;border-radius:3px;background:var(--chip-border);}
+    #options-bar[data-layout="effect"] input[type="range"]::-webkit-slider-thumb{margin-top:-6px;width:16px;height:16px;}
+    #options-bar[data-layout="effect"] input[type="range"]::-moz-range-track{height:4px;border-radius:3px;background:var(--chip-border);}
+    #options-bar[data-layout="effect"] input[type="range"]::-moz-range-thumb{width:16px;height:16px;}
+
+    /* Drawing panels: preserve shape switch; use the same two-row control system. */
+    /* Approved design 2: drawing controls in row 1, color and lock in row 2. */
+    #options-bar[data-layout="drawing"] .drawing-primary{display:flex;justify-content:space-between;gap:4px;}
+    #options-bar[data-layout="drawing"] .drawing-secondary{display:flex;justify-content:space-between;gap:4px;}
+    #options-bar[data-layout="drawing"] .drawing-primary .opt-group{flex:0 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-stroke{flex:1 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-line-style{flex:0 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .seg button{padding-left:clamp(3px,1.2vw,7px);padding-right:clamp(3px,1.2vw,7px);}
+    #options-bar[data-layout="drawing"] .drawing-secondary .option-color{flex:1 1 auto;min-width:0;}
+    #options-bar[data-layout="drawing"] .drawing-secondary .option-lock{flex:0 0 auto;}
+    #options-bar[data-layout="selection"] .drawing-primary{display:flex;gap:4px;justify-content:space-between;}
+    #options-bar[data-layout="selection"] .drawing-secondary{display:flex;gap:4px;justify-content:space-between;}
+    #options-bar[data-layout="selection"] .drawing-secondary .option-color{flex:1 1 auto;min-width:0;}
+    #options-bar[data-layout="selection"] .drawing-secondary .annotation-palette{display:flex;flex:1 1 auto;min-width:0;justify-content:space-between;}
+    #options-bar[data-layout="selection"] .drawing-secondary .option-lock{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary{justify-content:space-between;}
+    #options-bar[data-layout="drawing"] .drawing-secondary{justify-content:space-between;}
+    #options-bar[data-layout="drawing"] .option-shape{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-shape .seg button{padding-left:5px;padding-right:5px;}
+    #options-bar[data-layout="drawing"] .option-color{flex:1 1 auto;justify-content:flex-start;gap:3px;}
+    #options-bar[data-layout="drawing"] .option-color>span{font-size:10px;}
+    #options-bar[data-layout="drawing"] .annotation-palette{display:flex;align-items:center;justify-content:space-between;flex:1 1 auto;min-width:0;gap:1px;}
+    #options-bar[data-layout="drawing"] .palette-swatch{position:relative;box-sizing:border-box;flex:0 1 clamp(25px,7.8vw,34px);width:clamp(25px,7.8vw,34px);min-width:25px;height:34px;margin:0;padding:0;border:0;border-radius:50%;background:transparent;outline:none;touch-action:manipulation;}
+    #options-bar[data-layout="drawing"] .palette-swatch::before{content:'';position:absolute;left:50%;top:50%;width:20px;height:20px;transform:translate(-50%,-50%);border:1px solid rgba(80,80,80,.45);border-radius:50%;background:var(--swatch);}
+    #options-bar[data-layout="drawing"] .palette-swatch.selected::before{outline:2px solid #2478e9;outline-offset:2px;}
+    #options-bar[data-layout="drawing"] .palette-swatch.selected::after{font-size:12px;}
+    #options-bar[data-layout="drawing"] .check-opt{flex:0 0 auto;min-height:34px;gap:4px;padding:0 2px;font-size:clamp(9px,2.7vw,11px);}
+    #options-bar[data-layout="drawing"] .check-opt input{width:16px;height:16px;margin:0;flex:0 0 16px;}
+    #options-bar[data-layout="drawing"] .option-stroke{flex:1 1 auto;justify-content:flex-start;gap:4px;}
+    #options-bar[data-layout="drawing"] .option-stroke>span,
+    #options-bar[data-layout="drawing"] .option-line-style>span{font-size:10px;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg{flex:1 1 auto;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg button{flex:1 1 0;padding-left:clamp(4px,1.8vw,8px);padding-right:clamp(4px,1.8vw,8px);}
+    #options-bar[data-layout="drawing"] .option-line-style{flex:0 0 auto;gap:4px;}
+    #options-bar[data-layout="drawing"] .option-line-style .seg button{padding-left:clamp(5px,2vw,9px);padding-right:clamp(5px,2vw,9px);}
+    #options-bar[data-layout="drawing"] .option-lock{min-height:34px;}
+    #options-bar[data-layout="drawing"] .selected-options .danger-opt{min-height:34px;padding:4px 8px;}
+
+    #workarea,#view-canvas{touch-action:none;overscroll-behavior:contain;}
     #footer-note{display:none;}
+    .line-tool-menu{width:120px;padding:4px;border-radius:10px;}
+    .line-tool-menu button{min-height:36px;padding:6px 8px;font-size:12px;}
   }
-  @media (orientation:landscape) and (max-height:600px) and (pointer:coarse){
-    #toolbar .tools{left:calc(8px + var(--safe-l));right:auto;top:70px;bottom:calc(8px + var(--safe-b));width:64px;height:auto;flex-direction:column;overflow-y:auto;}
-    #toolbar .tools .tool-btn{min-height:44px;}
-    #toolbar .tools .icon-btn{min-height:44px;height:44px;}
-    #workarea{left:calc(82px + var(--safe-l));bottom:60px;}
-    #view-controls{bottom:8px;}
-    #options-bar{left:auto;width:320px;bottom:60px;max-height:calc(100dvh - 132px);}
+  @media (max-width:365px){
+    #toolbar{gap:3px;padding-left:4px;padding-right:4px;}
+    #toolbar .toolbar-edit>.tool-btn{flex-basis:27px;width:27px;}
+    #toolbar .line-tool-combo{flex-basis:45px;width:45px;}
+    #toolbar .line-tool-chevron{flex-basis:18px;width:18px;min-width:18px;}
+    #toolbar .toolbar-history>.icon-btn{flex-basis:27px;width:27px;}
+    #toolbar .toolbar-delete>#btn-clear-photo{flex-basis:32px;width:32px;}
+    #toolbar .save-group{flex-basis:72px;width:72px;}
+    #options-bar:not(.hidden){padding:6px;gap:4px;}
+    #options-bar .seg button{padding-left:4px;padding-right:4px;font-size:10px;}
+    #options-bar[data-layout="drawing"] .option-color{gap:1px;}
+    #options-bar[data-layout="drawing"] .option-color>span{font-size:9px;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex-basis:25px;width:25px;min-width:25px;}
+    #options-bar[data-layout="drawing"] .option-shape .seg button{padding-left:4px;padding-right:4px;font-size:9.5px;}
+    #options-bar[data-layout="drawing"] .check-opt{font-size:9px;}
   }
+  @media (prefers-reduced-motion:reduce){
+    .line-tool-menu,.save-format-menu{animation:none;}
+    #toolbar *,#options-bar *{transition:none;}
+  }
+  /* Consolidated dock + popover rules (test only).
+     The original base styles and mobile option layouts remain unchanged. */
+  #options-bar.menu-replaced{visibility:hidden!important;pointer-events:none!important;}
+  #options-bar.mobile-menu-suspended{visibility:hidden!important;pointer-events:none!important;}
+  #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;}
+  #toolbar .line-tool-chevron svg,#toolbar .save-chevron{stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  #toolbar .save-format-wrap #format-select{opacity:0;pointer-events:none;}
+  .line-tool-menu,.save-format-menu{
+    position:fixed;z-index:1100;box-sizing:border-box;
+    display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+    gap:2px;width:auto;height:auto;padding:4px;border-radius:13px;
+    background:rgba(43,47,57,.96);color:#e9edf7;
+    border:1px solid rgba(150,160,181,.27);
+    box-shadow:0 10px 28px rgba(0,0,0,.3);
+    backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+    transform-origin:bottom center;animation:markingPopoverIn .12s ease-out both;
+  }
+  .line-tool-menu[hidden],.save-format-menu[hidden]{display:none!important;}
+  .line-tool-menu button,.save-format-menu button{
+    display:flex;align-items:center;justify-content:flex-start;
+    box-sizing:border-box;flex:0 0 auto;width:100%;height:29px;min-height:29px;
+    gap:6px;padding:3px 7px;border:0;border-radius:8px;
+    background:transparent;color:#e9edf7;font-size:12px;font-weight:550;white-space:nowrap;
+  }
+  .line-tool-menu button[aria-checked="true"],.save-format-menu button[aria-checked="true"]{
+    background:rgba(75,126,205,.32);color:#fff;
+  }
+  .line-tool-menu button:hover,.save-format-menu button:hover{background:rgba(75,126,205,.45);}
+  .line-tool-menu svg{flex:0 0 15px;width:15px;height:15px;}
+  .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:auto;color:inherit;}
+  @keyframes markingPopoverIn{
+    from{opacity:0;transform:translateY(4px) scale(.98)}
+    to{opacity:1;transform:translateY(0) scale(1)}
+  }
+  @media(min-width:641px){
+    #toolbar{
+      box-sizing:border-box;width:max-content;min-width:0;
+      max-width:calc(100vw - 24px);
+      justify-content:center;gap:8px;padding:7px 13px;overflow-x:auto;
+    }
+    #toolbar .tools{flex:0 0 auto;gap:8px;}
+    #toolbar .toolbar-edit>.tool-btn{flex:0 0 40px;width:40px;height:40px;}
+    #toolbar .toolbar-history>.icon-btn{flex:0 0 36px;width:36px;height:36px;}
+    #toolbar .toolbar-delete>#btn-clear-photo{flex:0 0 40px;width:40px;height:40px;}
+    #toolbar .toolbar-history{margin-left:12px;padding-left:8px;}
+    #toolbar .toolbar-delete{margin-left:12px;}
+    #toolbar .save-group{flex:0 0 92px;width:92px;margin-left:8px;height:40px;}
+    #toolbar .save-group .save-btn{flex:0 0 72px;width:72px;height:40px;min-height:40px;font-size:14px;}
+    #toolbar .save-group .save-format-wrap{flex:0 0 20px;width:20px;height:40px;}
+    #toolbar .save-group .save-chevron{right:4px;width:11px;}
+  }
+  @media(max-width:640px){
+    #toolbar .save-group{flex:0 0 88px;width:88px;}
+    #toolbar .save-group .save-btn{flex:1 1 auto;width:auto;min-width:0;}
+    #toolbar .save-group .save-format-wrap{flex:0 0 22px;width:22px;}
+  }
+  @media(prefers-reduced-motion:reduce){
+    .line-tool-menu,.save-format-menu{animation:none;}
+  }
+  /* Unified SVG icon language: visuals only, existing controls and behavior unchanged. */
+  #toolbar .tool-btn .glyph svg,#toolbar .icon-btn svg{stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  #toolbar #btn-clear-photo svg{width:21px;height:21px;stroke-width:1.85;}
+  #options-bar .option-vector-icon{
+    width:15px;height:15px;flex:0 0 15px;display:inline-block;vertical-align:middle;
+    margin-right:4px;fill:none;stroke:currentColor;stroke-width:1.9;
+    stroke-linecap:round;stroke-linejoin:round;pointer-events:none;
+  }
+  #options-bar .seg button,#options-bar .danger-opt{display:inline-flex;align-items:center;justify-content:center;}
+  @media(max-width:640px){
+    #options-bar .option-vector-icon{width:13px;height:13px;flex-basis:13px;margin-right:2px;}
+  }
+  /* Approved vector toolbar geometry; PC 40/36/40, split-save 72+24. */
+  @media(min-width:641px){
+    #toolbar{min-height:56px;column-gap:8px;}
+    #toolbar .toolbar-edit{gap:8px;}
+    #toolbar .toolbar-history{gap:8px;}
+    #toolbar .save-group{max-width:92px;}
+    #toolbar .save-group .save-format-wrap{min-width:20px;}
+    #options-bar[data-layout="drawing"]{gap:12px;}
+    #options-bar[data-layout="drawing"] .opt-group{gap:8px;}
+    #options-bar[data-layout="drawing"] .seg{gap:0;}
+    #options-bar[data-layout="drawing"] .seg button{min-width:38px;}
+    #options-bar[data-layout="drawing"] .option-color .annotation-palette{gap:8px;}
+  }
+  @media(max-width:640px){
+    #toolbar{max-width:100vw;box-sizing:border-box;}
+    #toolbar .tools{min-width:0;}
+    #options-bar .option-row{max-width:100%;box-sizing:border-box;}
+    #options-bar .option-vector-icon{flex-shrink:0;}
+  }
+
+  /* Mobile option dock: compact controls, no stretched segmented buttons. */
+  @media(max-width:640px){
+    #options-bar:not(.hidden){
+      box-sizing:border-box;width:calc(100% - 16px);max-width:420px;
+      margin:0 auto;padding:9px 10px;gap:8px;
+      display:flex;flex-direction:column;align-items:stretch;
+      overflow:visible;border-radius:17px;
+    }
+    #options-bar .option-row{
+      display:flex;width:100%;min-width:0;gap:8px;
+      align-items:center;justify-content:flex-start;
+    }
+    #options-bar .opt-group{min-width:0;min-height:32px;gap:6px;}
+    #options-bar .seg{width:auto;flex:0 0 auto;min-width:0;gap:2px;padding:2px;}
+    #options-bar .seg button{
+      flex:0 0 auto!important;width:auto;min-width:0;
+      min-height:34px;padding:6px 9px;font-size:11px;
+      gap:3px;
+    }
+    #options-bar .option-vector-icon{width:13px;height:13px;flex-basis:13px;margin-right:1px;}
+    #options-bar[data-layout="drawing"] .drawing-primary,
+    #options-bar[data-layout="drawing"] .drawing-secondary,
+    #options-bar[data-layout="selection"] .drawing-primary,
+    #options-bar[data-layout="selection"] .drawing-secondary{justify-content:space-between;}
+    #options-bar[data-layout="drawing"] .drawing-primary .opt-group{flex:0 1 auto;min-width:0;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-stroke{flex:0 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-line-style{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg button{flex:0 0 auto!important;}
+    #options-bar[data-layout="drawing"] .option-color,
+    #options-bar[data-layout="selection"] .option-color{flex:1 1 auto;min-width:0;}
+    #options-bar[data-layout="drawing"] .annotation-palette,
+    #options-bar[data-layout="selection"] .annotation-palette{gap:5px;justify-content:flex-start;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex:0 0 33px;width:33px;}
+    #options-bar[data-layout="effect"] .effect-primary{justify-content:space-between;}
+    #options-bar[data-layout="effect"] .option-mode,
+    #options-bar[data-layout="effect"] .option-target{flex:0 1 auto;}
+    #options-bar[data-layout="effect"] .option-mode .seg button,
+    #options-bar[data-layout="effect"] .option-target .seg button{flex:0 0 auto!important;}
+    #options-bar[data-layout="effect"] .effect-sliders{gap:12px;}
+    #options-bar[data-layout="effect"] .option-slider{flex:1 1 0;min-width:0;}
+    #options-bar .check-opt{white-space:nowrap;font-size:11px;}
+  }
+  @media(max-width:365px){
+    #options-bar:not(.hidden){padding:8px 6px;gap:6px;}
+    #options-bar .option-row{gap:4px;}
+    #options-bar .seg button{padding:6px 5px;font-size:10px;}
+    #options-bar .option-vector-icon{width:12px;height:12px;flex-basis:12px;margin-right:0;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex-basis:29px;width:29px;}
+  }
+
+  /* Mobile option panel layout correction: no overlapping segments or stretched controls. */
+  @media(max-width:640px){
+    #options-bar:not(.hidden){
+      width:min(420px,calc(100vw - 16px));max-width:calc(100vw - 16px);
+      padding:8px;gap:8px;max-height:220px;overflow-x:hidden;overflow-y:auto;
+      align-items:stretch;justify-content:flex-start;
+    }
+    #options-bar .option-row{
+      display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-start;
+      box-sizing:border-box;width:100%;min-width:0;gap:7px;
+    }
+    #options-bar .opt-group{
+      display:flex;align-items:center;justify-content:flex-start;
+      flex:0 1 auto;min-width:0;max-width:100%;gap:5px;
+    }
+    #options-bar .seg{
+      display:inline-flex;align-items:center;flex:0 0 auto;
+      box-sizing:border-box;width:max-content;max-width:100%;
+      padding:2px;gap:2px;overflow:hidden;
+    }
+    #options-bar .seg button{
+      display:inline-flex;align-items:center;justify-content:center;
+      flex:0 0 auto!important;width:auto!important;min-width:0!important;
+      height:34px;min-height:34px;padding:5px 7px;
+      font-size:11px;line-height:1;white-space:nowrap;
+    }
+    #options-bar .option-vector-icon{width:13px;height:13px;flex:0 0 13px;margin-right:2px;}
+    #options-bar[data-layout="effect"] .effect-primary{justify-content:space-between;gap:6px;}
+    #options-bar[data-layout="effect"] .effect-primary>.opt-group{flex:0 0 auto;}
+    #options-bar[data-layout="effect"] .effect-sliders{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;}
+    #options-bar[data-layout="effect"] .effect-sliders>.option-slider{display:flex;flex-direction:column;align-items:stretch;min-width:0;width:100%;gap:4px;}
+    #options-bar[data-layout="effect"] .effect-sliders input[type="range"]{width:100%;min-width:0;}
+    #options-bar[data-layout="drawing"] .drawing-primary{justify-content:flex-start;gap:7px;}
+    #options-bar[data-layout="drawing"] .drawing-secondary{justify-content:space-between;gap:6px;}
+    #options-bar[data-layout="drawing"] .option-stroke{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-stroke .seg button{padding-left:6px;padding-right:6px;}
+    #options-bar[data-layout="drawing"] .option-line-style{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .option-color{flex:1 1 auto;min-width:0;}
+    #options-bar[data-layout="drawing"] .annotation-palette{display:flex;align-items:center;justify-content:flex-start;gap:4px;min-width:0;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex:0 0 30px;width:30px;min-width:30px;}
+    #options-bar[data-layout="drawing"] .option-lock{flex:0 0 auto;white-space:nowrap;}
+    #options-bar[data-layout="selection"] .drawing-primary{justify-content:flex-start;}
+    #options-bar[data-layout="selection"] .drawing-secondary{justify-content:flex-start;}
+  }
+  @media(max-width:370px){
+    #options-bar:not(.hidden){padding:7px 6px;}
+    #options-bar .option-row{gap:5px;}
+    #options-bar .seg button{padding:5px 5px;font-size:10px;}
+    #options-bar .option-vector-icon{width:12px;height:12px;flex-basis:12px;margin-right:1px;}
+    #options-bar[data-layout="drawing"] .palette-swatch{flex-basis:27px;width:27px;min-width:27px;}
+  }
+
+@media(max-width:640px){
+ #options-bar:not(.hidden){width:max-content;max-width:calc(100vw - 12px);padding:4px 6px;gap:3px;max-height:130px;border-radius:13px;overflow-x:hidden;}
+ #options-bar .option-row{width:auto;max-width:100%;gap:4px;flex-wrap:nowrap;justify-content:center;}
+ #options-bar .opt-group{gap:3px;min-height:0;flex:0 0 auto;}
+ #options-bar .seg{gap:1px;padding:1px;min-width:0;}
+ #options-bar .seg button{box-sizing:border-box;min-height:25px;height:25px;padding:2px 5px;font-size:10px;gap:0;border-radius:6px;}
+ #options-bar .option-vector-icon{width:14px;height:14px;flex:0 0 14px;margin:0;}
+ #options-bar .option-mode button,#options-bar .option-target button,#options-bar .option-shape button{font-size:0;min-width:28px!important;width:28px!important;padding:3px;}
+ #options-bar .option-mode .option-vector-icon,#options-bar .option-target .option-vector-icon,#options-bar .option-shape .option-vector-icon{width:17px;height:17px;flex-basis:17px;}
+ #options-bar[data-layout="effect"] .effect-primary{gap:5px;justify-content:center;}
+ #options-bar[data-layout="effect"] .effect-primary .seg{gap:3px;}
+ #options-bar[data-layout="effect"] .effect-sliders{display:flex;flex-direction:row;gap:9px;width:100%;align-items:center;justify-content:center;}
+ #options-bar[data-layout="effect"] .effect-sliders>.option-slider{display:flex;flex-direction:row;align-items:center;flex:1 1 0;min-width:0;width:auto;gap:4px;}
+ #options-bar[data-layout="effect"] .effect-sliders .effect-value-label{white-space:nowrap;font-size:10px;}
+ #options-bar[data-layout="effect"] .effect-sliders input[type="range"]{flex:1 1 auto;width:55px;max-width:95px;min-width:35px;height:15px;margin:0;}
+ #options-bar[data-layout="drawing"] .drawing-primary,#options-bar[data-layout="drawing"] .drawing-secondary{gap:5px;justify-content:center;}
+ #options-bar[data-layout="drawing"] .option-stroke .seg button{padding:2px 5px;min-width:27px!important;}
+ #options-bar[data-layout="drawing"] .option-line-style .seg button{font-size:0;min-width:29px!important;width:29px!important;padding:3px;}
+ #options-bar[data-layout="drawing"] .option-line-style .option-vector-icon{width:18px;height:18px;flex-basis:18px;}
+ #options-bar[data-layout="drawing"] .annotation-palette{gap:4px;}
+ #options-bar[data-layout="drawing"] .palette-swatch{width:21px;min-width:21px;flex:0 0 21px;height:21px;}
+ #options-bar[data-layout="drawing"] .option-color{flex:0 0 auto;}
+ #options-bar[data-layout="drawing"] .option-lock{font-size:10px;gap:3px;}
+ #options-bar[data-layout="drawing"] .option-lock input{width:14px;height:14px;margin:0;}
+ #options-bar[data-layout="drawing"] .option-row:only-child{gap:4px;}
+}
+@media(max-width:375px){
+ #options-bar:not(.hidden){padding:4px;max-width:calc(100vw - 8px);}
+ #options-bar .option-row{gap:3px;}
+ #options-bar[data-layout="drawing"] .option-stroke .seg button{min-width:24px!important;padding:2px 3px;}
+ #options-bar[data-layout="drawing"] .palette-swatch{width:18px;min-width:18px;flex-basis:18px;height:18px;}
+ #options-bar[data-layout="drawing"] .annotation-palette{gap:3px;}
+}
+
+/* Mobile option dock: minimum readable size; wrap complete groups instead of shrinking. */
+@media(max-width:640px){
+ #options-bar:not(.hidden){box-sizing:border-box;width:max-content;max-width:calc(100vw - 14px);padding:9px 11px;gap:8px;max-height:min(42dvh,230px);overflow-x:hidden;overflow-y:auto;border-radius:17px;}
+ #options-bar .option-row{box-sizing:border-box;width:100%;max-width:100%;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px;}
+ #options-bar .opt-group{display:flex;align-items:center;flex:0 0 auto;min-width:0;gap:5px;}
+ #options-bar .seg{display:inline-flex;flex:0 0 auto;gap:2px;padding:2px;overflow:visible;}
+ #options-bar .seg button{flex:0 0 auto!important;box-sizing:border-box;height:38px;min-height:38px;padding:6px 10px;font-size:13px;line-height:1;border-radius:9px;}
+ #options-bar .option-vector-icon{width:18px;height:18px;flex:0 0 18px;margin:0;}
+ #options-bar .option-mode button,#options-bar .option-target button,#options-bar .option-shape button{font-size:0;width:42px!important;min-width:42px!important;height:38px;padding:6px;}
+ #options-bar .option-mode .option-vector-icon,#options-bar .option-target .option-vector-icon,#options-bar .option-shape .option-vector-icon{width:22px;height:22px;flex-basis:22px;}
+ #options-bar[data-layout="effect"] .effect-primary{gap:10px;}
+ #options-bar[data-layout="effect"] .effect-sliders{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;}
+ #options-bar[data-layout="effect"] .effect-sliders>.option-slider{display:flex;flex-direction:row;align-items:center;flex:0 1 170px;min-width:130px;gap:6px;}
+ #options-bar[data-layout="effect"] .effect-sliders .effect-value-label{font-size:12px;white-space:nowrap;}
+ #options-bar[data-layout="effect"] .effect-sliders input[type="range"]{width:90px;min-width:60px;max-width:110px;height:24px;margin:0;}
+ #options-bar[data-layout="drawing"] .drawing-primary,#options-bar[data-layout="drawing"] .drawing-secondary{gap:8px;}
+ #options-bar[data-layout="drawing"] .option-stroke .seg button{min-width:40px!important;padding:6px 8px;}
+ #options-bar[data-layout="drawing"] .option-line-style .seg button{font-size:0;width:43px!important;min-width:43px!important;padding:6px;}
+ #options-bar[data-layout="drawing"] .option-line-style .option-vector-icon{width:23px;height:23px;flex-basis:23px;}
+ #options-bar[data-layout="drawing"] .annotation-palette{display:flex;align-items:center;gap:7px;flex-wrap:nowrap;}
+ #options-bar[data-layout="drawing"] .palette-swatch{width:33px;min-width:33px;flex:0 0 33px;height:33px;}
+ #options-bar[data-layout="drawing"] .option-color{flex:0 0 auto;}
+ #options-bar[data-layout="drawing"] .option-lock{font-size:12px;gap:5px;white-space:nowrap;}
+ #options-bar[data-layout="drawing"] .option-lock input{width:18px;height:18px;margin:0;}
+ #options-bar[data-layout="drawing"] .option-row:only-child{justify-content:center;}
+}
+@media(max-width:375px){
+ #options-bar:not(.hidden){padding:8px;gap:7px;}
+ #options-bar .option-row{gap:6px;}
+ #options-bar[data-layout="drawing"] .annotation-palette{gap:5px;}
+}
 </style>
 </head>
 <body>
 <div id="app">
   <div id="chrome">
     <header id="toolbar">
-      <div class="brand" title="사진은 기기에서 처리됩니다. Copyright by 송은석. All Rights Reserved.">마킹</div>
-      <button class="icon-btn" id="btn-open" title="사진 열기 · 사진은 기기에서 처리됩니다. Copyright by 송은석. All Rights Reserved." aria-label="사진 열기">＋</button>
-      <div class="tools">
-        <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 4v16M12 4v16M16 4v16M4 8h16M4 12h16M4 16h16" opacity=".72"/></svg></span><span class="label">가림</span></button>
+      <div class="brand">마킹</div>
+      <div class="tools"><div class="toolbar-edit">
+        <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="10" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="16" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="4" y="10" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="10" y="10" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="16" y="10" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="4" y="16" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="10" y="16" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="16" y="16" width="4" height="4" rx="1" fill="currentColor" stroke="none"/></svg></span><span class="label">가림</span></button>
         <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg></span><span class="label">도형</span></button>
-        <button class="tool-btn" data-tool="arrow" id="btn-arrow"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg></span><span class="label">화살표</span></button>
-        <button class="tool-btn" data-tool="line" id="btn-line"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/></svg></span><span class="label">직선</span></button>
-        <span class="sep"></span>
-        <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7 5 11l4 4"/><path d="M5 11h8a6 6 0 0 1 6 6"/></svg></button>
-        <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 4 4-4 4"/><path d="M19 11h-8a6 6 0 0 0-6 6"/></svg></button>
-        <button class="icon-btn" id="btn-clear-photo" title="사진 삭제" aria-label="사진 삭제" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M7 7l1 13h8l1-13"/><path d="M10 11v5M14 11v5"/></svg></button>
+        <div class="line-tool-combo" id="line-tool-combo" role="group" aria-label="선 도구">
+          <button class="tool-btn" data-tool="arrow" id="btn-arrow" aria-label="화살표 도구" title="화살표 도구"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg></span><span class="label">화살표</span></button>
+          <button class="line-tool-chevron" id="btn-line-menu" type="button" aria-label="선 도구 종류 선택" aria-haspopup="menu" aria-expanded="false" aria-controls="line-tool-menu"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4"/></svg></button>
+        </div>
+        </div><div class="toolbar-history">
+        <button class="icon-btn" id="btn-undo" title="실행 취소 (Ctrl+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-4 4 4 4M5 11h8a6 6 0 0 1 6 6"/></svg></button>
+        <button class="icon-btn" id="btn-redo" title="다시 실행 (Ctrl+Shift+Z)" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 7 4 4-4 4M19 11h-8a6 6 0 0 0-6 6"/></svg></button>
+        </div><div class="toolbar-delete"><button class="icon-btn" id="btn-clear-photo" title="사진 삭제" aria-label="사진 삭제" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 7h15M9 7V5.5h6V7M7 7l.8 12h8.4L17 7M10 10.5v5M14 10.5v5"/></svg></button>
+        </div>
       </div>
-      <div class="save-group">
-        <select id="format-select">
-          <option value="jpeg">JPEG</option>
-          <option value="png">PNG</option>
-        </select>
+      <div class="save-group" role="group" aria-label="사진 저장">
         <button class="save-btn" id="btn-save" disabled>저장</button>
+        <label class="save-format-wrap" aria-label="저장 형식">
+          <select id="format-select" aria-label="저장 형식">
+            <option value="jpeg">JPG</option>
+            <option value="png">PNG</option>
+          </select>
+          <svg class="save-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="m4 6 4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </label>
       </div>
     </header>
 
     <div id="options-bar" class="hidden"></div>
-    <button id="options-toggle" class="tool-btn" aria-expanded="false">상세 설정</button>
   </div>
 
+  <div id="save-format-menu" class="save-format-menu" role="menu" aria-label="저장 형식 선택" hidden><button type="button" role="menuitemradio" data-format="jpeg">JPG <span>✓</span></button><button type="button" role="menuitemradio" data-format="png">PNG <span>✓</span></button></div>
   <main id="workarea">
     <div id="placeholder">
-      <div class="ph-icon">＋</div>
+      <button class="ph-icon" id="btn-pick-photo" type="button" aria-label="사진 선택">＋</button>
       <p>클릭하거나 사진을 놓아주세요</p>
       <p class="ph-sub">가리고 · 표시하고 · 바로 저장</p>
     </div>
@@ -537,12 +1241,7 @@
     <div class="copyright">Copyright by 송은석. All Rights Reserved.</div>
   </div>
 
-  <div id="view-controls">
-    <button id="btn-fit">화면 맞춤</button><button id="btn-actual">100%</button>
-    <button id="btn-preview" aria-pressed="false">결과 보기</button>
-    <button id="btn-delete-selection" disabled>선택 삭제</button>
-  </div>
-  <input accept="image/*" hidden id="fileInput" type="file">
+  <input accept="image/*" hidden id="fileInput" multiple type="file">
 </div>
 
 <script>
@@ -550,15 +1249,18 @@
   "use strict";
 
   // ---------------- constants ----------------
-  const STROKE_RATIO = 0.0037;      // 선 굵기 = 긴 변 * 0.37%
+  const STROKE_RATIO = 0.0037;      // legacy objects only
+  const STROKE_PRESETS = [[1.5,"얇게"],[2,"보통"],[3,"굵게"]];
+  let referenceFitScale = 1; // frozen when a new photo is first fitted
   const HANDLE_SCREEN_SIZE = 9;      // 화면상 핸들 크기(px, 스케일 무관)
   const HIT_TOLERANCE = 10;          // 화면상 클릭 허용 오차(px)
   const MAX_HISTORY = 40;
-  const DEFAULT_COLOR = "#e0402f";
+  const DEFAULT_COLOR = "#E53935";
+  const ANNOTATION_COLORS = ["#E53935", "#FFD400", "#FFFFFF", "#111111", "#1976D2"];
 
   // ---------------- state ----------------
   let naturalW = 0, naturalH = 0;
-  let imageGeneration=0, loadGeneration=0, spaceHeld=false, gestureSnapshot=null;
+  let imageGeneration=0, loadGeneration=0;
   let rasterCanvas = document.createElement("canvas");
   let rasterCtx = rasterCanvas.getContext("2d");
 
@@ -570,9 +1272,23 @@
   let activeTool = null;     // 'blur' | 'circle' | 'arrow' | null(선택모드)
   let blurMode = "blur";     // 'blur' | 'mosaic'
   let blurShape = "face"; // 기본 가림은 얼굴 인식 + 얼굴 비율 타원
-  let intensity = 50;        // 0-100
-  let feather = 72;          // 0-100, 기본은 경계가 드러나지 않는 강한 페더
-  let strokeMultCurrent = 1; // 새 객체 생성 시 두께 배율
+  // 편집 UI의 중앙(50)은 실제 이미지 처리값과 별개로, 현장용 기준 강도를 뜻한다.
+  // 효과 데이터에는 기존과 동일한 0~100 실제 강도/페더를 저장한다.
+  const EFFECT_BASELINE = {blur:{intensity:22,feather:82},mosaic:{intensity:58,feather:87}};
+  function effectSliderToValue(position, mode, key){
+    const mid=EFFECT_BASELINE[mode][key];
+    const p=Math.max(0,Math.min(100,Number(position)));
+    return p<=50 ? p*mid/50 : mid+(p-50)*(100-mid)/50;
+  }
+  function effectValueToSlider(value, mode, key){
+    const mid=EFFECT_BASELINE[mode][key];
+    const v=Math.max(0,Math.min(100,Number(value)));
+    return v<=mid ? v*50/mid : 50+(v-mid)*50/(100-mid);
+  }
+  let intensity = EFFECT_BASELINE.blur.intensity;
+  let feather = EFFECT_BASELINE.blur.feather;
+  let strokeMultCurrent = 1; // legacy compatibility
+  let strokePxCurrent = 2; // 1/2/3 px at initial fit scale
   let strokeColorCurrent = DEFAULT_COLOR; // 새 객체 생성 시 색상
   let dashedCurrent = false; // 새 객체 생성 시 점선 여부
   let circleLocked = true;   // 원/타원은 기본적으로 정원(1:1) 유지
@@ -585,10 +1301,11 @@
   // 보기 전용 확대/이동. 편집 좌표와 저장 해상도에는 영향을 주지 않는다.
   let viewZoom = 1;
   let viewPanX = 0, viewPanY = 0;
-  const MIN_VIEW_ZOOM = 1, MAX_VIEW_ZOOM = 32;
+  const MIN_VIEW_ZOOM = 1, MAX_VIEW_ZOOM = 6;
   const activePointers = new Map();
   let pinchGesture = null;
   let suppressPointerUp = new Set();
+  let waitForAllTouchesUp = false;
 
   // 원본 래스터는 사진을 연 뒤 바뀌지 않으므로(가림은 비파괴) 히스토리에는 마킹 목록만 저장한다.
   let history = [];          // {objects:[...], effects:[...]}
@@ -598,7 +1315,7 @@
   let faceDebugPoints = [];  // 얼굴 인식 중심점 표시용(원본 좌표)
   let faceDebugTimer = null;
 
-  let rafPending = false, previewOnly=false;
+  let rafPending = false;
 
   // ---------------- dom ----------------
   const workarea = document.getElementById("workarea");
@@ -611,30 +1328,55 @@
   const saveGroupEl = toolbarEl.querySelector(".save-group");
   const chromeEl = document.getElementById("chrome");
 
-  // PC에서는 도구 옵션을 메인 툴바 안에 합치고, 모바일에서는 기존 2단 구조를 유지한다.
-  function syncOptionsBarLayout(){
-    if(optionsBar.parentElement!==chromeEl) chromeEl.insertBefore(optionsBar,document.getElementById('options-toggle'));
+  // 1차 안정화: 설정 패널은 항상 툴바의 형제로 유지한다.
+  // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
+  function syncEditorInsets(){
+    const mobile = window.matchMedia("(max-width: 640px)").matches;
+    const height = chromeEl.getBoundingClientRect().height;
+    const inset = Math.ceil(height + (mobile ? 24 : 24));
+    const root = document.documentElement;
+    // Desktop dock floats over the image: it must not reserve space above it.
+    // Reserving the dock height at the top made the image jump when options opened.
+    const top = "0px";
+    const bottom = mobile ? inset + "px" : "0px";
+    if(root.style.getPropertyValue("--editor-top")===top && root.style.getPropertyValue("--editor-bottom")===bottom) return;
+    root.style.setProperty("--editor-top",top);
+    root.style.setProperty("--editor-bottom",bottom);
+    // Toolbar/option-panel changes must not change the displayed photo scale.
+    // Only actual viewport resize events call fitCanvas().
   }
-  syncOptionsBarLayout();
-  window.addEventListener("resize", syncOptionsBarLayout, {passive:true});
+  const chromeObserver = new ResizeObserver(()=>requestAnimationFrame(syncEditorInsets));
+  chromeObserver.observe(chromeEl);
+  window.addEventListener("resize", syncEditorInsets, {passive:true});
+  requestAnimationFrame(syncEditorInsets);
   const btnUndo = document.getElementById("btn-undo");
   const btnRedo = document.getElementById("btn-redo");
   const btnClearPhoto = document.getElementById("btn-clear-photo");
   const btnSave = document.getElementById("btn-save");
   const formatSelect = document.getElementById("format-select");
+  const saveFormatWrap = toolbarEl.querySelector(".save-format-wrap");
+  function syncSaveFormatIndicator(){saveFormatWrap.dataset.format = formatSelect.value;}
+  formatSelect.addEventListener("change", syncSaveFormatIndicator);
+  syncSaveFormatIndicator();
   const toastEl = document.getElementById("toast");
 
   const toolButtons = {
     blur: document.getElementById("btn-blur"),
     circle: document.getElementById("btn-circle"),
     arrow: document.getElementById("btn-arrow"),
-    line: document.getElementById("btn-line"),
+    line: document.getElementById("btn-arrow"),
   };
 
   // ---------------- utils ----------------
   function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
   function longSide(){ return Math.max(naturalW, naturalH); }
   function strokeWidthNatural(mult){ return longSide() * STROKE_RATIO * (mult||1); }
+  function annotationStrokeNatural(o){ return o.strokePx != null ? o.strokePx/referenceFitScale : strokeWidthNatural(o.strokeMult); }
+  function currentStrokeNatural(){ return strokePxCurrent/referenceFitScale; }
+  const MIN_ANNOTATION_SCREEN_LENGTH = 16;
+  function meetsMinimumAnnotationLength(a,b){
+    return Math.hypot(b.x-a.x,b.y-a.y)*referenceFitScale >= MIN_ANNOTATION_SCREEN_LENGTH;
+  }
   // 가림 강도는 사진 전체가 아니라 현재 가림 영역의 짧은 변을 기준으로 계산한다.
   // 블러와 모자이크는 같은 0~100 슬라이더를 쓰지만 시각적 특성이 달라 별도 곡선을 사용한다.
   function blurRadiusNatural(rect, intensityValue){
@@ -656,17 +1398,18 @@
     return base * ratio * largeFaceBoost;
   }
   function mosaicBlockNatural(rect, intensityValue){
-    // 모자이크는 블러보다 '강도' 변화가 눈에 확실히 보여야 한다.
-    // 50에서도 얼굴 식별 디테일이 충분히 깨지고, 100에서는 블록이 확실히 커지도록 범위를 넓힌다.
-    // 단, 아래 privacyMosaicCanvas()에서 약한 사전 블러를 넣어 눈/입이 검은 블록으로 튀는 현상은 억제한다.
-    const base = Math.max(8, Math.min(rect.w, rect.h));
+    // Use the selected face's dimensions, not the whole photo's dimensions.
+    // Small regions need fewer, larger relative blocks to obscure facial features.
+    const base = Math.max(1, Math.min(rect.w, rect.h));
     const t = clamp(intensityValue/100, 0, 1);
     if(t<=0) return 1;
-    // 이전 값보다 약 18% 큰 블록을 사용해 작은 얼굴에서도 식별 단서가 남지 않게 한다.
-    const ratio = (0.018 + 0.064 * Math.pow(t,0.82)) * 1.18; // 50≈6.4%, 100≈9.7%
-    return Math.max(2, Math.min(base*0.10, base*ratio));
+    const screenShort = base * Math.max(referenceFitScale, 0.000001);
+    const smallFace = 1 - clamp((screenShort-24)/96, 0, 1);
+    const blocksAcross = (19 - 11*Math.pow(t,0.82)) * (1 - 0.38*smallFace);
+    // At least two blocks across even for tiny regions; no spill beyond the mask.
+    return Math.max(1, base/Math.max(2,blocksAcross));
   }
-  function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.rect ? {rect:{...o.rect}} : {}, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
+  function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.rect ? {rect:Object.assign({},o.rect)} : {}, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
   function genId(){ return nextObjId++; }
   function showToast(msg, ms){
     toastEl.textContent = msg;
@@ -694,14 +1437,12 @@
   }
 
   function undo(){
-    cancelInteraction();
     if(historyIndex<=0) return;
     historyIndex--;
     restoreHistoryEntry(history[historyIndex]);
     updateHistoryButtons();
   }
   function redo(){
-    cancelInteraction();
     if(historyIndex>=history.length-1) return;
     historyIndex++;
     restoreHistoryEntry(history[historyIndex]);
@@ -719,23 +1460,29 @@
       return;
     }
     const request=++loadGeneration;
-    const imageURL=URL.createObjectURL(file);
-    {
+    imageGeneration++;
+    const reader = new FileReader();
+    reader.onerror=()=>showToast("사진을 읽지 못했습니다.");
+    reader.onabort=()=>{};
+    reader.onload = function(e){
       const img = new Image();
       img.onload = function(){
-        URL.revokeObjectURL(imageURL);
         if(request!==loadGeneration) return;
         let nextRaster,nextContext;
         try{
-          nextRaster=document.createElement('canvas');nextRaster.width=img.naturalWidth;nextRaster.height=img.naturalHeight;
-          nextContext=nextRaster.getContext('2d');
-          if(!nextContext || !img.naturalWidth || !img.naturalHeight) throw new Error('image allocation');
+          nextRaster=document.createElement("canvas");
+          nextRaster.width=img.naturalWidth;nextRaster.height=img.naturalHeight;
+          nextContext=nextRaster.getContext("2d");
+          if(!nextContext||!img.naturalWidth||!img.naturalHeight) throw new Error("image allocation");
           nextContext.drawImage(img,0,0);
-        }catch(err){showToast('사진을 열지 못했습니다. 사진 크기와 메모리를 확인해주세요.');return;}
-        cancelInteraction(); imageGeneration++;
-        activePointers.clear(); suppressPointerUp.clear(); pinchGesture=null;
-        naturalW=img.naturalWidth;naturalH=img.naturalHeight;
-        rasterCanvas=nextRaster;rasterCtx=nextContext;
+        }catch(err){showToast("사진을 열지 못했습니다. 사진 크기와 메모리를 확인해주세요.");return;}
+        naturalW = img.naturalWidth;
+        naturalH = img.naturalHeight;
+        sourceImageFilename = file.name || "";
+        referenceFitScale = Math.min(1, Math.max(0.00001, Math.min((workarea.clientWidth-24)/naturalW,(workarea.clientHeight-24)/naturalH)));
+        strokePxCurrent = 2;
+        rasterCanvas=nextRaster;
+        rasterCtx=nextContext;
         objects = [];
         effects = [];
         effectCache.clear();
@@ -753,11 +1500,11 @@
         redraw();
       };
       img.onerror = function(){
-        URL.revokeObjectURL(imageURL);
         showToast("이 사진 형식은 브라우저에서 열 수 없습니다.", 1800);
       };
-      img.src = imageURL;
-    }
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
   }
 
   // 사진 선택은 이음과 같은 고정 file input 흐름을 사용한다.
@@ -766,6 +1513,10 @@
     fileInput.click();
   }
 
+  document.getElementById("btn-pick-photo").addEventListener("click", (e)=>{
+    e.preventDefault();e.stopPropagation();
+    openImagePicker();
+  });
   placeholder.addEventListener("click", openImagePicker);
   fileInput.addEventListener("change", (e)=>{
     const files = e.target.files;
@@ -823,7 +1574,7 @@
     viewPanX += localX*(1-ratio);
     viewPanY += localY*(1-ratio);
     viewZoom=nextZoom;
-    clampView(); applyViewTransform(); fitCanvas();redraw();
+    clampView(); applyViewTransform();
   }
   function fitCanvas(){
     if(!naturalW) return;
@@ -835,7 +1586,7 @@
     scale = s;
     dispW = Math.round(naturalW*scale);
     dispH = Math.round(naturalH*scale);
-    const dpr = (window.devicePixelRatio || 1)*Math.min(viewZoom,Math.max(1,1/scale));
+    const dpr = window.devicePixelRatio || 1;
     viewCanvas.width = Math.round(dispW*dpr);
     viewCanvas.height = Math.round(dispH*dpr);
     viewCanvas.style.width = dispW+"px";
@@ -846,22 +1597,50 @@
   window.addEventListener("resize", ()=>{ fitCanvas(); redraw(); });
 
   // ---------------- drawing helpers ----------------
+  // Fit whole dash segments between the origin and the arrowhead clearance.
+  function arrowDashPattern(length, sw, headLen){
+    const available = Math.max(0, length - headLen*0.62 - sw*1.5);
+    const preferred = Math.max(2, sw*2.2);
+    if(available < preferred*1.5) return null;
+    const count = Math.max(1, Math.round(available/(preferred*1.85)));
+    const dash = Math.min(preferred, available/count);
+    const gap = count>1 ? (available-count*dash)/(count-1) : 0;
+    return {available,count,dash,gap};
+  }
   function drawArrowShape(ctx, x1,y1,x2,y2, sw, color){
     const angle = Math.atan2(y2-y1, x2-x1);
     const arrowLen = Math.hypot(x2-x1, y2-y1);
     // 화살촉 크기는 현재 그려지는 선 굵기와 화살표 길이를 기준으로 계산한다.
     // 화면 미리보기에서도 원본 사진의 natural size를 참조하지 않아 과도하게 커지지 않는다.
-    const headLen = Math.min(Math.max(sw*4.2, arrowLen*0.055), arrowLen*0.14);
+    // Cap the head in reference-fit screen pixels: long arrows must not grow giant heads.
+    // sw and arrowLen are in the SAME rendering coordinate system.
+    const headLen = Math.min(Math.max(sw*3.2, sw*4.5), arrowLen*0.28);
     const headHalfAngle = Math.PI/7.2; // 약 25°: 작고 날렵한 화살촉
+    if(arrowLen < 0.5) return;
     const shortenX = Math.cos(angle)*headLen*0.62;
     const shortenY = Math.sin(angle)*headLen*0.62;
     ctx.lineWidth = sw;
     ctx.strokeStyle = color;
     ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(x1,y1);
-    ctx.lineTo(x2-shortenX, y2-shortenY);
-    ctx.stroke();
+    const dashed = ctx.getLineDash().length > 0;
+    const pattern = dashed ? arrowDashPattern(arrowLen, sw, headLen) : null;
+    ctx.setLineDash([]);
+    if(pattern){
+      const ux=Math.cos(angle), uy=Math.sin(angle);
+      ctx.beginPath();
+      for(let i=0;i<pattern.count;i++){
+        const start=i*(pattern.dash+pattern.gap);
+        const end=start+pattern.dash;
+        ctx.moveTo(x1+ux*start,y1+uy*start);
+        ctx.lineTo(x1+ux*end,y1+uy*end);
+      }
+      ctx.stroke();
+    }else{
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x2-shortenX, y2-shortenY);
+      ctx.stroke();
+    }
     ctx.beginPath();
     ctx.moveTo(x2,y2);
     ctx.lineTo(x2-headLen*Math.cos(angle-headHalfAngle), y2-headLen*Math.sin(angle-headHalfAngle));
@@ -900,15 +1679,66 @@
     // 오른쪽 변 중앙에서 화면상 26px 바깥에 회전 손잡이를 둔다.
     const edge=rotatePoint({x:c.x+o.w/2,y:c.y},c,a);
     const outward={x:Math.cos(a),y:Math.sin(a)};
-    return {x:edge.x*s+outward.x*26/viewZoom,y:edge.y*s+outward.y*26/viewZoom,edgeX:edge.x*s,edgeY:edge.y*s,k:"rotate"};
+    return {x:edge.x*s+outward.x*26,y:edge.y*s+outward.y*26,edgeX:edge.x*s,edgeY:edge.y*s,k:"rotate"};
   }
 
   // 점선 간격은 선 굵기에 비례해, 두께가 달라져도 점선 비율이 일정하게 보이도록 한다.
   function dashArrayForStroke(sw){ const d = Math.max(2, sw*2.2); return [d, d*0.85]; }
   function applyDash(ctx, dashed, sw){ ctx.setLineDash(dashed ? dashArrayForStroke(sw) : []); }
 
+  function appendStrokePresets(group, selectedObject){
+    const seg=document.createElement("div"); seg.className="seg";
+    const current=selectedObject ? (selectedObject.strokePx || 2) : strokePxCurrent;
+    STROKE_PRESETS.forEach(([px,name])=>{
+      const b=document.createElement("button"); b.type="button"; b.textContent=name;
+      b.className=px===current?"active":"";
+      b.onclick=()=>{
+        strokePxCurrent=px;
+        if(selectedObject){ selectedObject.strokePx=px; pushHistory(); redraw(); }
+        buildOptionsBar();
+      };
+      seg.appendChild(b);
+    });
+    group.appendChild(seg);
+  }
+
+  function appendLineStyleControl(container, selectedObject){
+    const group=document.createElement("div"); group.className="opt-group option-line-style";
+    group.setAttribute("role","group"); group.setAttribute("aria-label","선 스타일");
+    const seg=document.createElement("div"); seg.className="seg";
+    const current=selectedObject ? !!selectedObject.dashed : dashedCurrent;
+    [["실선",false],["점선",true]].forEach(([label,dashed])=>{
+      const button=document.createElement("button"); button.type="button";
+      button.textContent=label; button.className=current===dashed?"active":"";
+      button.setAttribute("aria-pressed",String(current===dashed));
+      button.onclick=()=>{
+        dashedCurrent=dashed;
+        if(selectedObject && selectedObject.dashed!==dashed){
+          selectedObject.dashed=dashed;pushHistory();redraw();
+        }
+        buildOptionsBar();
+      };
+      seg.appendChild(button);
+    });
+    group.appendChild(seg);container.appendChild(group);
+  }
+
+  function appendColorPalette(group, current, onSelect){
+    const palette=document.createElement("div"); palette.className="annotation-palette"; palette.setAttribute("role","group"); palette.setAttribute("aria-label","표시 색상");
+    const labels=["빨강","노랑","흰색","검정","파랑"];
+    ANNOTATION_COLORS.forEach((hex,i)=>{
+      const button=document.createElement("button"); button.type="button";
+      button.className="palette-swatch"+(hex.toLowerCase()===String(current).toLowerCase()?" selected":"");
+      button.style.setProperty("--swatch",hex); button.title=labels[i]; button.setAttribute("aria-label",labels[i]);
+      button.setAttribute("aria-pressed",hex.toLowerCase()===String(current).toLowerCase()?"true":"false");
+      button.onclick=()=>{ onSelect(hex); palette.querySelectorAll("button").forEach(b=>{const yes=b===button;b.classList.toggle("selected",yes);b.setAttribute("aria-pressed",String(yes));}); };
+      palette.appendChild(button);
+    });
+    group.appendChild(palette);
+  }
+
   function drawObjectOnCtx(ctx, o, s){
-    const sw = strokeWidthNatural(o.strokeMult) * s;
+    const sw = annotationStrokeNatural(o) * s;
     const col = o.color || DEFAULT_COLOR;
     if(o.type==="circle"){
       ctx.save(); applyDash(ctx, o.dashed, sw);
@@ -921,7 +1751,10 @@
       ctx.lineWidth=sw; ctx.strokeStyle=col; ctx.lineJoin="round";
       ctx.strokeRect(-o.w*s/2,-o.h*s/2,o.w*s,o.h*s); ctx.restore();
     } else if(o.type==="line"){
-      ctx.save(); applyDash(ctx, o.dashed, sw);
+      ctx.save();
+      const len=Math.hypot((o.x2-o.x1)*s,(o.y2-o.y1)*s);
+      const pattern=o.dashed ? arrowDashPattern(len,sw,0) : null;
+      ctx.setLineDash(pattern ? [pattern.dash,pattern.gap] : []);
       ctx.lineWidth=sw; ctx.strokeStyle=col; ctx.lineCap="round";
       ctx.beginPath(); ctx.moveTo(o.x1*s,o.y1*s); ctx.lineTo(o.x2*s,o.y2*s); ctx.stroke();
       ctx.restore();
@@ -934,7 +1767,7 @@
 
   function drawHandles(ctx, o, s){
     ctx.save();
-    const hs = HANDLE_SCREEN_SIZE/viewZoom;
+    const hs = HANDLE_SCREEN_SIZE;
     ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = var_accent_blue();
     ctx.lineWidth = 1.5;
@@ -959,7 +1792,7 @@
     // 터치 판정 영역은 별도로 넉넉하게 유지한다.
     const minDim=Math.max(1,Math.min(Math.abs(w),Math.abs(h)));
     const r=clamp(minDim*0.09,5,8);
-    return {r, arm:Math.max(2.2,r*0.38), inset:r+1.5, hit:18/viewZoom};
+    return {r, arm:Math.max(2.2,r*0.38), inset:r+1.5, hit:18};
   }
   function objectClosePoint(o){
     // 화살표·직선은 끝점 근처, 도형은 우상단 안쪽에 배치한다.
@@ -1043,14 +1876,13 @@
       }
       // 저장하기 전에는 만들어 둔 모든 가림 영역의 경계를 계속 표시한다.
       // 선택된 영역만 X 버튼을 보여 주고, 나머지는 점선 가이드만 남긴다.
-      if(previewOnly) return;
       if(eff.id===selectedId) drawEffectSelection(vctx, eff);
       else drawEffectGuide(vctx, eff);
     });
 
     objects.forEach(o=>{
       drawObjectOnCtx(vctx, o, scale);
-      if(!previewOnly && o.id===selectedId){
+      if(o.id===selectedId){
         drawObjectSelection(vctx,o);
         drawHandles(vctx, o, scale);
       }
@@ -1059,15 +1891,14 @@
     // 진행중인 미리보기
     if(drag && drag.mode==="create"){
       vctx.save();
-      applyDash(vctx, dashedCurrent, strokeWidthNatural(strokeMultCurrent)*scale);
+      applyDash(vctx, dashedCurrent, currentStrokeNatural()*scale);
       if(activeTool==="blur"){
         const r = normRect(drag.startDisp, drag.curDisp);
-        if(blurShape==="round") r.w=r.h=Math.max(r.w,r.h);
         vctx.setLineDash([5,4]);
         vctx.lineWidth = 1.5;
         vctx.strokeStyle = "#ffffff";
         vctx.fillStyle = "rgba(255,255,255,0.10)";
-        if(blurShape!=="rect"){
+        if(blurShape==="face"){
           vctx.beginPath();
           vctx.ellipse(r.x+r.w/2, r.y+r.h/2, r.w/2, r.h/2, 0,0,Math.PI*2);
           vctx.fill(); vctx.stroke();
@@ -1076,6 +1907,7 @@
           vctx.strokeRect(r.x,r.y,r.w,r.h);
         }
       } else if(activeTool==="circle"){
+        vctx.globalAlpha=0.45;
         let r;
         const shapeLocked=shapeKind==="rect"?rectLocked:circleLocked;
         if(shapeLocked){
@@ -1088,16 +1920,21 @@
           r = normRect(drag.startDisp, drag.curDisp);
         }
         if(shapeKind==="rect"){
-          vctx.lineWidth=strokeWidthNatural(strokeMultCurrent)*scale; vctx.strokeStyle=strokeColorCurrent; vctx.strokeRect(r.x,r.y,r.w,r.h);
+          vctx.lineWidth=currentStrokeNatural()*scale; vctx.strokeStyle=strokeColorCurrent; vctx.strokeRect(r.x,r.y,r.w,r.h);
         } else {
           const cx=r.x+r.w/2, cy=r.y+r.h/2;
-          drawCircleShape(vctx, cx, cy, r.w/2, r.h/2, strokeWidthNatural(strokeMultCurrent)*scale, strokeColorCurrent);
+          drawCircleShape(vctx, cx, cy, r.w/2, r.h/2, currentStrokeNatural()*scale, strokeColorCurrent);
         }
       } else if(activeTool==="arrow"){
-        drawArrowShape(vctx, drag.startDisp.x, drag.startDisp.y, drag.curDisp.x, drag.curDisp.y, strokeWidthNatural(strokeMultCurrent)*scale, strokeColorCurrent);
+        vctx.globalAlpha=0.45;
+        applyDash(vctx, dashedCurrent, currentStrokeNatural()*scale);
+        drawArrowShape(vctx, drag.startDisp.x, drag.startDisp.y, drag.curDisp.x, drag.curDisp.y, currentStrokeNatural()*scale, strokeColorCurrent);
       } else if(activeTool==="line"){
-        vctx.lineWidth=strokeWidthNatural(strokeMultCurrent)*scale; vctx.strokeStyle=strokeColorCurrent; vctx.lineCap="round";
-        vctx.beginPath(); vctx.moveTo(drag.startDisp.x,drag.startDisp.y); vctx.lineTo(drag.curDisp.x,drag.curDisp.y); vctx.stroke();
+        vctx.globalAlpha=0.45;
+        drawObjectOnCtx(vctx, {type:"line",
+          x1:dispToNat(drag.startDisp).x,y1:dispToNat(drag.startDisp).y,
+          x2:dispToNat(drag.curDisp).x,y2:dispToNat(drag.curDisp).y,
+          strokePx:strokePxCurrent,color:strokeColorCurrent,dashed:dashedCurrent}, scale);
       }
       vctx.restore();
     }
@@ -1159,7 +1996,7 @@
     }else ctx.strokeRect(x,y,w,h);
     ctx.setLineDash([]);
     // 가림 영역은 네 변의 중앙 손잡이로 크기를 조절한다. 어느 손잡이를 잡아도 원래 비율은 유지된다.
-    const hs=HANDLE_SCREEN_SIZE/viewZoom;
+    const hs=HANDLE_SCREEN_SIZE;
     ctx.fillStyle='#fff';ctx.strokeStyle=var_accent_blue();ctx.lineWidth=1.5;
     effectSideHandlePointsDisplay(eff).forEach(p=>{
       ctx.beginPath();ctx.rect(p.x-hs/2,p.y-hs/2,hs,hs);ctx.fill();ctx.stroke();
@@ -1191,7 +2028,7 @@
   function effectRotateHandleDisplay(eff){
     const b=effectBounds(eff),c=effectCenter(eff),a=eff.rotation||0;
     const edge=effectRotatedPoint(eff,b.x+b.w,b.y+b.h/2);
-    return {x:edge.x*scale+Math.cos(a)*26/viewZoom,y:edge.y*scale+Math.sin(a)*26/viewZoom,edgeX:edge.x*scale,edgeY:edge.y*scale,k:'rotate'};
+    return {x:edge.x*scale+Math.cos(a)*26,y:edge.y*scale+Math.sin(a)*26,edgeX:edge.x*scale,edgeY:edge.y*scale,k:'rotate'};
   }
 
   function findEffectHandleAt(dp){
@@ -1199,23 +2036,23 @@
     const eff=effects.find(e=>e.id===selectedId);
     if(!eff) return null;
     const rp=effectRotateHandleDisplay(eff);
-    if(Math.hypot(dp.x-rp.x,dp.y-rp.y)<=(window.matchMedia("(pointer:coarse)").matches?24:14)/viewZoom) return {effect:eff,handle:'rotate'};
+    if(Math.hypot(dp.x-rp.x,dp.y-rp.y)<=14) return {effect:eff,handle:'rotate'};
     for(const p of effectSideHandlePointsDisplay(eff)){
-      if(Math.hypot(dp.x-p.x,dp.y-p.y)<=(window.matchMedia("(pointer:coarse)").matches?24:14)/viewZoom) return {effect:eff,handle:p.k};
+      if(Math.hypot(dp.x-p.x,dp.y-p.y)<=14) return {effect:eff,handle:p.k};
     }
     return null;
   }
 
   function findEffectAt(dp){
     // 모바일 재선택 여유는 주되, 타원형 가림의 빈 모서리까지 잡히지는 않게 한다.
-    const tolPx = (window.matchMedia("(pointer:coarse)").matches?22:10)/viewZoom, x=dp.x/scale, y=dp.y/scale;
+    const tolPx = 18, x=dp.x/scale, y=dp.y/scale;
     for(let i=effects.length-1;i>=0;i--){
       const e=effects[i];
       const rs=e.faceRects&&e.faceRects.length?e.faceRects:[e.rect];
       for(const r of rs){
         const c={x:r.x+r.w/2,y:r.y+r.h/2};
         const unrot=rotatePoint({x:dp.x/scale,y:dp.y/scale},c,-(e.rotation||0));
-        if((e.shape||"ellipse")!=="rect"){
+        if((e.shape||"ellipse")==="ellipse"){
           const rx=Math.max(1,r.w*scale/2+tolPx), ry=Math.max(1,r.h*scale/2+tolPx);
           const cx=(r.x+r.w/2)*scale, cy=(r.y+r.h/2)*scale;
           const dx=(unrot.x*scale-cx)/rx, dy=(unrot.y*scale-cy)/ry;
@@ -1235,7 +2072,7 @@
     objects=objects.filter(o=>o.id!==selectedId);
     effects=effects.filter(o=>o.id!==selectedId);
     if(objects.length+effects.length===before) return false;
-    effectCache.delete(selectedId); selectedId=null; pushHistory(); buildOptionsBar(); redraw();
+    selectedId=null; pushHistory(); buildOptionsBar(); redraw();
     showToast('선택 항목을 삭제했습니다.',900); return true;
   }
 
@@ -1271,10 +2108,10 @@
     const o = objects.find(x=>x.id===selectedId);
     if(!o) return null;
     const rp=rotateHandleDisplay(o,scale);
-    if(rp && Math.hypot(dispPt.x-rp.x,dispPt.y-rp.y)<=(window.matchMedia("(pointer:coarse)").matches?24:14)/viewZoom) return {obj:o,handle:"rotate"};
+    if(rp && Math.hypot(dispPt.x-rp.x,dispPt.y-rp.y)<=14) return {obj:o,handle:"rotate"};
     const pts = handlePointsDisplay(o, scale);
     for(const p of pts){
-      if(Math.hypot(dispPt.x-p.x, dispPt.y-p.y) <= (window.matchMedia("(pointer:coarse)").matches?24:HANDLE_SCREEN_SIZE)/viewZoom){
+      if(Math.hypot(dispPt.x-p.x, dispPt.y-p.y) <= HANDLE_SCREEN_SIZE){
         return {obj:o, handle:p.k};
       }
     }
@@ -1286,7 +2123,7 @@
       const o = objects[i];
       if(o.type==="arrow" || o.type==="line"){
         const d = distToSegment(dispPt.x,dispPt.y, o.x1*scale,o.y1*scale, o.x2*scale,o.y2*scale);
-        if(d<=HIT_TOLERANCE/viewZoom) return o;
+        if(d<=HIT_TOLERANCE) return o;
       } else if(o.type==="circle"){
         // 타원도 네모와 동일하게 내부 아무 곳이나 잡아 선택/이동한다.
         // 화면상 약간의 터치 여유를 더해 모바일에서도 잡기 쉽게 한다.
@@ -1307,155 +2144,227 @@
   }
 
   // ---------------- tool selection ----------------
+  let preferredLineTool = "arrow";
+  const lineToolButton = document.getElementById("btn-arrow");
+  const lineToolCombo = document.getElementById("line-tool-combo");
+  const lineMenuButton = document.getElementById("btn-line-menu");
+  const lineToolMenu = document.createElement("div");
+  lineToolMenu.id = "line-tool-menu";
+  lineToolMenu.className = "line-tool-menu";
+  lineToolMenu.setAttribute("role", "menu");
+  lineToolMenu.setAttribute("aria-label", "선 도구 종류");
+  lineToolMenu.hidden = true;
+  lineToolMenu.innerHTML = '<button type="button" role="menuitemradio" aria-checked="true" data-line-kind="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg><span>화살표</span><span class="line-menu-check">✓</span></button><button type="button" role="menuitemradio" aria-checked="false" data-line-kind="line"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/></svg><span>직선</span><span class="line-menu-check">✓</span></button>';
+  document.body.appendChild(lineToolMenu);
+  const arrowGlyph = lineToolButton.querySelector(".glyph").innerHTML;
+  const straightGlyph = lineToolMenu.querySelector('[data-line-kind="line"] svg').outerHTML;
+  function updateLineToolAppearance(){
+    lineToolButton.querySelector(".glyph").innerHTML = preferredLineTool === "arrow" ? arrowGlyph : straightGlyph;
+    lineToolButton.querySelector(".label").textContent = preferredLineTool === "arrow" ? "화살표" : "직선";
+    lineToolButton.setAttribute("data-tool", preferredLineTool);
+    lineToolButton.setAttribute("aria-label", preferredLineTool === "arrow" ? "화살표 도구" : "직선 도구");
+    lineToolButton.title = preferredLineTool === "arrow" ? "화살표 도구" : "직선 도구";
+    lineToolMenu.querySelectorAll('[data-line-kind]').forEach(b=>{
+      b.setAttribute("aria-checked", String(b.dataset.lineKind === preferredLineTool));
+    });
+  }
+  function positionReplacementMenu(menu){
+    const trigger=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
+    const rect=trigger.getBoundingClientRect();
+    const width=menu===lineToolMenu?136:88;
+    menu.style.width=width+'px';
+    menu.style.height='auto';
+    menu.style.left=Math.max(8,Math.min(window.innerWidth-width-8,rect.right-width+8))+'px';
+    menu.style.top='0px';
+    const height=menu.getBoundingClientRect().height;
+    menu.style.top=Math.max(8,rect.top-height-9)+'px';
+  }
+  function restoreOptionsAfterMenu(){
+    if(lineToolMenu.hidden && (typeof saveFormatMenu==='undefined' || saveFormatMenu.hidden)){
+      optionsBar.classList.remove('menu-replaced','mobile-menu-suspended');
+    }
+  }
+  function positionLineMenu(){
+    positionReplacementMenu(lineToolMenu);
+  }
+  function closeLineMenu(){
+    lineToolMenu.hidden = true;
+    optionsBar.classList.remove('menu-replaced','mobile-menu-suspended');
+    lineMenuButton.setAttribute("aria-expanded", "false");
+  }
+  function openLineMenu(){
+    if(typeof closeSaveFormatMenu==='function')closeSaveFormatMenu();
+    optionsBar.classList.add('menu-replaced');
+    lineToolMenu.hidden = false;
+    lineMenuButton.setAttribute("aria-expanded", "true");
+    positionLineMenu();
+  }
+  lineMenuButton.addEventListener("click", e=>{
+    e.stopPropagation();
+    if(lineToolMenu.hidden) openLineMenu(); else closeLineMenu();
+  });
+  lineMenuButton.addEventListener("keydown", e=>{
+    if(e.key === "ArrowDown" || e.key === "Enter" || e.key === " "){
+      e.preventDefault();
+      if(lineToolMenu.hidden) openLineMenu();
+      lineToolMenu.querySelector('[data-line-kind="'+preferredLineTool+'"]')?.focus();
+    }
+  });
+  lineToolMenu.addEventListener("click", e=>{
+    const b = e.target.closest('[data-line-kind]');
+    if(!b) return;
+    preferredLineTool = b.dataset.lineKind;
+    updateLineToolAppearance();
+    closeLineMenu();
+    if(naturalW) setActiveTool(preferredLineTool);
+    lineToolButton.focus();
+  });
+  lineToolMenu.addEventListener("keydown", e=>{
+    if(e.key === "Escape"){
+      e.preventDefault(); e.stopPropagation(); closeLineMenu(); lineMenuButton.focus();
+    } else if(e.key === "ArrowDown" || e.key === "ArrowUp"){
+      e.preventDefault();
+      const buttons = [...lineToolMenu.querySelectorAll('button')];
+      const idx = buttons.indexOf(document.activeElement);
+      buttons[(idx+(e.key === "ArrowDown"?1:buttons.length-1))%buttons.length].focus();
+    }
+  });
+  // Capture the first outside pointer/click so closing the menu cannot draw on the photo.
+  let suppressOutsideClick = false;
+  document.addEventListener("pointerdown", e=>{
+    if(lineToolMenu.hidden || lineToolMenu.contains(e.target) || lineToolCombo.contains(e.target)) return;
+    closeLineMenu();
+    if(e.target.closest('#workarea')){
+      suppressOutsideClick = true;
+      e.preventDefault(); e.stopImmediatePropagation();
+    }
+  }, true);
+  document.addEventListener("click", e=>{
+    if(!suppressOutsideClick) return;
+    suppressOutsideClick = false;
+    e.preventDefault(); e.stopImmediatePropagation();
+  }, true);
+  window.addEventListener("resize", ()=>{if(!lineToolMenu.hidden) positionLineMenu();}, {passive:true});
+  window.addEventListener("scroll", ()=>{if(!lineToolMenu.hidden) positionLineMenu();}, true);
   function setActiveTool(tool){
-    cancelInteraction();
+    closeLineMenu();
     activeTool = tool;
+    if(tool === "arrow" || tool === "line"){
+      preferredLineTool = tool;
+      updateLineToolAppearance();
+    }
     Object.keys(toolButtons).forEach(k=>{
-      toolButtons[k].classList.toggle("active", k===tool);
+      if(k === "line") return;
+      toolButtons[k].classList.toggle("active", k===tool || (k==="arrow" && tool==="line"));
     });
     selectedId = null;
     buildOptionsBar();
     redraw();
   }
 
-  Object.keys(toolButtons).forEach(key=>{
+  Object.keys(toolButtons).filter(key=>key!=="line").forEach(key=>{
     toolButtons[key].addEventListener("click", ()=>{
       if(!naturalW) return;
-      setActiveTool(activeTool===key ? null : key);
+      closeSaveFormatMenu();optionsBar.classList.remove('mobile-menu-suspended');
+      const selectedTool = key === "arrow" ? preferredLineTool : key;
+      setActiveTool(activeTool===selectedTool ? null : selectedTool);
     });
   });
 
   function buildOptionsBar(){
-    const selected=effects.find(e=>e.id===selectedId)||objects.find(o=>o.id===selectedId);
-    const optionTool=selected ? (selected.type==='effect'?'blur':selected.type==='rect'?'circle':selected.type) : activeTool;
-    if(selected){
-      if(selected.type==='effect'){intensity=selected.intensity;feather=selected.feather;blurMode=selected.mode;}
-      else {strokeMultCurrent=selected.strokeMult||1;strokeColorCurrent=selected.color||DEFAULT_COLOR;dashedCurrent=!!selected.dashed;shapeKind=selected.type==='rect'?'rect':'circle';}
-    }
-    document.getElementById('btn-delete-selection').disabled=!selected;
     optionsBar.innerHTML = "";
+    // 모바일 패널은 기존 컨트롤을 재사용하면서 도구별 공통 그리드만 적용한다.
+    optionsBar.dataset.layout = activeTool === "blur" ? "effect" :
+      (["circle", "arrow", "line"].includes(activeTool) ? "drawing" : "selection");
     // 모바일에서 이전 가로 스크롤 위치가 남아 메뉴 앞부분이 잘리는 현상을 방지한다.
     optionsBar.scrollLeft = 0;
-    if(optionTool==="blur"){
+    if(activeTool==="blur"){
       optionsBar.classList.remove("hidden");
-      const g1 = document.createElement("div"); g1.className="opt-group";
+      const g1 = document.createElement("div"); g1.className="opt-group option-mode";
       const seg1 = document.createElement("div"); seg1.className="seg";
       const bBlur = document.createElement("button"); bBlur.textContent="블러"; bBlur.className = blurMode==="blur"?"active":"";
       const bMosaic = document.createElement("button"); bMosaic.textContent="모자이크"; bMosaic.className = blurMode==="mosaic"?"active":"";
-      bBlur.onclick=()=>{ blurMode="blur"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory();} buildOptionsBar(); redraw(); };
-      bMosaic.onclick=()=>{ blurMode="mosaic"; const e=effects.find(e=>e.id===selectedId); if(e){e.mode=blurMode;pushHistory();} buildOptionsBar(); redraw(); };
+      function changeEffectMode(mode){
+        if(blurMode===mode) return;
+        const oldMode=blurMode;
+        // 사용자가 조절한 상대적 위치를 보존하면서 새 모드의 기준값으로 변환한다.
+        const strengthPosition=effectValueToSlider(intensity,oldMode,'intensity');
+        const featherPosition=effectValueToSlider(feather,oldMode,'feather');
+        blurMode=mode;
+        intensity=effectSliderToValue(strengthPosition,mode,'intensity');
+        feather=effectSliderToValue(featherPosition,mode,'feather');
+        const e=effects.find(e=>e.id===selectedId);
+        if(e){e.mode=mode;e.intensity=intensity;e.feather=feather;pushHistory();}
+        buildOptionsBar();redraw();
+      }
+      bBlur.onclick=()=>changeEffectMode('blur');
+      bMosaic.onclick=()=>changeEffectMode('mosaic');
       seg1.appendChild(bBlur); seg1.appendChild(bMosaic);
       g1.appendChild(seg1);
 
-      const g2 = document.createElement("div"); g2.className="opt-group";
-      const label2 = document.createElement("span"); label2.textContent=`강도 ${Math.round(intensity)}`;
-      const slider = document.createElement("input"); slider.type="range"; slider.min="0"; slider.max="100"; slider.value=String(intensity);
+      const g2 = document.createElement("div"); g2.className="opt-group option-slider option-intensity";
+      const label2 = document.createElement("span"); label2.className="effect-value-label"; label2.textContent=`강도 ${Math.round(effectValueToSlider(intensity,blurMode,'intensity'))}`;
+      const slider = document.createElement("input"); slider.type="range"; slider.min="0"; slider.max="100"; slider.value=String(effectValueToSlider(intensity,blurMode,'intensity'));
       slider.oninput = ()=>{
-        intensity = Number(slider.value);
-        label2.textContent=`강도 ${Math.round(intensity)}`;
+        intensity = effectSliderToValue(slider.value,blurMode,'intensity');
+        label2.textContent=`강도 ${Math.round(effectValueToSlider(intensity,blurMode,'intensity'))}`;
         const selEff=effects.find(e=>e.id===selectedId);
         if(selEff){ selEff.intensity=intensity; redraw(); }
       };
       slider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(); };
       g2.appendChild(label2); g2.appendChild(slider);
 
-      const gf = document.createElement("div"); gf.className="opt-group";
-      const featherLabel = document.createElement("span"); featherLabel.textContent=`페더 ${Math.round(feather)}`;
-      const featherSlider = document.createElement("input"); featherSlider.type="range"; featherSlider.min="0"; featherSlider.max="100"; featherSlider.value=String(feather);
+      const gf = document.createElement("div"); gf.className="opt-group option-slider option-feather";
+      const featherLabel = document.createElement("span"); featherLabel.className="effect-value-label"; featherLabel.textContent=`페더 ${Math.round(effectValueToSlider(feather,blurMode,'feather'))}`;
+      const featherSlider = document.createElement("input"); featherSlider.type="range"; featherSlider.min="0"; featherSlider.max="100"; featherSlider.value=String(effectValueToSlider(feather,blurMode,'feather'));
       featherSlider.oninput=()=>{
-        feather=Number(featherSlider.value);
-        featherLabel.textContent=`페더 ${Math.round(feather)}`;
+        feather=effectSliderToValue(featherSlider.value,blurMode,'feather');
+        featherLabel.textContent=`페더 ${Math.round(effectValueToSlider(feather,blurMode,'feather'))}`;
         const selEff=effects.find(e=>e.id===selectedId);
         if(selEff){ selEff.feather=feather; redraw(); }
       };
       featherSlider.onchange=()=>{ if(effects.find(e=>e.id===selectedId)) pushHistory(); };
       gf.appendChild(featherLabel); gf.appendChild(featherSlider);
 
-      const g3 = document.createElement("div"); g3.className="opt-group";
+      const g3 = document.createElement("div"); g3.className="opt-group option-target";
       const seg3 = document.createElement("div"); seg3.className="seg";
-      const chosen=selected&&selected.type==='effect' ? (selected.autoFace?'face':selected.shape==='rect'?'rect':selected.shape==='circle'?'round':'ellipse') : blurShape;
-      [['face','자동 얼굴'],['ellipse','타원'],['round','원'],['rect','사각형']].forEach(([value,label])=>{
-        const b=document.createElement('button');b.textContent=label;b.className=chosen===value?'active':'';
-        b.onclick=()=>{
-          blurShape=value;
-          const eff=effects.find(e=>e.id===selectedId);
-          if(eff){
-            eff.rect={...effectBounds(eff)};eff.faceRects=[];eff.autoFace=false;
-            eff.shape=value==='rect'?'rect':value==='round'?'circle':'ellipse';
-            if(value==='round'){const size=Math.max(eff.rect.w,eff.rect.h);eff.rect.x+=(eff.rect.w-size)/2;eff.rect.y+=(eff.rect.h-size)/2;eff.rect.w=eff.rect.h=size;}
-            pushHistory();
-          }
-          buildOptionsBar();redraw();
-        };seg3.appendChild(b);
-      });
+      const bFace = document.createElement("button"); bFace.textContent="얼굴"; bFace.className = blurShape==="face"?"active":"";
+      const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
+      bFace.onclick=()=>{ blurShape="face"; buildOptionsBar(); redraw(); };
+      bRect.onclick=()=>{ blurShape="rect"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape="rect";pushHistory();} buildOptionsBar(); redraw(); };
+      seg3.appendChild(bFace); seg3.appendChild(bRect);
       g3.appendChild(seg3);
 
       optionsBar.appendChild(g1); optionsBar.appendChild(g2); optionsBar.appendChild(gf); optionsBar.appendChild(g3);
-    } else if(optionTool==="circle" || optionTool==="arrow" || optionTool==="line"){
+    } else if(activeTool==="circle" || activeTool==="arrow" || activeTool==="line"){
       optionsBar.classList.remove("hidden");
-      if(optionTool==="circle"){
-        const gs=document.createElement("div"); gs.className="opt-group";
+      if(activeTool==="circle"){
+        const gs=document.createElement("div"); gs.className="opt-group option-shape";
         const segs=document.createElement("div"); segs.className="seg";
         [["circle","원/타원"],["rect","네모"]].forEach(([k,n])=>{ const b=document.createElement("button"); b.textContent=n; b.className=shapeKind===k?"active":""; b.onclick=()=>{shapeKind=k;buildOptionsBar();}; segs.appendChild(b); });
         gs.appendChild(segs); optionsBar.appendChild(gs);
       }
 
-      const g = document.createElement("div"); g.className="opt-group";
+      const g = document.createElement("div"); g.className="opt-group option-stroke";
       const label = document.createElement("span"); label.textContent="굵기";
       g.appendChild(label);
-      if(optionTool==="arrow" || optionTool==="line"){
-        const seg = document.createElement("div"); seg.className="seg";
-        [[0.72,"얇게"],[1,"기본"],[1.38,"굵게"]].forEach(([mult,name])=>{
-          const b=document.createElement("button"); b.textContent=name;
-          b.className=Math.abs(strokeMultCurrent-mult)<0.08?"active":"";
-          b.onclick=()=>{
-            strokeMultCurrent=mult;
-            const sel=objects.find(o=>o.id===selectedId);
-            if(sel){ sel.strokeMult=mult; pushHistory(); redraw(); }
-            buildOptionsBar();
-          };
-          seg.appendChild(b);
-        });
-        g.appendChild(seg);
-      } else {
-        const slider = document.createElement("input"); slider.type="range"; slider.min="50"; slider.max="200"; slider.value=String(Math.round(strokeMultCurrent*100));
-        slider.oninput = ()=>{
-          strokeMultCurrent = Number(slider.value)/100;
-          const sel = objects.find(o=>o.id===selectedId);
-          if(sel){ sel.strokeMult = strokeMultCurrent; redraw(); }
-        };
-        slider.onchange = ()=>{ if(objects.find(o=>o.id===selectedId)) pushHistory(); };
-        g.appendChild(slider);
-      }
+      appendStrokePresets(g, objects.find(o=>o.id===selectedId));
       optionsBar.appendChild(g);
 
-      const gc = document.createElement("div"); gc.className="opt-group";
+      const gc = document.createElement("div"); gc.className="opt-group option-color";
       const colorLabel = document.createElement("span"); colorLabel.textContent="색상";
-      const colorInput = document.createElement("input"); colorInput.type="color"; colorInput.value = strokeColorCurrent;
-      colorInput.oninput = ()=>{
-        strokeColorCurrent = colorInput.value;
-        const sel = objects.find(o=>o.id===selectedId);
-        if(sel){ sel.color = strokeColorCurrent; redraw(); }
-      };
-      colorInput.onchange = ()=>{ if(objects.find(o=>o.id===selectedId)) pushHistory(); };
-      gc.appendChild(colorLabel); gc.appendChild(colorInput);
+      gc.appendChild(colorLabel);
+      appendColorPalette(gc, strokeColorCurrent, hex=>{
+        strokeColorCurrent=hex;
+        const sel=objects.find(o=>o.id===selectedId);
+        if(sel && sel.color!==hex){sel.color=hex;pushHistory();redraw();}
+      });
       optionsBar.appendChild(gc);
 
-      {
-        const gdash = document.createElement("label"); gdash.className="opt-group check-opt";
-        const dashCheck = document.createElement("input"); dashCheck.type="checkbox"; dashCheck.checked = dashedCurrent;
-        dashCheck.onchange = ()=>{
-          dashedCurrent = dashCheck.checked;
-          const sel = objects.find(o=>o.id===selectedId);
-          if(sel){ sel.dashed = dashedCurrent; pushHistory(); redraw(); }
-        };
-        const dashText = document.createElement("span"); dashText.textContent = "점선";
-        gdash.appendChild(dashCheck); gdash.appendChild(dashText);
-        optionsBar.appendChild(gdash);
-      }
+      appendLineStyleControl(optionsBar, objects.find(o=>o.id===selectedId));
 
-      if(optionTool==="circle"){
-        const gl = document.createElement("label"); gl.className="opt-group check-opt";
+      if(activeTool==="circle"){
+        const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
         const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=shapeKind==="rect"?rectLocked:circleLocked;
         lockCheck.onchange=()=>{ if(shapeKind==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
         const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지";
@@ -1467,45 +2376,25 @@
       if(sel){
         optionsBar.classList.remove("hidden");
 
-        const g = document.createElement("div"); g.className="opt-group";
+        const g = document.createElement("div"); g.className="opt-group option-stroke";
         const label = document.createElement("span"); label.textContent="굵기";
         g.appendChild(label);
-        if(sel.type==="arrow" || sel.type==="line"){
-          const seg=document.createElement("div"); seg.className="seg";
-          [[0.72,"얇게"],[1,"기본"],[1.38,"굵게"]].forEach(([mult,name])=>{
-            const b=document.createElement("button"); b.textContent=name;
-            b.className=Math.abs((sel.strokeMult||1)-mult)<0.08?"active":"";
-            b.onclick=()=>{ sel.strokeMult=mult; strokeMultCurrent=mult; pushHistory(); buildOptionsBar(); redraw(); };
-            seg.appendChild(b);
-          });
-          g.appendChild(seg);
-        } else {
-          const slider = document.createElement("input"); slider.type="range"; slider.min="50"; slider.max="200"; slider.value=String(Math.round((sel.strokeMult||1)*100));
-          slider.oninput = ()=>{ sel.strokeMult = Number(slider.value)/100; redraw(); };
-          slider.onchange = ()=>{ pushHistory(); };
-          g.appendChild(slider);
-        }
+        appendStrokePresets(g, sel);
         optionsBar.appendChild(g);
 
-        const gc = document.createElement("div"); gc.className="opt-group";
+        const gc = document.createElement("div"); gc.className="opt-group option-color";
         const colorLabel = document.createElement("span"); colorLabel.textContent="색상";
-        const colorInput = document.createElement("input"); colorInput.type="color"; colorInput.value = sel.color || DEFAULT_COLOR;
-        colorInput.oninput = ()=>{ sel.color = colorInput.value; strokeColorCurrent = colorInput.value; redraw(); };
-        colorInput.onchange = ()=>{ pushHistory(); };
-        gc.appendChild(colorLabel); gc.appendChild(colorInput);
+        gc.appendChild(colorLabel);
+        appendColorPalette(gc, sel.color||DEFAULT_COLOR, hex=>{
+          strokeColorCurrent=hex;
+          if(sel.color!==hex){sel.color=hex;pushHistory();redraw();}
+        });
         optionsBar.appendChild(gc);
 
-        {
-          const gdash = document.createElement("label"); gdash.className="opt-group check-opt";
-          const dashCheck = document.createElement("input"); dashCheck.type="checkbox"; dashCheck.checked = !!sel.dashed;
-          dashCheck.onchange = ()=>{ sel.dashed = dashCheck.checked; dashedCurrent = dashCheck.checked; pushHistory(); redraw(); };
-          const dashText = document.createElement("span"); dashText.textContent = "점선";
-          gdash.appendChild(dashCheck); gdash.appendChild(dashText);
-          optionsBar.appendChild(gdash);
-        }
+        appendLineStyleControl(optionsBar, sel);
 
         if(sel.type==="circle" || sel.type==="rect"){
-          const gl = document.createElement("label"); gl.className="opt-group check-opt";
+          const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
           const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=sel.type==="rect"?rectLocked:circleLocked;
           lockCheck.onchange=()=>{ if(sel.type==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
           const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형 유지":"정원 유지";
@@ -1513,10 +2402,10 @@
           optionsBar.appendChild(gl);
         }
 
-        const gd=document.createElement("div"); gd.className="opt-group";
+        const gd=document.createElement("div"); gd.className="opt-group selected-options";
         const del=document.createElement("button"); del.className="danger-opt"; del.textContent="삭제"; del.title="선택 항목 삭제 (Delete)";
         del.onclick=()=>{
-          objects=objects.filter(o=>o.id!==selectedId); effectCache.delete(selectedId); selectedId=null; pushHistory(); buildOptionsBar(); redraw(); showToast("선택 항목을 삭제했습니다.",1000);
+          objects=objects.filter(o=>o.id!==selectedId); selectedId=null; pushHistory(); buildOptionsBar(); redraw(); showToast("선택 항목을 삭제했습니다.",1000);
         };
         gd.appendChild(del); optionsBar.appendChild(gd);
       } else {
@@ -1525,18 +2414,71 @@
     } else {
       optionsBar.classList.add("hidden");
     }
-    const notice=document.createElement('small');notice.className='settings-notice';
-    notice.textContent='사진은 이 기기에서 처리됩니다. 얼굴 인식 모델 로딩에는 인터넷이 필요합니다. Copyright by 송은석. All Rights Reserved.';
-    optionsBar.appendChild(notice);
 
+    // Shared inline SVG symbols for option controls; text stays for accessibility.
+    const optionIcons={
+      "블러":'<circle cx="12" cy="12" r="7"/><path d="M8 8h8M8 12h8M8 16h8" opacity=".6"/>',
+      "모자이크":'<rect x="4" y="4" width="7" height="7" rx="1"/><rect x="13" y="4" width="7" height="7" rx="1"/><rect x="4" y="13" width="7" height="7" rx="1"/><rect x="13" y="13" width="7" height="7" rx="1"/>',
+      "얼굴":'<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M15 10h.01M9 15q3 3 6 0"/>',
+      "사각형":'<rect x="5" y="5" width="14" height="14" rx="2"/>',
+      "원/타원":'<ellipse cx="12" cy="12" rx="8" ry="6"/>',
+      "네모":'<rect x="4.5" y="4.5" width="15" height="15" rx="2"/>',
+      "실선":'<path d="M4 12h16"/>',
+      "점선":'<path d="M4 12h16" stroke-dasharray="3 4"/>',
+      "삭제":'<path d="M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12M10 10v6M14 10v6"/>'
+    };
+    optionsBar.querySelectorAll('button').forEach(button=>{
+      const label=button.textContent.trim();
+      const paths=optionIcons[label];
+      if(!paths || button.querySelector('svg'))return;
+      const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+      svg.setAttribute('viewBox','0 0 24 24');
+      svg.setAttribute('aria-hidden','true');
+      svg.classList.add('option-vector-icon');
+      svg.innerHTML=paths;
+      button.prepend(svg);
+    });
+    if(window.matchMedia("(max-width:640px)").matches && !optionsBar.classList.contains("hidden")){
+      const nodes=Array.from(optionsBar.children);
+      const makeRow=(name)=>{const row=document.createElement("div");row.className="option-row "+name;return row;};
+      const row1=makeRow(optionsBar.dataset.layout==="effect"?"effect-primary":"drawing-primary");
+      const row2=makeRow(optionsBar.dataset.layout==="effect"?"effect-sliders":"drawing-secondary");
+      if(optionsBar.dataset.layout==="effect" && nodes.length===4){
+        row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
+        optionsBar.append(row1,row2);
+      } else if(optionsBar.dataset.layout==="drawing" && activeTool==="circle" && nodes.length===5){
+        row1.append(nodes[0],nodes[1],nodes[3]); row2.append(nodes[2],nodes[4]);
+        optionsBar.append(row1,row2);
+      } else if(optionsBar.dataset.layout==="drawing" && nodes.length===3){
+        row1.append(nodes[0],nodes[2],nodes[1]);
+        optionsBar.append(row1);
+      } else if(optionsBar.dataset.layout==="selection"){
+        const color=nodes.find(n=>n.classList.contains("option-color"));
+        const lock=nodes.find(n=>n.classList.contains("option-lock"));
+        const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
+        const line=nodes.find(n=>n.classList.contains("option-line-style"));
+        const del=nodes.find(n=>n.classList.contains("selected-options"));
+        if(color && stroke && line){
+          row1.append(stroke,line);
+          row2.append(color); if(lock) row2.append(lock); if(del) row2.append(del);
+          optionsBar.append(row1,row2);
+        }
+      }
+    }
   }
+
+  // Rebuild the option wrappers when orientation crosses the mobile/desktop breakpoint.
+  const mobileLayoutQuery=window.matchMedia("(max-width:640px)");
+  const refreshOptionsLayout=()=>{if(activeTool || selectedId!==null) buildOptionsBar();};
+  if(mobileLayoutQuery.addEventListener) mobileLayoutQuery.addEventListener("change",refreshOptionsLayout);
+  else if(mobileLayoutQuery.addListener) mobileLayoutQuery.addListener(refreshOptionsLayout);
 
   // ---------------- native zoom guard ----------------
   // iOS Safari의 더블탭/페이지 확대는 편집 좌표와 어긋나므로 앱 안에서는 막고,
   // 사진 확대/축소는 아래의 두 손가락 커스텀 제스처만 사용한다.
   let lastTouchEndInfo = null;
   document.addEventListener("touchend", function(e){
-    if(e.target!==viewCanvas || !e.changedTouches || !e.changedTouches.length) return;
+    if(!e.changedTouches || !e.changedTouches.length) return;
     const t=e.changedTouches[0], now=Date.now();
     if(lastTouchEndInfo){
       const dt=now-lastTouchEndInfo.time;
@@ -1552,16 +2494,11 @@
     lastTouchEndInfo={time:now,x:t.clientX,y:t.clientY};
   }, {passive:false});
   document.addEventListener("dblclick", function(e){
-    if(e.target!==viewCanvas) return;
+    if(!e.target.closest || !e.target.closest("#app")) return;
     e.preventDefault();
     if(naturalW && viewZoom>1.001){ resetView(); redraw(); }
   }, {passive:false});
 
-  function cancelInteraction(){
-    if(gestureSnapshot){ objects=deepCloneObjects(gestureSnapshot.objects); effects=deepCloneObjects(gestureSnapshot.effects); }
-    drag=null; gestureSnapshot=null; redraw();
-  }
-  function beginInteraction(){ gestureSnapshot={objects:deepCloneObjects(objects),effects:deepCloneObjects(effects)}; }
   // ---------------- pointer interaction ----------------
   // 한 손가락/좌클릭 = 편집, 두 손가락 = 보기(핀치 확대 + 이동).
   // 두 손가락 제스처 중에는 마킹 생성/선택/이동을 절대 실행하지 않는다.
@@ -1571,7 +2508,8 @@
     activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
     if(e.pointerType==="touch" && activePointers.size>=2){
       e.preventDefault();
-      cancelInteraction(); // 핀치 시작 전 편집 상태 복원
+      drag=null; // 첫 손가락으로 시작됐던 편집 동작도 즉시 취소
+      waitForAllTouchesUp = true;
       const pts=[...activePointers.values()].slice(0,2);
       const dx=pts[1].x-pts[0].x, dy=pts[1].y-pts[0].y;
       pinchGesture={
@@ -1582,7 +2520,7 @@
       pinchGesture.ids.forEach(id=>suppressPointerUp.add(id));
       redraw(); return;
     }
-    if(!pinchGesture){onPointerDown(e);if(drag)drag.pointerId=e.pointerId;}
+    if(!pinchGesture && !waitForAllTouchesUp) onPointerDown(e);
   });
   viewCanvas.addEventListener("pointermove", function(e){
     if(activePointers.has(e.pointerId)) activePointers.set(e.pointerId,{x:e.clientX,y:e.clientY,type:e.pointerType});
@@ -1609,13 +2547,13 @@
       }
       return;
     }
-    if(drag && drag.pointerId!==e.pointerId) return;
-    onPointerMove(e);
+    if(!waitForAllTouchesUp) onPointerMove(e);
   });
   function finishPointer(e){
     const wasSuppressed=suppressPointerUp.has(e.pointerId);
     activePointers.delete(e.pointerId);
     suppressPointerUp.delete(e.pointerId);
+    if(waitForAllTouchesUp && activePointers.size===0) waitForAllTouchesUp=false;
     if(pinchGesture){
       if(activePointers.size<2){
         pinchGesture.ids.forEach(id=>suppressPointerUp.add(id));
@@ -1625,12 +2563,14 @@
       }
       return;
     }
-    if(wasSuppressed){fitCanvas();redraw();return;}
-    if(drag && drag.pointerId!==e.pointerId) return;
+    if(wasSuppressed || waitForAllTouchesUp || e.type==="pointercancel") {
+      if(e.type==="pointercancel") { drag=null; redraw(); }
+      return;
+    }
     onPointerUp(e);
   }
   window.addEventListener("pointerup", finishPointer);
-  window.addEventListener("pointercancel", e=>{ cancelInteraction(); finishPointer(e); });
+  window.addEventListener("pointercancel", finishPointer);
 
   // PC: 마우스 휠은 보기 확대/축소 전용. 편집 기능과 연결하지 않는다.
   viewCanvas.addEventListener("wheel", function(e){
@@ -1645,15 +2585,12 @@
     e.preventDefault();
     viewCanvas.setPointerCapture && viewCanvas.setPointerCapture(e.pointerId);
     const dp = getDispPoint(e);
-    beginInteraction();
-    if(spaceHeld || e.button===1){drag={mode:'pan',x:e.clientX,y:e.clientY,panX:viewPanX,panY:viewPanY};return;}
-    if(e.button && e.button!==0) return;
 
     // 기존 항목 선택이 언제나 새 마킹 생성보다 우선한다.
     const selectedEffect = effects.find(x=>x.id===selectedId);
-    if(e.pointerType!=="touch" && selectedEffect && effectCloseHit(dp, selectedEffect)){ drag={mode:"delete",id:selectedId}; return; }
+    if(selectedEffect && effectCloseHit(dp, selectedEffect)){ deleteSelected(); return; }
     const selectedObject = objects.find(x=>x.id===selectedId);
-    if(e.pointerType!=="touch" && selectedObject && objectCloseHit(dp, selectedObject)){ drag={mode:"delete",id:selectedId}; return; }
+    if(selectedObject && objectCloseHit(dp, selectedObject)){ deleteSelected(); return; }
     const effectHandleHit=findEffectHandleAt(dp);
     if(effectHandleHit){
       const eff=effectHandleHit.effect,c=effectCenter(eff),nat=dispToNat(dp);
@@ -1674,7 +2611,7 @@
       buildOptionsBar(); redraw(); return;
     }
     const objHit = findObjectAt(dp);
-    if(objHit){ selectedId=objHit.id; strokeMultCurrent=objHit.strokeMult||1; dashedCurrent=!!objHit.dashed; drag={mode:"move",obj:objHit,last:dispToNat(dp),snapshot:Object.assign({},objHit)}; buildOptionsBar(); redraw(); return; }
+    if(objHit){ selectedId=objHit.id; strokeMultCurrent=objHit.strokeMult||1; strokePxCurrent=objHit.strokePx||2; dashedCurrent=!!objHit.dashed; drag={mode:"move",obj:objHit,last:dispToNat(dp),snapshot:Object.assign({},objHit)}; buildOptionsBar(); redraw(); return; }
     const eh=findEffectAt(dp);
     if(eh){
       selectedId=eh.id;
@@ -1712,7 +2649,6 @@
   function onPointerMove(e){
     if(!drag) return;
     const dp = getDispPoint(e);
-    if(drag.mode==='pan'){viewPanX=drag.panX+e.clientX-drag.x;viewPanY=drag.panY+e.clientY-drag.y;clampView();applyViewTransform();return;}
     if(drag.mode==="create"){
       drag.curDisp = dp;
       redraw();
@@ -1812,16 +2748,9 @@
   }
 
   function onPointerUp(e){
-    if(!drag){gestureSnapshot=null;return;}
+    if(!drag) return;
     const finishedDrag = drag;
     drag = null;
-    const before=gestureSnapshot; gestureSnapshot=null;
-    if(finishedDrag.mode==='pan') return;
-    if(finishedDrag.mode==='delete'){
-      const target=effects.find(e=>e.id===finishedDrag.id)||objects.find(o=>o.id===finishedDrag.id);
-      if(target && (target.type==='effect'?effectCloseHit(getDispPoint(e),target):objectCloseHit(getDispPoint(e),target))) deleteSelected();
-      return;
-    }
 
     if(finishedDrag.mode==="create"){
       const dp0 = finishedDrag.startDisp, dp1 = finishedDrag.curDisp;
@@ -1830,7 +2759,6 @@
       if(activeTool==="blur"){
         if(moved){
           const r = normRect(dispToNat(dp0), dispToNat(dp1));
-          if(blurShape==="round"){r.w=r.h=Math.max(r.w,r.h);}
           if(r.w>2 && r.h>2){
             // 얼굴 모드는 얼굴을 찾아 비율에 맞는 타원으로 보정하고,
             // 사각형 모드는 사용자가 그린 영역을 그대로 즉시 가린다.
@@ -1844,23 +2772,24 @@
               showToast("사각형 영역 가림",900);
               return;
             }
-            const eff={id:genId(),type:'effect',rect:{...r},faceRects:[],autoFace:false,
-              mode:blurMode,shape:blurShape==='round'?'circle':'ellipse',rotation:0,intensity,feather};
-            effects.push(eff); selectedId=eff.id; pushHistory(); buildOptionsBar(); redraw();
-            if(blurShape!=="face") return;
-            const generation=imageGeneration, revision=history[historyIndex];
+            const eff={id:genId(),type:'effect',rect:Object.assign({},r),faceRects:[],autoFace:false,
+              mode:blurMode,shape:'ellipse',rotation:0,intensity:intensity,feather:feather};
+            effects.push(eff);selectedId=eff.id;pushHistory();buildOptionsBar();redraw();
+            const generation=imageGeneration;
             const initial=JSON.stringify(eff);
-            showToast("지정 영역 적용 · 얼굴 위치 확인 중",1800);
-            runFaceDetectionInBox(r, function(faces){
-              if(generation!==imageGeneration || history[historyIndex]!==revision ||
-                effects.find(e=>e.id===eff.id)!==eff || JSON.stringify(eff)!==initial || drag) return;
-              if(faces && faces.length){
-                eff.faceRects=faces.map(f=>({x:f.x,y:f.y,w:f.w,h:f.h}));
-                eff.rect={...eff.faceRects[0]}; eff.autoFace=true;
-                history[historyIndex]={objects:deepCloneObjects(objects),effects:deepCloneObjects(effects)};
-                showToast("얼굴 위치 보정 · 직접 이동하거나 크기를 조절할 수 있습니다.");
-              }else showToast("자동 보정 없이 지정한 영역을 유지합니다.");
-              buildOptionsBar();redraw();
+            const historyEntry=history[historyIndex];
+            runFaceDetectionInBox(r,function(faces,points){
+              if(generation!==imageGeneration || history[historyIndex]!==historyEntry ||
+                effects.find(e=>e.id===eff.id)!==eff || JSON.stringify(eff)!==initial) return;
+              faceDebugPoints=points||[];clearTimeout(faceDebugTimer);
+              if(faceDebugPoints.length)faceDebugTimer=setTimeout(()=>{faceDebugPoints=[];redraw();},1100);
+              const faceRects=(faces||[]).map(face=>({x:face.x,y:face.y,w:face.w,h:face.h}));
+              if(faceRects.length){eff.rect=Object.assign({},faceRects[0]);eff.faceRects=faceRects;eff.autoFace=true;}
+              history[historyIndex]={objects:deepCloneObjects(objects),effects:deepCloneObjects(effects)};
+              redraw();
+              if(faceRects.length)showToast("얼굴 위치 보정",1000);
+              else if(faceDetectorLoadError)showToast("얼굴 인식 모듈 로드 실패 · 지정 영역 사용",1600);
+              else showToast("지정한 영역 그대로 가림",1100);
             });
           }
         }
@@ -1882,8 +2811,8 @@
           }
           if(r.w>3 && r.h>3){
             const obj = shapeKind==="rect"
-              ? {id:genId(), type:"rect", x:r.x, y:r.y, w:r.w, h:r.h, rotation:0, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent}
-              : {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
+              ? {id:genId(), type:"rect", x:r.x, y:r.y, w:r.w, h:r.h, rotation:0, strokePx:strokePxCurrent, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent}
+              : {id:genId(), type:"circle", cx:r.x+r.w/2, cy:r.y+r.h/2, rx:r.w/2, ry:r.h/2, strokePx:strokePxCurrent, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
             objects.push(obj);
             selectedId = obj.id;
             pushHistory();
@@ -1897,7 +2826,8 @@
       if(activeTool==="arrow"){
         if(moved){
           const n0 = dispToNat(dp0), n1 = dispToNat(dp1);
-          const obj = {id:genId(), type:"arrow", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
+          if(!meetsMinimumAnnotationLength(n0,n1)){ redraw(); return; }
+          const obj = {id:genId(), type:"arrow", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokePx:strokePxCurrent, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
           objects.push(obj);
           selectedId = obj.id;
           pushHistory();
@@ -1910,7 +2840,8 @@
       if(activeTool==="line"){
         if(moved){
           const n0 = dispToNat(dp0), n1 = dispToNat(dp1);
-          const obj = {id:genId(), type:"line", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
+          if(!meetsMinimumAnnotationLength(n0,n1)){ redraw(); return; }
+          const obj = {id:genId(), type:"line", x1:n0.x, y1:n0.y, x2:n1.x, y2:n1.y, strokePx:strokePxCurrent, strokeMult:strokeMultCurrent, color:strokeColorCurrent, dashed:dashedCurrent};
           objects.push(obj);
           selectedId = obj.id;
           pushHistory();
@@ -1920,7 +2851,7 @@
         return;
       }
     } else if(finishedDrag.mode==="move" || finishedDrag.mode==="resize" || finishedDrag.mode==="rotate" || finishedDrag.mode==="effectMove" || finishedDrag.mode==="effectResize" || finishedDrag.mode==="effectRotate"){
-      if(!before || JSON.stringify(before)!==JSON.stringify({objects,effects})) pushHistory();
+      pushHistory();
     }
   }
 
@@ -1971,7 +2902,7 @@
     if(faceDetectorPromise) return faceDetectorPromise;
     faceDetectorPromise = (async()=>{
       const rt = await loadVisionRuntime();
-      if(!rt){ faceDetectorPromise=null; faceLandmarkerPromise=null; return null; }
+      if(!rt){faceDetectorPromise=null;return null;}
       try{
         // 사진 한 장씩 처리하는 도구라 CPU 우선이 가장 예측 가능하다.
         const detector = await rt.vision.FaceDetector.createFromOptions(rt.fileset,{
@@ -1996,7 +2927,7 @@
     if(faceLandmarkerPromise) return faceLandmarkerPromise;
     faceLandmarkerPromise = (async()=>{
       const rt = await loadVisionRuntime();
-      if(!rt){ faceDetectorPromise=null; faceLandmarkerPromise=null; return null; }
+      if(!rt){faceLandmarkerPromise=null;return null;}
       try{
         const landmarker = await rt.vision.FaceLandmarker.createFromOptions(rt.fileset,{
           baseOptions:{ modelAssetPath:FACE_LANDMARKER_MODEL, delegate:"CPU" },
@@ -2345,7 +3276,9 @@
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환 폭만 넓힌다.
     // 기존 값은 변화가 너무 미세해 얼굴 타원의 경계가 보였으므로,
     // 블러는 최대 20%, 모자이크는 최대 7%까지 넓게 퍼지도록 조정한다.
-    const featherRatio = mode==="mosaic" ? 0.07 : 0.20;
+    const featherRatio = mode==="mosaic"
+      ? (0.07 * (1 - 0.55 * (1-clamp((base*referenceFitScale-24)/96,0,1))))
+      : 0.20;
     const featherPx = effectFeather>0 ? base * featherRatio * Math.pow(ft,1.05) : 0;
     const pad = Math.ceil((mode==="blur" ? radiusOrBlock*2.6 : 2) + featherPx*2 + 8);
     const center={x:natRect.x+natRect.w/2,y:natRect.y+natRect.h/2};
@@ -2377,7 +3310,7 @@
     mctx.save();
     mctx.translate(center.x-sx,center.y-sy);
     mctx.rotate(rotation);
-    if(shape==="ellipse" || shape==="circle"){
+    if(shape==="ellipse"){
       // 얼굴 중앙은 항상 100% 효과. 페더는 외곽의 얇은 링에서만 작동한다.
       // 타원은 원형 radialGradient를 비율 변환해서 정확한 타원 그라데이션으로 만든다.
       const rx=Math.max(1,natRect.w/2), ry=Math.max(1,natRect.h/2);
@@ -2398,10 +3331,12 @@
     mctx.restore();
     let finalMask = mask;
     // 사각형만 기존 방식의 좁은 경계 페더를 사용한다. 타원은 위에서 불투명 중심을 보장했다.
-    if(shape!=="ellipse" && shape!=="circle" && featherPx>0.5){
+    if(shape!=="ellipse" && featherPx>0.5){
       const fm=document.createElement("canvas"); fm.width=sw; fm.height=sh;
       const fctx=fm.getContext("2d");
-      finalMask=cpuBoxBlurCanvas(mask, featherPx, 2);
+      if("filter" in fctx){
+        fctx.filter=`blur(${featherPx}px)`; fctx.drawImage(mask,0,0); fctx.filter="none"; finalMask=fm;
+      }else finalMask=boxBlurCanvas(mask, featherPx);
     }
 
     const pctx = processed.getContext("2d");
@@ -2452,8 +3387,7 @@
   function clearPhoto(){
     if(!naturalW) return;
     if(!confirm("현재 사진과 모든 마킹을 지울까요?")) return;
-    imageGeneration++; loadGeneration++; cancelInteraction();
-    activePointers.clear(); suppressPointerUp.clear(); pinchGesture=null;
+    imageGeneration++;loadGeneration++;
     naturalW=0; naturalH=0; objects=[]; effects=[]; selectedId=null; drag=null;
     rasterCanvas=document.createElement("canvas"); rasterCtx=rasterCanvas.getContext("2d");
     history=[]; historyIndex=-1; effectCache.clear();
@@ -2464,7 +3398,7 @@
   btnClearPhoto.addEventListener("click", clearPhoto);
 
   // ---------------- keyboard shortcuts ----------------
-  window.addEventListener("keydown", (e)=>{
+  function handleEditorKeydown(e){
     const meta = e.ctrlKey || e.metaKey;
     if(meta && e.key.toLowerCase()==="o"){
       e.preventDefault();
@@ -2485,13 +3419,32 @@
       return;
     }
     if(e.key==="Escape"){
-      if(drag){ cancelInteraction(); return; }
+      if(!lineToolMenu.hidden){ closeLineMenu(); lineMenuButton.focus(); return; }
+      if(drag){ drag=null; redraw(); return; }
       if(selectedId!=null){ selectedId=null; buildOptionsBar(); redraw(); return; }
       if(activeTool){ setActiveTool(null); }
     }
-  });
+  }
+  window.addEventListener("keydown", handleEditorKeydown);
 
   // ---------------- save ----------------
+  let sourceImageFilename = "";
+  let exportSequence = 0;
+  let lastExportSecond = "";
+  function safeExportFilename(extension){
+    const originalBase = sourceImageFilename.replace(/\.[^.]*$/, "");
+    const lower = originalBase.toLowerCase();
+    const clean = /^[a-z0-9_]+$/.test(lower);
+    const now = new Date();
+    const pad = n => String(n).padStart(2,"0");
+    const second = String(now.getFullYear())+pad(now.getMonth()+1)+pad(now.getDate())+
+      "_"+pad(now.getHours())+pad(now.getMinutes())+pad(now.getSeconds());
+    if(second===lastExportSecond) exportSequence++;
+    else {lastExportSecond=second;exportSequence=0;}
+    // Always add a per-save suffix so even an unchanged source name is collision-resistant.
+    const suffix = "_" + second + "_" + String(exportSequence).padStart(2,"0");
+    return (clean ? lower : "marking") + suffix + "." + extension;
+  }
   let claudeDownloadsPromise = null;
   function getDownloads(){
     if(!claudeDownloadsPromise){
@@ -2502,11 +3455,8 @@
     return claudeDownloadsPromise;
   }
 
-  btnSave.addEventListener("click", async ()=>{
+  async function handleSaveClick(){
     if(!naturalW) return;
-    if(drag){showToast("편집 동작을 마친 뒤 저장해주세요.");return;}
-    btnSave.disabled=true;
-    try{
     const format = formatSelect.value;
     const outCanvas = document.createElement("canvas");
     outCanvas.width = naturalW; outCanvas.height = naturalH;
@@ -2518,11 +3468,24 @@
     const mime = format==="png" ? "image/png" : "image/jpeg";
     const quality = format==="png" ? undefined : 0.92;
     const ext = format==="png" ? "png" : "jpg";
-    const filename = "마킹_" + Date.now() + "." + ext;
+    const filename = safeExportFilename(ext);
 
     outCanvas.toBlob(async (blob)=>{
-      if(!blob){ btnSave.disabled=!naturalW; showToast("저장에 실패했습니다."); return; }
-      btnSave.disabled=!naturalW;
+      if(!blob){ showToast("저장에 실패했습니다."); return; }
+      // On iOS/Android prefer the system share sheet with Save Image / Save to Files.
+      if(window.matchMedia('(max-width:640px)').matches && navigator.share && navigator.canShare){
+        try{
+          const file=new File([blob],filename,{type:mime});
+          if(navigator.canShare({files:[file]})){
+            await navigator.share({files:[file]});
+            showToast('저장 또는 공유할 위치를 선택하세요.');
+            return;
+          }
+        }catch(err){
+          if(err && err.name==='AbortError')return;
+          // Share failed or unsupported: fall through to browser download.
+        }
+      }
       const downloads = await getDownloads();
       if(!downloads){
         // Claude 아티팩트 환경이 아닐 때(예: 독립 실행, GitHub Pages)는
@@ -2535,7 +3498,7 @@
           a.click();
           a.remove();
           setTimeout(()=>URL.revokeObjectURL(url), 5000);
-          showToast("다운로드를 요청했습니다.");
+          showToast("저장되었습니다.");
         }catch(err){
           showToast("저장할 수 없습니다.");
         }
@@ -2553,34 +3516,40 @@
         else { showToast("저장할 수 없습니다."); }
       }
     }, mime, quality);
-    }catch(err){btnSave.disabled=!naturalW;showToast("저장 실패 · 사진 크기와 메모리를 확인해주세요.");}
-  });
-
-  // Keep photo removal available in the top bar on every device.
-  toolbarEl.insertBefore(btnClearPhoto,saveGroupEl);
-  document.getElementById('btn-open').onclick=openImagePicker;
-  document.getElementById('btn-fit').onclick=()=>{resetView();fitCanvas();redraw();};
-  document.getElementById('btn-actual').onclick=()=>{if(naturalW)setViewZoom(1/scale);};
-  document.getElementById('btn-delete-selection').onclick=deleteSelected;
-  document.getElementById('btn-preview').onclick=function(){previewOnly=!previewOnly;this.setAttribute('aria-pressed',String(previewOnly));this.textContent=previewOnly?'편집 보기':'결과 보기';redraw();};
-  document.getElementById('options-toggle').onclick=function(){const open=document.getElementById('app').classList.toggle('options-open');this.setAttribute('aria-expanded',String(open));};
-  window.addEventListener('keydown',e=>{
-    if(/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
-    if(e.code==='Space'){spaceHeld=true;e.preventDefault();}
-    if(selectedId!=null && ['ArrowLeft','ArrowRight','ArrowUp','ArrowDown'].includes(e.key)){
-      e.preventDefault();const o=effects.find(o=>o.id===selectedId)||objects.find(o=>o.id===selectedId);
-      const n=e.shiftKey?10:1,dx=e.key==='ArrowLeft'?-n:e.key==='ArrowRight'?n:0,dy=e.key==='ArrowUp'?-n:e.key==='ArrowDown'?n:0;
-      if(o.type==='effect'){o.rect.x+=dx;o.rect.y+=dy;(o.faceRects||[]).forEach(r=>{r.x+=dx;r.y+=dy;});}
-      else if(o.type==='circle'){o.cx+=dx;o.cy+=dy;}
-      else if(o.type==='rect'){o.x+=dx;o.y+=dy;}
-      else{o.x1+=dx;o.x2+=dx;o.y1+=dy;o.y2+=dy;}
-      pushHistory();redraw();
+  }
+  // Mobile custom format menu: avoid oversized native iOS picker.
+  const saveFormatMenu=document.getElementById('save-format-menu');
+  function closeSaveFormatMenu(){saveFormatMenu.hidden=true;optionsBar.classList.remove('menu-replaced','mobile-menu-suspended');}
+  function showSaveFormatMenu(){
+    if(!saveFormatMenu.hidden){closeSaveFormatMenu();return;}
+    closeLineMenu();
+    optionsBar.classList.add('menu-replaced');
+    saveFormatMenu.querySelectorAll('button').forEach(b=>{
+      const on=b.dataset.format===formatSelect.value;
+      b.setAttribute('aria-checked',String(on));b.querySelector('span').style.visibility=on?'visible':'hidden';
+    });
+    saveFormatMenu.hidden=false;
+    positionReplacementMenu(saveFormatMenu);
+  }
+  saveFormatWrap.setAttribute('tabindex','0');
+  saveFormatWrap.setAttribute('role','button');
+  saveFormatWrap.setAttribute('aria-label','JPG PNG 저장 형식 선택');
+  saveFormatWrap.addEventListener('click',e=>{{e.preventDefault();showSaveFormatMenu();}});
+  saveFormatWrap.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();showSaveFormatMenu();}});
+  saveFormatMenu.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{
+    formatSelect.value=b.dataset.format;
+    formatSelect.dispatchEvent(new Event('change',{bubbles:true}));
+    closeSaveFormatMenu();optionsBar.classList.remove('mobile-menu-suspended');
+  }));
+  document.addEventListener('pointerdown',e=>{
+    if(!saveFormatMenu.hidden&&!saveFormatMenu.contains(e.target)&&!saveFormatWrap.contains(e.target)){
+      closeSaveFormatMenu();optionsBar.classList.remove('mobile-menu-suspended');
     }
   });
-  window.addEventListener('keyup',e=>{if(e.code==='Space')spaceHeld=false;});
-  window.addEventListener('blur',()=>{spaceHeld=false;cancelInteraction();activePointers.clear();suppressPointerUp.clear();pinchGesture=null;});
-  new ResizeObserver(()=>{fitCanvas();redraw();}).observe(workarea);
-  document.querySelectorAll('button').forEach(b=>{if(!b.getAttribute('aria-label'))b.setAttribute('aria-label',b.title||b.textContent.trim());});
+  window.addEventListener('resize',()=>{if(!saveFormatMenu.hidden)positionReplacementMenu(saveFormatMenu);},{passive:true});
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!saveFormatMenu.hidden){closeSaveFormatMenu();saveFormatWrap.focus();e.stopImmediatePropagation();}},true);
+  btnSave.addEventListener("click", handleSaveClick);
+
   // ---------------- init ----------------
   fitCanvas();
 })();
