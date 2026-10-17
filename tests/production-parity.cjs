@@ -14,5 +14,6 @@ const ids=s=>[...s.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]).sort();
 assert.deepEqual(ids(candidate),ids(baseline),'Element IDs changed from production');
 assert.match(candidate,/<script src="\.\/src\/editor-helpers\.js"><\/script>/);
 assert.match(candidate,/<script src="\.\/src\/editor-app\.js"><\/script>/);
-assert.ok(candidate.indexOf('editor-helpers.js')<candidate.indexOf('editor-app.js'));
+assert.ok(candidate.indexOf('editor-helpers.js')<candidate.indexOf('editor-canvas.js'));
+assert.ok(candidate.indexOf('editor-canvas.js')<candidate.indexOf('editor-app.js'));
 console.log('PASS: production UI markup and element IDs preserved');
