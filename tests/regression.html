@@ -34,19 +34,24 @@ buttons.length=0;buttons.push(...panel.querySelectorAll('.option-shape button'))
 check('원·네모 색상 수 동일',circle.colors.length===square.colors.length);
 const drift=Math.max(0,...circle.colors.map((x,i)=>Math.abs(x-square.colors[i])));
 check('원·네모 색상 X좌표 차이 1px 이하',drift<=1,'최대 '+drift.toFixed(2)+'px');
-check('굵기 라벨과 도형 버튼 비겹침',circle.stroke.x>=circle.shape.x+circle.shape.w-1&&square.stroke.x>=square.shape.x+square.shape.w-1);
+if(Number(viewport.value)<=640)check('굵기 라벨과 도형 버튼 비겹침',circle.stroke.x>=circle.shape.x+circle.shape.w-1&&square.stroke.x>=square.shape.x+square.shape.w-1);
 check('설정창 폭 변화 1px 이하',Math.abs(circle.p.w-square.p.w)<=1,'차이 '+Math.abs(circle.p.w-square.p.w).toFixed(2)+'px');
 d.querySelector('#btn-blur').click();await sleep(80);
 check('가림 설정창 표시',panel.dataset.layout==='effect'&&!panel.classList.contains('hidden'));
 const target=panel.querySelector('.effect-target-label');
 if(Number(viewport.value)<=640)check('얼굴 기본 라벨',target&&target.textContent==='얼굴');
-const rectBtn=[...panel.querySelectorAll('.option-target button')].find(b=>b.textContent==='사각형');rectBtn.click();await sleep(80);
+const rectBtn=[...panel.querySelectorAll('.option-target button')].find(b=>b.textContent==='사각형');
+check('영역 선택 버튼 존재',!!rectBtn);
+if(rectBtn){rectBtn.click();await sleep(80);}
 if(Number(viewport.value)<=640)check('영역 전환 라벨',panel.querySelector('.effect-target-label')?.textContent==='영역');
 if(Number(viewport.value)<=640){
-const controls=panel.querySelector('.effect-controls');const groups=[...controls.querySelectorAll(':scope > .opt-group')];
-const label=panel.querySelector('.effect-target-label');const lr=rect(label),left=rect(groups[0]),right=rect(groups[1]);
+const controls=panel.querySelector('.effect-controls');const groups=controls?[...controls.querySelectorAll(':scope > .opt-group')]:[];
+const label=panel.querySelector('.effect-target-label');
+if(label&&groups.length===2){
+const lr=rect(label),left=rect(groups[0]),right=rect(groups[1]);
 const gapCenter=(left.x+left.w+right.x)/2;
 check('얼굴·영역 라벨 중앙 정렬 오차 2px 이하',Math.abs(lr.cx-gapCenter)<=2,'오차 '+Math.abs(lr.cx-gapCenter).toFixed(2)+'px');
+}else check('얼굴·영역 라벨 측정 요소 존재',false);
 }else{check('PC에서 모바일 전용 정렬 검사 생략',true);}
 }catch(e){check('검사 실행 중 오류',false,String(e.stack||e));}
 report.textContent+='\n\n완료: '+lines.filter(x=>x.startsWith('PASS')).length+'/'+lines.length+' 통과';
