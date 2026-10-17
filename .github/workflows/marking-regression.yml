@@ -22,6 +22,8 @@ jobs:
           node-version: '22'
       - name: Verify extracted modules and helper behavior
         run: node tests/unit.cjs
+      - name: Verify production markup parity
+        run: node tests/production-parity.cjs
       - name: Install browser test dependencies
         run: |
           npm install --no-save playwright@1.56.1
