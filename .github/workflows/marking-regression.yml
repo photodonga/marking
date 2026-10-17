@@ -4,6 +4,8 @@ on:
   push:
     paths:
       - 'test.html'
+      - 'index.html'
+      - 'src/**'
       - 'tests/**'
       - '.github/workflows/marking-regression.yml'
   workflow_dispatch:
