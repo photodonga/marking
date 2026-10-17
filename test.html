@@ -1537,6 +1537,30 @@
     width:100%!important;text-align:left!important;justify-self:start!important;
   }
 }
+
+/* test-only: center face label in existing gap without moving buttons */
+@media(max-width:640px){
+  #options-bar[data-layout="effect"] .effect-controls{
+    /* Keep both 76/80px button groups and their positions unchanged. */
+    grid-template-columns:28px 76px 28px 80px!important;
+    column-gap:6px!important;
+  }
+  #options-bar[data-layout="effect"] .effect-controls>.effect-target-label{
+    width:28px!important;min-width:28px!important;
+    justify-self:stretch!important;text-align:center!important;
+    position:static!important;transform:none!important;
+  }
+  #options-bar[data-layout="effect"] .effect-controls>.effect-mode-label{
+    width:28px!important;min-width:28px!important;
+    justify-self:stretch!important;text-align:center!important;
+    position:static!important;transform:none!important;
+  }
+  #options-bar[data-layout="effect"] .effect-unified-grid{
+    /* Sliders already use the full available middle grid column. */
+    grid-template-columns:28px minmax(0,1fr) 26px!important;
+    column-gap:6px!important;
+  }
+}
 </style>
 </head>
 <body>
