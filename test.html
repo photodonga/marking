@@ -2498,17 +2498,19 @@
     menu.style.left='0px';
     const width=menu.getBoundingClientRect().width;
     let left;
-    if(mobile && menu===lineToolMenu){
-      // Align the selected-row check mark above the main arrow icon.
-      const check=menu.querySelector('[data-line-kind="arrow"] .line-menu-check');
-      const arrow=lineToolButton.querySelector('.glyph')||lineToolButton;
-      const checkRect=check.getBoundingClientRect();
-      const arrowRect=arrow.getBoundingClientRect();
-      left=arrowRect.left+arrowRect.width/2-(checkRect.left+checkRect.width/2);
-    }else if(mobile){
-      const chevron=saveFormatWrap.querySelector('button:last-child')||saveFormatWrap;
-      const chevronRect=chevron.getBoundingClientRect();
-      left=chevronRect.left+chevronRect.width/2-width/2;
+    if(mobile){
+      // Use the actual toolbar dropdown trigger as the shared alignment anchor.
+      const anchor=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
+      const anchorRect=anchor.getBoundingClientRect();
+      const selected=menu.querySelector('[aria-checked="true"]');
+      const check=selected && selected.querySelector('.line-menu-check, span');
+      if(check){
+        const checkRect=check.getBoundingClientRect();
+        const checkOffset=checkRect.left+checkRect.width/2-menu.getBoundingClientRect().left;
+        left=anchorRect.left+anchorRect.width/2-checkOffset;
+      }else{
+        left=anchorRect.left+anchorRect.width/2-width/2;
+      }
     }else{
       left=menu===lineToolMenu?rect.left+rect.width/2-width/2:rect.right-width+8;
     }
