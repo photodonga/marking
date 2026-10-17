@@ -1455,6 +1455,26 @@
     #toolbar .tool-btn .glyph{pointer-events:none;}
     #toolbar .line-tool-chevron svg{pointer-events:none;}
   }
+
+  /* test-only: unified dropdown row and check vertical alignment */
+  @media(max-width:640px){
+    .line-tool-menu button,.save-format-menu button{
+      height:36px!important;min-height:36px!important;
+      align-items:center!important;
+      line-height:20px!important;
+    }
+    .line-tool-menu button>svg,
+    .line-tool-menu button>span:not(.line-menu-check),
+    .line-tool-menu .line-menu-check,
+    .save-format-menu button span{
+      align-self:center!important;
+    }
+    .line-tool-menu .line-menu-check,.save-format-menu button span{
+      display:flex!important;align-items:center!important;justify-content:center!important;
+      height:20px!important;line-height:20px!important;
+      font-size:15px!important;font-weight:600!important;
+    }
+  }
 </style>
 </head>
 <body>
