@@ -375,15 +375,7 @@
 
   // ---------------- drawing helpers ----------------
   // Fit whole dash segments between the origin and the arrowhead clearance.
-  function arrowDashPattern(length, sw, headLen){
-    const available = Math.max(0, length - headLen*0.62 - sw*1.5);
-    const preferred = Math.max(2, sw*2.2);
-    if(available < preferred*1.5) return null;
-    const count = Math.max(1, Math.round(available/(preferred*1.85)));
-    const dash = Math.min(preferred, available/count);
-    const gap = count>1 ? (available-count*dash)/(count-1) : 0;
-    return {available,count,dash,gap};
-  }
+  const arrowDashPattern=window.MarkingHelpers.arrowDashPattern;
   function drawArrowShape(ctx, x1,y1,x2,y2, sw, color){
     const angle = Math.atan2(y2-y1, x2-x1);
     const arrowLen = Math.hypot(x2-x1, y2-y1);
@@ -872,10 +864,7 @@
     showToast('선택 항목을 삭제했습니다.',900); return true;
   }
 
-  function normRect(a,b){
-    const x = Math.min(a.x,b.x), y = Math.min(a.y,b.y);
-    return {x, y, w:Math.abs(b.x-a.x), h:Math.abs(b.y-a.y)};
-  }
+  const normRect=window.MarkingHelpers.normRect;
 
   // ---------------- pointer coordinate helpers ----------------
   function getDispPoint(e){
