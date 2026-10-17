@@ -967,6 +967,15 @@
   .line-tool-menu button:hover,.save-format-menu button:hover{background:rgba(75,126,205,.45);}
   .line-tool-menu svg{flex:0 0 15px;width:15px;height:15px;}
   .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:auto;color:inherit;}
+  /* Both dropdowns: identical right-side check alignment, reduced text/check gap. */
+  .line-tool-menu button,.save-format-menu button{
+    padding-left:5px;padding-right:5px;gap:3px;
+  }
+  .line-tool-menu .line-menu-check,.save-format-menu button span{
+    flex:0 0 12px;width:12px;min-width:12px;
+    margin-left:auto;text-align:center;
+  }
+  .line-tool-menu button>span:not(.line-menu-check){min-width:0;}
   @keyframes markingPopoverIn{
     from{opacity:0;transform:translateY(4px) scale(.98)}
     to{opacity:1;transform:translateY(0) scale(1)}
@@ -2342,7 +2351,7 @@
   function positionReplacementMenu(menu){
     const trigger=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
     const rect=trigger.getBoundingClientRect();
-    const width=menu===lineToolMenu?104:70;
+    const width=menu===lineToolMenu?96:62;
     menu.style.width=width+'px';
     menu.style.height='auto';
     const left=menu===lineToolMenu
