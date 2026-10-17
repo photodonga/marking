@@ -43,6 +43,9 @@ const path = require('node:path');
         await page.mouse.down();
         await page.mouse.move(x2, y2, { steps: 8 });
         await page.mouse.up();
+        // Allow the app's requestAnimationFrame redraw to finish before reading pixels.
+        await canvas.evaluate(() => new Promise(resolve =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve))));
         // Capture deterministic edited pixels for production/refactor comparison.
         const imageData = await canvas.evaluate(el => {
           const ctx = el.getContext('2d');
@@ -73,7 +76,7 @@ const path = require('node:path');
           ]);
           const name = download.suggestedFilename();
           if (!/\.(png|jpe?g)$/i.test(name)) throw new Error('Unexpected download: ' + name);
-          const target = path.join(outDir, name);
+          const target = path.join(outDir, `${reference}-${width}-${name}`);
           await download.saveAs(target);
           if (fs.statSync(target).size < 1000) throw new Error('Downloaded image too small');
         }
