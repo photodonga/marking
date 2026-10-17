@@ -19,7 +19,12 @@ const path = require('node:path');
         await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
         if (width !== 390) {
           await page.locator('#viewport').selectOption(String(width));
-          await page.waitForFunction(() => !document.querySelector('#report')?.textContent?.includes('검사 시작…') && document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
+          // A previous completed report must not be mistaken for the new run.
+          await page.waitForFunction(expected => {
+            const frame = document.querySelector('#app');
+            return frame && Number.parseInt(frame.style.width, 10) === expected
+              && document.querySelector('#report')?.textContent?.includes('완료:');
+          }, width, { timeout: 30000 });
         }
         // End-to-end edit/history/export checks in the same app iframe.
         const app = page.frameLocator('#app');
