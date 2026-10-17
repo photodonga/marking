@@ -21,6 +21,38 @@ const path = require('node:path');
           await page.locator('#viewport').selectOption(String(width));
           await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
         }
+        // End-to-end edit/history/export checks in the same app iframe.
+        const app = page.frameLocator('#app');
+        const canvas = app.locator('#view-canvas');
+        await app.locator('#btn-circle').click();
+        const bounds = await canvas.boundingBox();
+        if (!bounds || bounds.width < 60 || bounds.height < 60) throw new Error('Canvas has no usable bounds');
+        const x1 = bounds.x + bounds.width * .35, y1 = bounds.y + bounds.height * .35;
+        const x2 = bounds.x + bounds.width * .65, y2 = bounds.y + bounds.height * .65;
+        await page.mouse.move(x1, y1);
+        await page.mouse.down();
+        await page.mouse.move(x2, y2, { steps: 8 });
+        await page.mouse.up();
+        const undo = app.locator('#btn-undo'), redo = app.locator('#btn-redo');
+        if (await undo.isDisabled()) throw new Error('Drawing did not create undo history');
+        await undo.click();
+        if (await redo.isDisabled()) throw new Error('Undo did not enable redo');
+        await redo.click();
+        if (await undo.isDisabled()) throw new Error('Redo did not restore history');
+        // Test actual export only on desktop to avoid mobile share-sheet behavior.
+        if (width === 1280) {
+          const save = app.locator('#btn-save');
+          if (await save.isDisabled()) throw new Error('Save remained disabled');
+          const [download] = await Promise.all([
+            page.waitForEvent('download', { timeout: 15000 }),
+            save.click()
+          ]);
+          const name = download.suggestedFilename();
+          if (!/\\.(png|jpe?g)$/i.test(name)) throw new Error('Unexpected download: ' + name);
+          const target = path.join(outDir, name);
+          await download.saveAs(target);
+          if (fs.statSync(target).size < 1000) throw new Error('Downloaded image too small');
+        }
         const report = await page.locator('#report').textContent();
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
