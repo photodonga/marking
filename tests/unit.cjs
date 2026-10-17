@@ -90,7 +90,7 @@ for (const name of ['src/editor-helpers.js', 'src/editor-canvas.js', 'src/editor
 const html = fs.readFileSync('test.html', 'utf8');
 assert.match(html, /src="\.\/src\/editor-helpers\.js"/);
 assert.match(html, /src="\.\/src\/editor-app\.js"/);
-assert.match(html, /src="\\.\\/src\\/editor-canvas\\.js"/);
+assert.ok(html.includes('src="./src/editor-canvas.js"'));
 assert.ok(html.indexOf('src="./src/editor-helpers.js"') < html.indexOf('src="./src/editor-canvas.js"'));
 assert.ok(html.indexOf('src="./src/editor-canvas.js"') < html.indexOf('src="./src/editor-app.js"'));
 console.log('PASS: pure helpers, script syntax and dependency order');
