@@ -18,13 +18,15 @@ const path = require('node:path');
         await page.goto('http://127.0.0.1:8765/tests/regression.html', { waitUntil: 'load', timeout: 30000 });
         await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
         if (width !== 390) {
+          const previousRun = Number(await page.locator('#report').getAttribute('data-run-completed') || 0);
           await page.locator('#viewport').selectOption(String(width));
-          // A previous completed report must not be mistaken for the new run.
-          await page.waitForFunction(expected => {
+          await page.waitForFunction(({ expected, previousRun }) => {
             const frame = document.querySelector('#app');
+            const report = document.querySelector('#report');
             return frame && Number.parseInt(frame.style.width, 10) === expected
-              && document.querySelector('#report')?.textContent?.includes('완료:');
-          }, width, { timeout: 30000 });
+              && Number(report?.dataset.runCompleted || 0) > previousRun
+              && report?.textContent?.includes('완료:');
+          }, { expected: width, previousRun }, { timeout: 30000 });
         }
         // End-to-end edit/history/export checks in the same app iframe.
         const app = page.frameLocator('#app');
