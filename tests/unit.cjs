@@ -66,6 +66,24 @@ assert.equal(calls.length,0);
 const overlay={width:20,height:30};
 canvas.drawEffectLayer(fake,{canvas:overlay,sx:10,sy:20},0.5);
 assert.deepEqual(calls,[['drawImage',overlay,0,0,20,30,5,10,10,15]]);
+const effect={rect:{x:1,y:2,w:3,h:4},shape:'rect',mode:'blur',rotation:0,intensity:22,feather:82};
+const seen=[];
+const compute=(rect,shape,mode,rotation,options)=>{
+  seen.push({rect,shape,mode,rotation,options});
+  return {canvas:{},sx:2,sy:3};
+};
+const single=canvas.composeEffectObject(effect,compute,960,640,()=>{throw Error('unnecessary canvas');});
+assert.equal(single.sx,2);
+assert.equal(seen[0].shape,'rect');
+const drawCalls=[];
+const composite={getContext:()=>({drawImage:(...args)=>drawCalls.push(args)})};
+const multi=canvas.composeEffectObject({...effect,faceRects:[{x:1},{x:2}]},compute,960,640,()=>composite);
+assert.equal(composite.width,960);
+assert.equal(composite.height,640);
+assert.equal(multi.canvas,composite);
+assert.equal(drawCalls.length,2);
+assert.equal(seen[1].shape,'ellipse');
+assert.equal(seen[2].shape,'ellipse');
 for (const name of ['src/editor-helpers.js', 'src/editor-canvas.js', 'src/editor-app.js']) {
   new vm.Script(fs.readFileSync(name, 'utf8'), { filename: name });
 }
