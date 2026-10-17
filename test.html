@@ -1315,8 +1315,8 @@
 
 @media(max-width:640px){
 #options-bar[data-layout="effect"]:not(.hidden){box-sizing:border-box;width:min(350px,calc(100vw - 16px));max-width:calc(100vw - 16px);padding:7px 8px;gap:3px;overflow-x:hidden;align-items:stretch}
-#options-bar[data-layout="effect"] .effect-unified-grid{display:grid;grid-template-columns:42px 120px 26px;grid-template-rows:40px 30px 30px;gap:4px 8px;width:max-content;max-width:100%;min-width:0;align-items:center}
-#options-bar[data-layout="effect"] .effect-controls{grid-column:1/-1;display:grid;grid-template-columns:64px 86px 32px 86px;align-items:center;gap:4px;min-width:0;width:100%}
+#options-bar[data-layout="effect"] .effect-unified-grid{display:grid;grid-template-columns:42px 120px 26px;grid-template-rows:40px 30px 30px;gap:4px 8px;width:280px;max-width:100%;min-width:0;align-items:center;justify-content:start}
+#options-bar[data-layout="effect"] .effect-controls{grid-column:1/-1;display:grid;grid-template-columns:64px 86px 32px 86px;align-items:center;gap:4px;min-width:280px;width:280px;max-width:280px}
 #options-bar[data-layout="effect"] .effect-current-label{display:block;min-width:0;font-size:11px;line-height:1.2;white-space:nowrap;color:#d5d3db}
 #options-bar[data-layout="effect"] .effect-controls>.opt-group{min-width:0;width:100%;padding:0;margin:0;flex:initial}
 #options-bar[data-layout="effect"] .effect-controls .seg{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;padding:2px;width:100%;min-width:0}
@@ -1328,7 +1328,7 @@
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;flex:none!important}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>.effect-value-label{display:none!important}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>input[type="range"]{display:block!important;box-sizing:border-box;width:120px!important;min-width:0!important;max-width:120px!important;height:24px;min-height:24px;margin:0!important;accent-color:#1677ff;touch-action:pan-x}
-#options-bar[data-layout="effect"]:not(.hidden){width:max-content;max-width:calc(100vw - 16px);padding:7px 10px}
+#options-bar[data-layout="effect"]:not(.hidden){box-sizing:border-box;width:300px;max-width:calc(100vw - 16px);padding:7px 10px;overflow-x:visible}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>input[type="range"]{-webkit-appearance:none;appearance:none;background:transparent}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>input[type="range"]::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:#545762}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;border:2px solid #d7e6ff;background:#1677ff;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
@@ -2508,7 +2508,7 @@
         const value=document.createElement("span");
         value.className="effect-slider-value";
         const updateValue=()=>{
-          const match=(sourceLabel?.textContent||"").match(/(\\d+)\\s*$/);
+          const match=(sourceLabel?.textContent||"").match(/(\d+)\s*$/);
           value.textContent=match?match[1]:String(group.querySelector('input[type="range"]')?.value??50);
         };
         const range=group.querySelector('input[type="range"]');
