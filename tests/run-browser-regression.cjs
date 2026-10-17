@@ -16,11 +16,11 @@ const path = require('node:path');
       page.on('pageerror', err => errors.push(err.message));
       try {
         await page.goto('http://127.0.0.1:8765/tests/regression.html', { waitUntil: 'load', timeout: 30000 });
-        await page.locator('#viewport').selectOption(String(width));
-        await page.waitForFunction(() => {
-          const text = document.querySelector('#report')?.textContent || '';
-          return text.includes('완료:');
-        }, { timeout: 30000 });
+        await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
+        if (width !== 390) {
+          await page.locator('#viewport').selectOption(String(width));
+          await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
+        }
         const report = await page.locator('#report').textContent();
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
