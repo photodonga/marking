@@ -1510,9 +1510,31 @@
 /* test-only: optically center the face label between effect control groups */
 @media(max-width:640px){
   #options-bar[data-layout="effect"] .effect-controls>.effect-target-label{
-    position:relative!important;left:-9px!important;
-    width:28px!important;text-align:left!important;
-    transform:none!important;
+    position:static!important;left:auto!important;transform:none!important;
+    width:auto!important;margin:0!important;padding:0!important;
+    text-align:left!important;justify-self:start!important;
+  }
+}
+
+/* test-only: two approved mobile label alignment changes */
+@media(max-width:640px){
+  #options-bar[data-layout="drawing"] .option-line-style{
+    display:flex!important;flex-direction:row!important;align-items:center!important;
+    gap:5px!important;
+  }
+  #options-bar[data-layout="drawing"] .line-style-current-label{
+    display:block;flex:0 0 auto;color:#d6d7dc;font-size:11px;
+    line-height:1.2;white-space:nowrap;user-select:none;
+  }
+  #options-bar[data-layout="effect"] .effect-controls{
+    grid-template-columns:28px 76px 28px 80px!important;
+    column-gap:6px!important;
+  }
+  #options-bar[data-layout="effect"] .effect-controls>.effect-mode-label,
+  #options-bar[data-layout="effect"] .effect-controls>.effect-target-label{
+    position:static!important;left:auto!important;right:auto!important;
+    transform:none!important;margin:0!important;padding:0!important;
+    width:100%!important;text-align:left!important;justify-self:start!important;
   }
 }
 </style>
@@ -2051,6 +2073,10 @@
     const current=selectedObject ? !!selectedObject.dashed : dashedCurrent;
     if(window.matchMedia("(max-width:640px)").matches){
       // Mobile: one button cycles solid ↔ dashed; desktop keeps its original two choices.
+      const styleLabel=document.createElement("span");
+      styleLabel.className="line-style-current-label";
+      styleLabel.textContent=current?"점선":"실선";
+      group.appendChild(styleLabel);
       const button=document.createElement("button"); button.type="button";
       button.className="active line-style-toggle";
       button.textContent=current?"점선":"실선";
