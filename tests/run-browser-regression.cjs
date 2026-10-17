@@ -43,6 +43,18 @@ const path = require('node:path');
         await page.mouse.down();
         await page.mouse.move(x2, y2, { steps: 8 });
         await page.mouse.up();
+        // Capture deterministic edited pixels for production/refactor comparison.
+        const imageData = await canvas.evaluate(el => {
+          const ctx = el.getContext('2d');
+          const { width, height } = el;
+          const samples = [];
+          for (const [fx, fy] of [[.25,.25],[.35,.35],[.5,.5],[.65,.65],[.75,.75]]) {
+            const x=Math.min(width-1,Math.floor(width*fx));
+            const y=Math.min(height-1,Math.floor(height*fy));
+            samples.push([...ctx.getImageData(x,y,1,1).data]);
+          }
+          return { width, height, samples };
+        });
         const undo = app.locator('#btn-undo'), redo = app.locator('#btn-redo');
         if (await undo.isDisabled()) throw new Error('Drawing did not create undo history');
         await undo.click();
@@ -70,7 +82,7 @@ const path = require('node:path');
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
         const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
         if (!ok) failures++;
-        results.push({ reference, width, ok, passed: passLines.length, failed: failLines.length, errors, report });
+        results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, errors, report });
         await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}.png`), fullPage: true });
         console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
@@ -88,6 +100,10 @@ const path = require('node:path');
       const candidate = results.find(r => r.reference === 'test' && r.width === width);
       if (baseline && candidate && baseline.ok && !candidate.ok) {
         console.error(`[PARITY] ${width}px: production passes but refactored test fails`);
+      }
+      if (baseline?.ok && candidate?.ok && JSON.stringify(baseline.imageData)!==JSON.stringify(candidate.imageData)) {
+        failures++;
+        console.error(`[PARITY] ${width}px: edited canvas pixel samples differ`);
       }
     }
   } finally {
