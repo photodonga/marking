@@ -25,6 +25,10 @@ for (const mode of Object.keys(baseline)) {
   }
 }
 
+assert.deepEqual(h.normRect({x:8,y:15},{x:2,y:5}),{x:2,y:5,w:6,h:10});
+assert.equal(h.arrowDashPattern(1,3,12),null);
+const dash=h.arrowDashPattern(100,2,10);
+assert.ok(dash && dash.available>0 && dash.count>=1 && dash.dash>0);
 assert.deepEqual(h.rectCenter({ x: 10, y: 20, w: 30, h: 40 }), { x: 25, y: 40 });
 const rotated = h.rotatePoint({ x: 2, y: 0 }, { x: 0, y: 0 }, Math.PI / 2);
 assert.ok(Math.abs(rotated.x) < 1e-9 && Math.abs(rotated.y - 2) < 1e-9);
