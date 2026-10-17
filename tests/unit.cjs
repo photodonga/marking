@@ -25,6 +25,11 @@ for (const mode of Object.keys(baseline)) {
   }
 }
 
+const eff={rect:{x:10,y:20,w:5,h:7},faceRects:[{x:2,y:3,w:4,h:6},{x:10,y:20,w:5,h:7}],mode:'blur',intensity:22,feather:82};
+assert.deepEqual(h.effectBounds(eff),{x:2,y:3,w:13,h:24});
+assert.deepEqual(h.effectCenter(eff),{x:8.5,y:15});
+assert.notEqual(h.effectCacheKey(eff,960,640),h.effectCacheKey(eff,1920,1080));
+assert.notEqual(h.effectCacheKey(eff,960,640),h.effectCacheKey({...eff,intensity:50},960,640));
 assert.deepEqual(h.normRect({x:8,y:15},{x:2,y:5}),{x:2,y:5,w:6,h:10});
 assert.equal(h.arrowDashPattern(1,3,12),null);
 const dash=h.arrowDashPattern(100,2,10);
