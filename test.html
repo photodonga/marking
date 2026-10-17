@@ -328,6 +328,12 @@
     cursor:pointer;
     touch-action:manipulation;
   }
+  /* The empty-state copy is instructional, never selectable or draggable. */
+  #placeholder, #placeholder p, #placeholder .ph-sub{
+    -webkit-user-select:none!important;user-select:none!important;
+    -webkit-touch-callout:none;-webkit-user-drag:none;
+  }
+  #placeholder p{pointer-events:none;}
   #placeholder p{margin:0;font-size:14px;letter-spacing:.2px;}
   #placeholder .ph-sub{margin:0;font-size:12.5px;color:#6f6f76;letter-spacing:.1px;}
   #placeholder.hidden{display:none;}
