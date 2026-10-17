@@ -2494,32 +2494,33 @@
     });
   }
   function positionReplacementMenu(menu){
+    const mobile=window.matchMedia("(max-width:640px)").matches;
     const trigger=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
     const rect=trigger.getBoundingClientRect();
-    const mobile=window.matchMedia("(max-width:640px)").matches;
-    menu.style.width=mobile?'max-content':(menu===lineToolMenu?96:62)+'px';
+    menu.style.width=mobile?(menu===lineToolMenu?'126px':'86px'):(menu===lineToolMenu?'96px':'62px');
     menu.style.height='auto';
     menu.style.left='0px';
-    const width=menu.getBoundingClientRect().width;
+    menu.style.top='0px';
+    const menuRect=menu.getBoundingClientRect();
+    const width=menuRect.width;
     let left;
     if(mobile){
-      // Use the actual toolbar dropdown trigger as the shared alignment anchor.
-      const anchor=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
-      const anchorRect=anchor.getBoundingClientRect();
+      // Measure the selected check's actual rendered center, then place it
+      // on the exact same viewport x-coordinate as the dropdown trigger center.
       const selected=menu.querySelector('[aria-checked="true"]');
-      const check=selected && selected.querySelector('.line-menu-check, span');
-      if(check){
-        const checkRect=check.getBoundingClientRect();
-        const checkOffset=checkRect.left+checkRect.width/2-menu.getBoundingClientRect().left;
-        left=anchorRect.left+anchorRect.width/2-checkOffset;
-      }else{
-        left=anchorRect.left+anchorRect.width/2-width/2;
-      }
+      const check=selected?.querySelector('.line-menu-check, .save-menu-check');
+      const checkRect=check?.getBoundingClientRect();
+      const checkOffset=checkRect ? checkRect.left+checkRect.width/2-menuRect.left : width/2;
+      const targetX=rect.left+rect.width/2;
+      left=targetX-checkOffset;
+      // Preserve the alignment rather than clamping the menu and shifting its check.
+      // The menu is small enough to extend into the viewport's safe side padding.
+      left=Math.max(0,Math.min(window.innerWidth-width,left));
     }else{
       left=menu===lineToolMenu?rect.left+rect.width/2-width/2:rect.right-width+8;
+      left=Math.max(8,Math.min(window.innerWidth-width-8,left));
     }
-    menu.style.left=Math.max(8,Math.min(window.innerWidth-width-8,left))+'px';
-    menu.style.top='0px';
+    menu.style.left=left+'px';
     const height=menu.getBoundingClientRect().height;
     menu.style.top=Math.max(8,rect.top-height-9)+'px';
   }
