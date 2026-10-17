@@ -1475,6 +1475,10 @@
       font-size:15px!important;font-weight:600!important;
     }
   }
+
+  /* test-only: matching vector check icons in both popup menus */
+  .line-tool-menu .line-menu-check,.save-format-menu .save-menu-check{display:flex!important;align-items:center!important;justify-content:center!important;line-height:0!important;}
+  .line-tool-menu .line-menu-check svg,.save-format-menu .save-menu-check svg{display:block;width:16px!important;height:16px!important;flex:none;fill:none!important;stroke:currentColor!important;stroke-width:2.5!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
 </style>
 </head>
 <body>
@@ -1510,7 +1514,7 @@
     <div id="options-bar" class="hidden"></div>
   </div>
 
-  <div id="save-format-menu" class="save-format-menu" role="menu" aria-label="저장 형식 선택" hidden><button type="button" role="menuitemradio" data-format="jpeg">JPG <span>✓</span></button><button type="button" role="menuitemradio" data-format="png">PNG <span>✓</span></button></div>
+  <div id="save-format-menu" class="save-format-menu" role="menu" aria-label="저장 형식 선택" hidden><button type="button" role="menuitemradio" data-format="jpeg">JPG <span class="save-menu-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></button><button type="button" role="menuitemradio" data-format="png">PNG <span class="save-menu-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></button></div>
   <main id="workarea">
     <div id="placeholder">
       <button class="ph-icon" id="btn-pick-photo" type="button" aria-label="사진 선택">＋</button>
@@ -2475,7 +2479,7 @@
   lineToolMenu.setAttribute("role", "menu");
   lineToolMenu.setAttribute("aria-label", "선 도구 종류");
   lineToolMenu.hidden = true;
-  lineToolMenu.innerHTML = '<button type="button" role="menuitemradio" aria-checked="true" data-line-kind="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg><span>화살표</span><span class="line-menu-check">✓</span></button><button type="button" role="menuitemradio" aria-checked="false" data-line-kind="line"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/></svg><span>직선</span><span class="line-menu-check">✓</span></button>';
+  lineToolMenu.innerHTML = '<button type="button" role="menuitemradio" aria-checked="true" data-line-kind="arrow"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg><span>화살표</span><span class="line-menu-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></button><button type="button" role="menuitemradio" aria-checked="false" data-line-kind="line"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19 19 5"/></svg><span>직선</span><span class="line-menu-check" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></button>';
   document.body.appendChild(lineToolMenu);
   const arrowGlyph = lineToolButton.querySelector(".glyph").innerHTML;
   const straightGlyph = lineToolMenu.querySelector('[data-line-kind="line"] svg').outerHTML;
