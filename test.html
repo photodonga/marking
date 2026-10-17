@@ -1479,6 +1479,33 @@
   /* test-only: matching vector check icons in both popup menus */
   .line-tool-menu .line-menu-check,.save-format-menu .save-menu-check{display:flex!important;align-items:center!important;justify-content:center!important;line-height:0!important;}
   .line-tool-menu .line-menu-check svg,.save-format-menu .save-menu-check svg{display:block;width:16px!important;height:16px!important;flex:none;fill:none!important;stroke:currentColor!important;stroke-width:2.5!important;stroke-linecap:round!important;stroke-linejoin:round!important;}
+
+  /* test-only compact matching popover bubbles; toolbar icons untouched */
+  @media(max-width:640px){
+    .line-tool-menu,.save-format-menu{
+      padding:4px!important;gap:1px!important;border-radius:12px!important;
+      overflow:visible!important;
+      border:1px solid rgba(150,160,181,.30)!important;
+      background:rgba(43,47,57,.97)!important;
+      box-shadow:0 8px 20px rgba(0,0,0,.28)!important;
+    }
+    .line-tool-menu button,.save-format-menu button{
+      height:34px!important;min-height:34px!important;
+      border-radius:8px!important;
+      padding:3px 6px!important;
+    }
+    .line-tool-menu button{grid-template-columns:15px minmax(0,1fr) 12px!important;}
+    .save-format-menu button{grid-template-columns:minmax(0,1fr) 12px!important;}
+    .line-tool-menu::after,.save-format-menu::after{
+      content:'';position:absolute;top:100%;left:var(--bubble-tail-x,50%);
+      width:9px;height:9px;box-sizing:border-box;
+      transform:translate(-50%,-5px) rotate(45deg);
+      background:rgba(43,47,57,.97);
+      border-right:1px solid rgba(150,160,181,.30);
+      border-bottom:1px solid rgba(150,160,181,.30);
+      pointer-events:none;
+    }
+  }
 </style>
 </head>
 <body>
@@ -2497,7 +2524,7 @@
     const mobile=window.matchMedia("(max-width:640px)").matches;
     const trigger=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
     const rect=trigger.getBoundingClientRect();
-    menu.style.width=mobile?(menu===lineToolMenu?'126px':'86px'):(menu===lineToolMenu?'96px':'62px');
+    menu.style.width=mobile?(menu===lineToolMenu?'116px':'80px'):(menu===lineToolMenu?'96px':'62px');
     menu.style.height='auto';
     menu.style.left='0px';
     menu.style.top='0px';
@@ -2521,6 +2548,10 @@
       left=Math.max(8,Math.min(window.innerWidth-width-8,left));
     }
     menu.style.left=left+'px';
+    if(mobile){
+      const targetX=rect.left+rect.width/2;
+      menu.style.setProperty('--bubble-tail-x',(targetX-left)+'px');
+    }else{menu.style.removeProperty('--bubble-tail-x');}
     const height=menu.getBoundingClientRect().height;
     menu.style.top=Math.max(8,rect.top-height-9)+'px';
   }
