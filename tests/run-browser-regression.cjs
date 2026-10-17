@@ -19,12 +19,14 @@ const path = require('node:path');
         await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
         if (width !== 390) {
           await page.locator('#viewport').selectOption(String(width));
-          await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
+          await page.waitForFunction(() => !document.querySelector('#report')?.textContent?.includes('검사 시작…') && document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
         }
         // End-to-end edit/history/export checks in the same app iframe.
         const app = page.frameLocator('#app');
         const canvas = app.locator('#view-canvas');
-        await app.locator('#btn-circle').click();
+        // Regression harness leaves the circle tool selected; clicking again would toggle it off.
+        const circleButton = app.locator('#btn-circle');
+        if (!(await circleButton.getAttribute('class') || '').split(/\s+/).includes('active')) await circleButton.click();
         const bounds = await canvas.boundingBox();
         if (!bounds || bounds.width < 60 || bounds.height < 60) throw new Error('Canvas has no usable bounds');
         const x1 = bounds.x + bounds.width * .35, y1 = bounds.y + bounds.height * .35;
