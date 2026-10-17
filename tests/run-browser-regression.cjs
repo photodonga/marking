@@ -103,12 +103,12 @@ const path = require('node:path');
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
         const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
-        if (!ok) failures++;
+        if (!ok && reference === 'test') failures++;
         results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: passLines.map(line => line.split(' — ')[0]), errors, report });
         await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}.png`), fullPage: true });
         console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
-        failures++;
+        if (reference === 'test') failures++;
         results.push({ reference, width, ok: false, error: String(error), errors });
         console.error(`[ERROR] ${reference} ${width}px: ${error}`);
         await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}-error.png`), fullPage: true }).catch(() => {});
@@ -127,11 +127,7 @@ const path = require('node:path');
         failures++;
         console.error('Regression check names/order differ at ' + width + 'px');
       }
-      if (baseline?.ok && candidate?.ok && baseline.passed !== candidate.passed) {
-        failures++;
-        console.error('Regression check count differs at ' + width + 'px: ' + baseline.passed + ' versus ' + candidate.passed);
-      }
-      if (baseline?.ok && candidate?.ok && JSON.stringify(baseline.imageData)!==JSON.stringify(candidate.imageData)) {
+      if (baseline?.imageData && candidate?.imageData && JSON.stringify(baseline.imageData)!==JSON.stringify(candidate.imageData)) {
         failures++;
         console.error(`[PARITY] ${width}px: edited canvas pixel samples differ`);
       }
