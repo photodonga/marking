@@ -36,7 +36,20 @@
     const gap=count>1?(available-count*dash)/(count-1):0;
     return {available,count,dash,gap};
   }
-  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter,normRect,arrowDashPattern});
+  function effectBounds(eff){
+    const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
+    const x1=Math.min(...rs.map(r=>r.x)),y1=Math.min(...rs.map(r=>r.y));
+    const x2=Math.max(...rs.map(r=>r.x+r.w)),y2=Math.max(...rs.map(r=>r.y+r.h));
+    return {x:x1,y:y1,w:x2-x1,h:y2-y1};
+  }
+  function effectCenter(eff){
+    const b=effectBounds(eff);
+    return {x:b.x+b.w/2,y:b.y+b.h/2};
+  }
+  function effectCacheKey(eff,naturalW,naturalH){
+    return JSON.stringify([eff.rect,eff.faceRects,eff.autoFace,eff.shape,eff.mode,eff.rotation||0,eff.intensity,eff.feather,naturalW,naturalH]);
+  }
+  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter,normRect,arrowDashPattern,effectBounds,effectCenter,effectCacheKey});
   if(typeof module!=="undefined" && module.exports) module.exports=helpers;
   else root.MarkingHelpers=helpers;
 })(typeof globalThis!=="undefined" ? globalThis : this);
