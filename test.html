@@ -1189,6 +1189,40 @@
  #options-bar[data-layout="drawing"] .annotation-palette{gap:5px;}
  #options-bar[data-layout="drawing"] .palette-swatch{width:30px;min-width:30px;flex-basis:30px;height:30px;}
 }
+
+  /* Approved mobile sub-toolbar: dark glass, intrinsic width, two compact rows.
+     Main toolbar and desktop layout remain untouched. */
+  @media (max-width:640px){
+    #options-bar[data-layout="drawing"]:not(.hidden){
+      width:max-content;max-width:calc(100vw - 16px);min-width:0;
+      margin-inline:auto;padding:10px 12px;gap:9px;
+      background:rgba(18,19,22,.94);color:#e9eaf0;
+      border:1px solid rgba(255,255,255,.24);
+      box-shadow:0 12px 30px rgba(0,0,0,.34);
+      border-radius:19px;overflow-x:hidden;
+    }
+    #options-bar[data-layout="drawing"] .drawing-primary,
+    #options-bar[data-layout="drawing"] .drawing-secondary{
+      display:flex;width:auto;max-width:100%;flex-wrap:nowrap;
+      justify-content:center;align-items:center;gap:6px;
+    }
+    #options-bar[data-layout="drawing"] .drawing-primary .opt-group{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-stroke{flex:0 1 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-stroke>span{font-size:11px;color:#d6d7dc;}
+    #options-bar[data-layout="drawing"] .drawing-primary .seg{background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.06);}
+    #options-bar[data-layout="drawing"] .drawing-primary .seg button:not(.active){color:#f0f0f4;}
+    #options-bar[data-layout="drawing"] .option-line-style .seg{padding:2px;}
+    #options-bar[data-layout="drawing"] .option-line-style .seg .line-style-toggle{
+      display:flex;align-items:center;justify-content:center;
+      width:35px!important;min-width:35px!important;height:37px;
+      font-size:0;padding:5px;
+    }
+    #options-bar[data-layout="drawing"] .drawing-secondary .option-color{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .drawing-secondary .option-color>span{color:#d6d7dc;}
+    #options-bar[data-layout="drawing"] .drawing-secondary .option-lock{color:#e9eaf0;}
+    #options-bar[data-layout="drawing"] .annotation-palette{gap:clamp(3px,1.6vw,7px);}
+    #options-bar[data-layout="drawing"] .palette-swatch{width:clamp(27px,8vw,33px);min-width:27px;flex:0 0 clamp(27px,8vw,33px);}
+  }
 </style>
 </head>
 <body>
@@ -1707,11 +1741,16 @@
     group.setAttribute("role","group"); group.setAttribute("aria-label","선 스타일");
     const seg=document.createElement("div"); seg.className="seg";
     const current=selectedObject ? !!selectedObject.dashed : dashedCurrent;
-    [["실선",false],["점선",true]].forEach(([label,dashed])=>{
+    if(window.matchMedia("(max-width:640px)").matches){
+      // Mobile: one button cycles solid ↔ dashed; desktop keeps its original two choices.
       const button=document.createElement("button"); button.type="button";
-      button.textContent=label; button.className=current===dashed?"active":"";
-      button.setAttribute("aria-pressed",String(current===dashed));
+      button.className="active line-style-toggle";
+      button.textContent=current?"점선":"실선";
+      button.title=current?"점선 — 눌러 실선으로 변경":"실선 — 눌러 점선으로 변경";
+      button.setAttribute("aria-label",button.title);
+      button.setAttribute("aria-pressed",String(current));
       button.onclick=()=>{
+        const dashed=!(selectedObject ? !!selectedObject.dashed : dashedCurrent);
         dashedCurrent=dashed;
         if(selectedObject && selectedObject.dashed!==dashed){
           selectedObject.dashed=dashed;pushHistory();redraw();
@@ -1719,7 +1758,21 @@
         buildOptionsBar();
       };
       seg.appendChild(button);
-    });
+    }else{
+      [["실선",false],["점선",true]].forEach(([label,dashed])=>{
+        const button=document.createElement("button"); button.type="button";
+        button.textContent=label; button.className=current===dashed?"active":"";
+        button.setAttribute("aria-pressed",String(current===dashed));
+        button.onclick=()=>{
+          dashedCurrent=dashed;
+          if(selectedObject && selectedObject.dashed!==dashed){
+            selectedObject.dashed=dashed;pushHistory();redraw();
+          }
+          buildOptionsBar();
+        };
+        seg.appendChild(button);
+      });
+    }
     group.appendChild(seg);container.appendChild(group);
   }
 
@@ -2316,15 +2369,22 @@
     if(!isEffect && !isDrawing && !isSelection) return;
     const row1=createOptionRow(isEffect?"effect-primary":"drawing-primary");
     const row2=createOptionRow(isEffect?"effect-sliders":"drawing-secondary");
-  if(isEffect && nodes.length===4){
-        row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
+    if(isEffect && nodes.length===4){
+      row1.append(nodes[0],nodes[3]); row2.append(nodes[1],nodes[2]);
+      optionsBar.append(row1,row2);
+    } else if(isDrawing){
+      const shape=nodes.find(n=>n.classList.contains("option-shape"));
+      const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
+      const line=nodes.find(n=>n.classList.contains("option-line-style"));
+      const color=nodes.find(n=>n.classList.contains("option-color"));
+      const lock=nodes.find(n=>n.classList.contains("option-lock"));
+      if(stroke && line && color){
+        if(shape) row1.append(shape);
+        row1.append(stroke,line);
+        row2.append(color);
+        if(lock) row2.append(lock);
         optionsBar.append(row1,row2);
-  } else if(isDrawing && activeTool==="circle" && nodes.length===5){
-        row1.append(nodes[0],nodes[1]); row2.append(nodes[2],nodes[3],nodes[4]);
-        optionsBar.append(row1,row2);
-  } else if(isDrawing && nodes.length===3){
-        row1.append(nodes[0],nodes[2],nodes[1]);
-        optionsBar.append(row1);
+      }
   } else if(isSelection){
         const color=nodes.find(n=>n.classList.contains("option-color"));
         const lock=nodes.find(n=>n.classList.contains("option-lock"));
