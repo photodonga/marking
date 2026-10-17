@@ -1,11 +1,14 @@
-const { chromium } = require('playwright');
+const { chromium, webkit } = require('playwright');
+const engine = process.env.MARKING_BROWSER || 'chromium';
+if (!['chromium', 'webkit'].includes(engine)) throw new Error('Unsupported browser engine: ' + engine);
+const browserType = engine === 'webkit' ? webkit : chromium;
 const fs = require('node:fs');
 const path = require('node:path');
 
 (async () => {
   const outDir = path.join(process.cwd(), 'test-results');
   fs.mkdirSync(outDir, { recursive: true });
-  const browser = await chromium.launch({ headless: true });
+  const browser = await browserType.launch({ headless: true });
   const results = [];
   let failures = 0;
   try {
@@ -105,13 +108,13 @@ const path = require('node:path');
         const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
         if (!ok && reference === 'test') failures++;
         results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: passLines.map(line => line.split(' — ')[0]), errors, report });
-        await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}.png`), fullPage: true });
+        await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}.png`), fullPage: true });
         console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
         if (reference === 'test') failures++;
         results.push({ reference, width, ok: false, error: String(error), errors });
         console.error(`[ERROR] ${reference} ${width}px: ${error}`);
-        await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}-error.png`), fullPage: true }).catch(() => {});
+        await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}-error.png`), fullPage: true }).catch(() => {});
       } finally {
         await context.close();
       }
@@ -135,6 +138,6 @@ const path = require('node:path');
   } finally {
     await browser.close();
   }
-  fs.writeFileSync(path.join(outDir, 'report.json'), JSON.stringify(results, null, 2));
+  fs.writeFileSync(path.join(outDir, `report-${engine}.json`), JSON.stringify(results, null, 2));
   if (failures) process.exitCode = 1;
 })().catch(error => { console.error(error); process.exitCode = 1; });
