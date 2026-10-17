@@ -13,7 +13,10 @@ function setViewport(){const width=Number(viewport.value);frame.style.width=widt
 viewport.onchange=run;
 function check(name,ok,detail=''){lines.push((ok?'PASS ':'FAIL ')+name+(detail?' — '+detail:''));report.textContent=lines.join('\n');}
 function waitLoad(){return new Promise((resolve,reject)=>{frame.onload=resolve;frame.onerror=reject;frame.src='../test.html?regression='+Date.now();});}
+let runSequence=0;
 async function run(){
+const thisRun=++runSequence;
+report.dataset.runStarted=String(thisRun);
 lines.length=0;report.textContent='검사 시작…';setViewport();
 try{
 await waitLoad();const w=frame.contentWindow,d=w.document;
@@ -71,6 +74,7 @@ check('얼굴·영역 라벨 중앙 정렬 오차 2px 이하',Math.abs(lr.cx-gap
 }else{check('PC에서 모바일 전용 정렬 검사 생략',true);}
 }catch(e){check('검사 실행 중 오류',false,String(e.stack||e));}
 report.textContent+='\n\n완료: '+lines.filter(x=>x.startsWith('PASS')).length+'/'+lines.length+' 통과';
+report.dataset.runCompleted=String(thisRun);
 }
 document.getElementById('run').onclick=run;run();
 </script></body></html>
