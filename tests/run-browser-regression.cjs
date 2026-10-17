@@ -104,6 +104,10 @@ const path = require('node:path');
       if (baseline && candidate && baseline.ok && !candidate.ok) {
         console.error(`[PARITY] ${width}px: production passes but refactored test fails`);
       }
+      if (baseline?.ok && candidate?.ok && baseline.passed !== candidate.passed) {
+        failures++;
+        console.error('Regression check count differs at ' + width + 'px: ' + baseline.passed + ' versus ' + candidate.passed);
+      }
       if (baseline?.ok && candidate?.ok && JSON.stringify(baseline.imageData)!==JSON.stringify(candidate.imageData)) {
         failures++;
         console.error(`[PARITY] ${width}px: edited canvas pixel samples differ`);
