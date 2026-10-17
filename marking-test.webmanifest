@@ -1,0 +1,10 @@
+{
+  "name": "마킹 테스트",
+  "short_name": "마킹 테스트",
+  "lang": "ko",
+  "start_url": "./test.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1c1c1e",
+  "theme_color": "#1c1c1e"
+}
