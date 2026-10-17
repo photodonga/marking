@@ -2835,8 +2835,14 @@
       const strokeButtons=stroke.querySelector('.seg')?.getBoundingClientRect();
       const lineButton=line.querySelector('.seg')?.getBoundingClientRect();
       if(!strokeButtons||!lineButton)return;
-      const leftBoundary=panel.left+parseFloat(getComputedStyle(optionsBar).paddingLeft||0);
-      place(stroke.querySelector(':scope > span'),leftBoundary,strokeButtons.left);
+      // The circle tool has a shape-selector before the stroke group.
+      // Using the panel's left edge centers '굵기' ON TOP of the shape buttons.
+      // Keep the label in its natural flex position for this layout.
+      const shape=optionsBar.querySelector('.drawing-primary .option-shape');
+      if(!shape){
+        const leftBoundary=panel.left+parseFloat(getComputedStyle(optionsBar).paddingLeft||0);
+        place(stroke.querySelector(':scope > span'),leftBoundary,strokeButtons.left);
+      }
       place(line.querySelector('.line-style-current-label'),strokeButtons.right,lineButton.left);
     }
   }
