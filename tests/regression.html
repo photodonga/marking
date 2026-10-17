@@ -21,15 +21,27 @@ check('도구막대 존재',!!d.querySelector('#toolbar'));
 const c=d.createElement('canvas');c.width=960;c.height=640;const ctx=c.getContext('2d');ctx.fillStyle='#ccc';ctx.fillRect(0,0,960,640);
 const blob=await new Promise(r=>c.toBlob(r,'image/png'));const file=new File([blob],'regression.png',{type:'image/png'});
 const dt=new DataTransfer();dt.items.add(file);const input=d.querySelector('#fileInput');input.files=dt.files;input.dispatchEvent(new w.Event('change',{bubbles:true}));
-await sleep(650);
-const photo=d.querySelector('#view-canvas');check('사진 로드',photo.width>0&&photo.height>0,photo.width+'×'+photo.height);
+const photo=d.querySelector('#view-canvas');
+let loaded=false;
+for(let attempt=0;attempt<40;attempt++){
+  if(photo.width>0&&photo.height>0&&d.querySelector('#btn-circle')&&!d.querySelector('#btn-circle').disabled){loaded=true;break;}
+  await sleep(100);
+}
+check('사진 로드',loaded,photo.width+'×'+photo.height);
+if(!loaded)throw new Error('사진 로드 대기 4초 초과');
 d.querySelector('#btn-circle').click();await sleep(100);
 const panel=d.querySelector('#options-bar');
 check('도형 설정창 표시',!panel.classList.contains('hidden'));
 const shape=panel.querySelector('.option-shape');const buttons=[...shape.querySelectorAll('button')];
 const palette=()=>[...panel.querySelectorAll('.palette-swatch')].map(e=>rect(e).cx);
 const snapshot=()=>({p:rect(panel),colors:palette(),stroke:rect(panel.querySelector('.option-stroke>span')),shape:rect(shape)});
-buttons.find(b=>b.textContent.includes('원')).click();await sleep(80);const circle=snapshot();
+const circleButton=buttons.find(b=>b.textContent.includes('원'));
+if(!circleButton)throw new Error('원/타원 버튼 없음');
+circleButton.click();await sleep(80);const circle=snapshot();
+const beforeReselect=panel.querySelector('.option-shape');
+const selectedCircle=[...beforeReselect.querySelectorAll('button')].find(b=>b.textContent.includes('원'));
+selectedCircle.click();
+check('같은 도형 재선택 시 설정창 DOM 보존',panel.querySelector('.option-shape')===beforeReselect);
 buttons.length=0;buttons.push(...panel.querySelectorAll('.option-shape button'));buttons.find(b=>b.textContent.includes('네모')).click();await sleep(80);const square=snapshot();
 check('원·네모 색상 수 동일',circle.colors.length===square.colors.length);
 const drift=Math.max(0,...circle.colors.map((x,i)=>Math.abs(x-square.colors[i])));
