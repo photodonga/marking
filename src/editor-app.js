@@ -740,14 +740,8 @@
     }
   }
 
-  function effectBounds(eff){
-    const rs = eff.faceRects && eff.faceRects.length ? eff.faceRects : [eff.rect];
-    const x1=Math.min(...rs.map(r=>r.x)), y1=Math.min(...rs.map(r=>r.y));
-    const x2=Math.max(...rs.map(r=>r.x+r.w)), y2=Math.max(...rs.map(r=>r.y+r.h));
-    return {x:x1,y:y1,w:x2-x1,h:y2-y1};
-  }
-
-  function effectCenter(eff){ const b=effectBounds(eff);return {x:b.x+b.w/2,y:b.y+b.h/2}; }
+  const effectBounds=window.MarkingHelpers.effectBounds;
+  const effectCenter=window.MarkingHelpers.effectCenter;
   function effectRotatedPoint(eff,x,y){ return rotatePoint({x,y},effectCenter(eff),eff.rotation||0); }
 
   function effectClosePoint(eff){
@@ -2256,9 +2250,7 @@
   // 가림 결과 캐시: 블러/모자이크는 픽셀 연산이라 비싸므로, 효과의 위치·크기·설정이
   // 바뀌었을 때만 다시 계산한다. 화살표 이동이나 선택 변경 같은 일반 redraw에서는 재사용한다.
   const effectCache = new Map(); // effect id -> {key, result}
-  function effectCacheKey(eff){
-    return JSON.stringify([eff.rect, eff.faceRects, eff.autoFace, eff.shape, eff.mode, eff.rotation||0, eff.intensity, eff.feather, naturalW, naturalH]);
-  }
+  const effectCacheKey=eff=>window.MarkingHelpers.effectCacheKey(eff,naturalW,naturalH);
   function renderEffectObject(eff){
     const key = effectCacheKey(eff);
     const hit = effectCache.get(eff.id);
