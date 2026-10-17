@@ -1,0 +1,39 @@
+name: MARKING browser regression
+
+on:
+  push:
+    paths:
+      - 'test.html'
+      - 'tests/**'
+      - '.github/workflows/marking-regression.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  browser-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependencies
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Start local app server
+        run: |
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/marking-server.log 2>&1 &
+          echo $! > /tmp/marking-server.pid
+      - name: Run regression on all screen sizes
+        run: node tests/run-browser-regression.cjs
+      - name: Upload failure screenshots and reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: marking-browser-regression
+          path: test-results/
+          if-no-files-found: warn
