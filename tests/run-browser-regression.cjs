@@ -50,7 +50,7 @@ const path = require('node:path');
             save.click()
           ]);
           const name = download.suggestedFilename();
-          if (!/\\.(png|jpe?g)$/i.test(name)) throw new Error('Unexpected download: ' + name);
+          if (!/\.(png|jpe?g)$/i.test(name)) throw new Error('Unexpected download: ' + name);
           const target = path.join(outDir, name);
           await download.saveAs(target);
           if (fs.statSync(target).size < 1000) throw new Error('Downloaded image too small');
