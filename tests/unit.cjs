@@ -25,6 +25,19 @@ for (const mode of Object.keys(baseline)) {
   }
 }
 
+let state=h.pushHistoryEntry([], -1, [{id:1,rect:{x:1}}], [], 3);
+assert.equal(state.index,0);
+state=h.pushHistoryEntry(state.history,state.index,[{id:2}],[],3);
+state=h.pushHistoryEntry(state.history,state.index,[{id:3}],[],3);
+state=h.pushHistoryEntry(state.history,state.index,[{id:4}],[],3);
+assert.deepEqual(state.history.map(x=>x.objects[0].id),[2,3,4]);
+state=h.pushHistoryEntry(state.history,0,[{id:5}],[],3);
+assert.deepEqual(state.history.map(x=>x.objects[0].id),[2,5]);
+assert.equal(state.index,1);
+const snapshot=[{id:1,rect:{x:3}}];
+const saved=h.pushHistoryEntry([], -1,snapshot,[],3);
+snapshot[0].rect.x=99;
+assert.equal(saved.history[0].objects[0].rect.x,3);
 const eff={rect:{x:10,y:20,w:5,h:7},faceRects:[{x:2,y:3,w:4,h:6},{x:10,y:20,w:5,h:7}],mode:'blur',intensity:22,feather:82};
 assert.deepEqual(h.effectBounds(eff),{x:2,y:3,w:13,h:24});
 assert.deepEqual(h.effectCenter(eff),{x:8.5,y:15});
