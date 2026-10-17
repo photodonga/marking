@@ -1906,9 +1906,11 @@
   });
   const instruction=placeholder.querySelector(".ph-instruction");
   function syncPhotoInstruction(){
-    instruction.textContent=window.matchMedia("(max-width:640px)").matches
+    const nextText=window.matchMedia("(max-width:640px)").matches
       ? "클릭해서 추가하세요"
       : "클릭하거나 사진을 놓아주세요";
+    // Resizes within the same layout should not rewrite an unchanged text node.
+    if(instruction.textContent!==nextText) instruction.textContent=nextText;
   }
   syncPhotoInstruction();
   window.addEventListener("resize",syncPhotoInstruction);
