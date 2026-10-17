@@ -1622,6 +1622,7 @@
   <input accept="image/*" hidden id="fileInput" multiple type="file">
 </div>
 
+<script src="./src/editor-helpers.js"></script>
 <script>
 (function(){
   "use strict";
@@ -1746,7 +1747,7 @@
   };
 
   // ---------------- utils ----------------
-  function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+  const clamp = window.MarkingHelpers.clamp;
   function longSide(){ return Math.max(naturalW, naturalH); }
   function strokeWidthNatural(mult){ return longSide() * STROKE_RATIO * (mult||1); }
   function annotationStrokeNatural(o){ return o.strokePx != null ? o.strokePx/referenceFitScale : strokeWidthNatural(o.strokeMult); }
@@ -1787,7 +1788,7 @@
     // At least two blocks across even for tiny regions; no spill beyond the mask.
     return Math.max(1, base/Math.max(2,blocksAcross));
   }
-  function deepCloneObjects(arr){ return arr.map(o=>Object.assign({},o, o.rect ? {rect:Object.assign({},o.rect)} : {}, o.faceRects ? {faceRects:o.faceRects.map(r=>Object.assign({},r))} : {})); }
+  const deepCloneObjects = window.MarkingHelpers.deepCloneObjects;
   function genId(){ return nextObjId++; }
   function showToast(msg, ms){
     toastEl.textContent = msg;
