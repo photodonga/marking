@@ -2258,8 +2258,7 @@
     effectCache.set(eff.id, {key, result});
     // 삭제되었거나 되돌리기로 사라진 효과의 캐시는 정리한다.
     if(effectCache.size > effects.length + 4){
-      const alive = new Set(effects.map(e=>e.id));
-      for(const id of effectCache.keys()) if(!alive.has(id)) effectCache.delete(id);
+      window.MarkingHelpers.pruneEffectCache(effectCache,effects);
     }
     return result;
   }
