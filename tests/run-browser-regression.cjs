@@ -44,8 +44,10 @@ const path = require('node:path');
         if (await undo.isDisabled()) throw new Error('Drawing did not create undo history');
         await undo.click();
         if (await redo.isDisabled()) throw new Error('Undo did not enable redo');
+        if (!(await undo.isDisabled())) throw new Error('Undo did not return to initial history state');
         await redo.click();
         if (await undo.isDisabled()) throw new Error('Redo did not restore history');
+        if (!(await redo.isDisabled())) throw new Error('Redo did not return to newest history state');
         // Test actual export only on desktop to avoid mobile share-sheet behavior.
         if (width === 1280) {
           const save = app.locator('#btn-save');
