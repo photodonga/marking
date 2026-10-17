@@ -1982,7 +1982,21 @@
     vctx.setTransform(dpr,0,0,dpr,0,0);
     clampView(); applyViewTransform();
   }
-  window.addEventListener("resize", ()=>{ fitCanvas(); redraw(); });
+  // Coalesce bursts of desktop window resize events into a single frame.
+  let resizeCanvasFrame=0;
+  window.addEventListener("resize", ()=>{
+    if(resizeCanvasFrame) cancelAnimationFrame(resizeCanvasFrame);
+    resizeCanvasFrame=requestAnimationFrame(()=>{
+      resizeCanvasFrame=0;
+      if(!naturalW)return;
+      const width=workarea.clientWidth-24, height=workarea.clientHeight-24;
+      const nextScale=Math.min(1,width/naturalW,height/naturalH);
+      const nextW=Math.round(naturalW*nextScale),nextH=Math.round(naturalH*nextScale);
+      const dpr=window.devicePixelRatio||1;
+      if(nextW===dispW && nextH===dispH && viewCanvas.width===Math.round(nextW*dpr) && viewCanvas.height===Math.round(nextH*dpr))return;
+      fitCanvas();redraw();
+    });
+  });
 
   // ---------------- drawing helpers ----------------
   // Fit whole dash segments between the origin and the arrowhead clearance.
@@ -2987,7 +3001,9 @@
 
     decorateOptionIcons();
     arrangeMobileOptions();
-    if(mobileLayoutQuery.matches) requestAnimationFrame(alignMobileOptionLabels);
+    // Align synchronously before the browser paints the rebuilt option panel.
+    // This preserves measured final positions without a one-frame label jump.
+    if(mobileLayoutQuery.matches) alignMobileOptionLabels();
   }
 
   // Rebuild the option wrappers when orientation crosses the mobile/desktop breakpoint.
