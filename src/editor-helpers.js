@@ -23,7 +23,20 @@
     return {x:c.x+dx*cos-dy*sin,y:c.y+dx*sin+dy*cos};
   }
   function rectCenter(o){return {x:o.x+o.w/2,y:o.y+o.h/2};}
-  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter});
+  function normRect(a,b){
+    const x=Math.min(a.x,b.x),y=Math.min(a.y,b.y);
+    return {x,y,w:Math.abs(b.x-a.x),h:Math.abs(b.y-a.y)};
+  }
+  function arrowDashPattern(length,sw,headLen){
+    const available=Math.max(0,length-headLen*0.62-sw*1.5);
+    const preferred=Math.max(2,sw*2.2);
+    if(available<preferred*1.5)return null;
+    const count=Math.max(1,Math.round(available/(preferred*1.85)));
+    const dash=Math.min(preferred,available/count);
+    const gap=count>1?(available-count*dash)/(count-1):0;
+    return {available,count,dash,gap};
+  }
+  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter,normRect,arrowDashPattern});
   if(typeof module!=="undefined" && module.exports) module.exports=helpers;
   else root.MarkingHelpers=helpers;
 })(typeof globalThis!=="undefined" ? globalThis : this);
