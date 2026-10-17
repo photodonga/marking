@@ -55,7 +55,12 @@
     if(next.length>maxHistory)next.shift();
     return {history:next,index:next.length-1};
   }
-  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter,normRect,arrowDashPattern,effectBounds,effectCenter,effectCacheKey,pushHistoryEntry});
+  function pruneEffectCache(cache,effects){
+    const alive=new Set(effects.map(e=>e.id));
+    for(const id of cache.keys())if(!alive.has(id))cache.delete(id);
+    return cache;
+  }
+  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter,normRect,arrowDashPattern,effectBounds,effectCenter,effectCacheKey,pushHistoryEntry,pruneEffectCache});
   if(typeof module!=="undefined" && module.exports) module.exports=helpers;
   else root.MarkingHelpers=helpers;
 })(typeof globalThis!=="undefined" ? globalThis : this);
