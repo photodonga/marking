@@ -2911,7 +2911,18 @@
       if(activeTool==="circle"){
         const gs=document.createElement("div"); gs.className="opt-group option-shape";
         const segs=document.createElement("div"); segs.className="seg";
-        [["circle","원/타원"],["rect","네모"]].forEach(([k,n])=>{ const b=document.createElement("button"); b.textContent=n; b.className=shapeKind===k?"active":""; b.onclick=()=>{shapeKind=k;buildOptionsBar();}; segs.appendChild(b); });
+        [["circle","원/타원"],["rect","네모"]].forEach(([k,n])=>{ const b=document.createElement("button"); b.textContent=n; b.className=shapeKind===k?"active":""; b.onclick=()=>{
+          if(shapeKind===k)return;
+          shapeKind=k;
+          segs.querySelectorAll("button").forEach((button,i)=>button.classList.toggle("active",i===(k==="circle"?0:1)));
+          const lock=optionsBar.querySelector(".option-lock");
+          if(lock){
+            const checkbox=lock.querySelector('input[type="checkbox"]');
+            const label=lock.querySelector("span");
+            if(checkbox)checkbox.checked=k==="rect"?rectLocked:circleLocked;
+            if(label)label.textContent=k==="rect"?"정사각형 유지":"정원 유지";
+          }
+        }; segs.appendChild(b); });
         gs.appendChild(segs); optionsBar.appendChild(gs);
       }
 
@@ -2937,7 +2948,7 @@
         const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
         const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=shapeKind==="rect"?rectLocked:circleLocked;
         lockCheck.onchange=()=>{ if(shapeKind==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
-        const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지";
+        const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지"; lockText.style.minWidth="7em";
         gl.appendChild(lockCheck); gl.appendChild(lockText);
         optionsBar.appendChild(gl);
       }
