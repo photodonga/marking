@@ -1340,22 +1340,22 @@
 
 @media(max-width:640px){
 #options-bar[data-layout="effect"]:not(.hidden){box-sizing:border-box;width:min(350px,calc(100vw - 16px));max-width:calc(100vw - 16px);padding:7px 8px;gap:3px;overflow-x:hidden;align-items:stretch}
-/* Mobile effect panel: one 264px coordinate system for top toggles and slider values. */
+/* Mobile effect panel: 232px shared alignment; fluid sliders fill the space. */
 #options-bar[data-layout="effect"]:not(.hidden){
-  box-sizing:border-box;width:284px!important;max-width:calc(100vw - 16px);
-  padding:7px 10px!important;overflow:visible!important;
+  box-sizing:border-box;width:256px!important;max-width:calc(100vw - 16px);
+  padding:7px 12px!important;overflow:visible!important;
 }
 #options-bar[data-layout="effect"] .effect-unified-grid{
-  display:grid!important;grid-template-columns:64px 120px 64px!important;
-  grid-template-rows:40px 30px 30px;column-gap:8px;row-gap:4px;
-  width:264px!important;min-width:264px;max-width:264px!important;
+  display:grid!important;grid-template-columns:28px minmax(0,1fr) 26px!important;
+  grid-template-rows:40px 30px 30px;column-gap:8px;row-gap:6px;
+  width:232px!important;min-width:232px;max-width:232px!important;
   align-items:center;justify-content:start!important;
 }
 #options-bar[data-layout="effect"] .effect-controls{
   grid-column:1 / -1!important;display:grid!important;
-  grid-template-columns:64px 76px 32px 80px!important;
-  column-gap:4px!important;width:264px!important;min-width:264px!important;
-  max-width:264px!important;align-items:center;justify-content:start!important;
+  grid-template-columns:28px 76px 28px 80px!important;
+  column-gap:6px!important;width:232px!important;min-width:232px!important;
+  max-width:232px!important;align-items:center;justify-content:start!important;
 }
 #options-bar[data-layout="effect"] .effect-current-label{
   display:block;min-width:0;font-size:11px;line-height:1.2;
@@ -1387,14 +1387,14 @@
 }
 #options-bar[data-layout="effect"] .effect-slider-value{
   display:block!important;box-sizing:border-box;
-  width:64px!important;min-width:64px!important;
+  width:26px!important;min-width:26px!important;
   margin:0!important;padding:0!important;
   justify-self:end!important;text-align:right!important;
   font-size:12px;color:#f0f0f4;font-variant-numeric:tabular-nums;
 }
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider{
   display:block!important;box-sizing:border-box;
-  width:120px!important;min-width:120px!important;max-width:120px!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
   margin:0!important;padding:0!important;flex:none!important;
 }
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>.effect-value-label{
@@ -1402,7 +1402,7 @@
 }
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>input[type="range"]{
   display:block!important;box-sizing:border-box;
-  width:120px!important;min-width:120px!important;max-width:120px!important;
+  width:100%!important;min-width:0!important;max-width:100%!important;
   height:24px;min-height:24px;margin:0!important;
   -webkit-appearance:none;appearance:none;background:transparent;
   accent-color:#1677ff;touch-action:pan-x;
@@ -2607,10 +2607,10 @@
     if(isEffect && nodes.length===4){
       const modeLabel=document.createElement("span");
       modeLabel.className="effect-current-label effect-mode-label";
-      modeLabel.textContent=blurMode==="mosaic"?"모자이크":"블러";
+      modeLabel.textContent="가림";
       const targetLabel=document.createElement("span");
       targetLabel.className="effect-current-label effect-target-label";
-      targetLabel.textContent=blurShape==="face"?"얼굴":"일반";
+      targetLabel.textContent="얼굴";
       const controls=document.createElement("div");
       controls.className="effect-controls";
       controls.append(modeLabel,nodes[0],targetLabel,nodes[3]);
