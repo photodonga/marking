@@ -1437,6 +1437,24 @@
 #toolbar .line-tool-chevron[aria-expanded="true"]{background:rgba(32,40,58,.10);box-shadow:none}
 }
 @media(prefers-reduced-motion:no-preference){#btn-pick-photo{transition:box-shadow .16s ease,transform .16s ease,background-color .16s ease}#btn-pick-photo:active,#btn-pick-photo.picker-pressed{transform:scale(.96);box-shadow:0 0 0 12px rgba(22,119,255,.12),0 0 0 2px rgba(22,119,255,.48)}}
+
+  /* MARKING test-only mobile alignment patch 2026-10-17 */
+  @media (max-width:640px){
+    #toolbar .tool-btn .glyph,
+    #toolbar .icon-btn svg,
+    #toolbar .line-tool-chevron svg{
+      position:relative;left:auto;top:auto;transform:none;
+      margin-inline:auto;flex-shrink:0;
+    }
+    #toolbar .tool-btn,#toolbar .icon-btn,
+    #toolbar .line-tool-chevron,#options-bar button{
+      -webkit-user-select:none;user-select:none;
+      -webkit-tap-highlight-color:transparent;
+      touch-action:manipulation;
+    }
+    #toolbar .tool-btn .glyph{pointer-events:none;}
+    #toolbar .line-tool-chevron svg{pointer-events:none;}
+  }
 </style>
 </head>
 <body>
