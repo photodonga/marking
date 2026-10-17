@@ -1276,6 +1276,41 @@
       }
       #options-bar[data-layout="drawing"] .drawing-secondary{flex-wrap:wrap;}
     }
+    /* Fix iOS intrinsic-size overflow: allocate real width to both range controls. */
+    #options-bar[data-layout="effect"]:not(.hidden){
+      width:min(304px,calc(100vw - 20px));
+      max-width:calc(100vw - 20px);
+      padding:10px 12px;
+      align-items:stretch;
+    }
+    #options-bar[data-layout="effect"] .effect-primary{
+      width:100%;justify-content:center;
+    }
+    #options-bar[data-layout="effect"] .effect-intensity-row,
+    #options-bar[data-layout="effect"] .effect-feather-row{
+      width:100%;max-width:100%;min-width:0;
+      display:block;
+    }
+    #options-bar[data-layout="effect"] .effect-intensity-row>.option-slider,
+    #options-bar[data-layout="effect"] .effect-feather-row>.option-slider{
+      display:grid!important;
+      grid-template-columns:68px minmax(0,1fr)!important;
+      grid-template-rows:44px!important;
+      align-items:center;gap:8px;
+      width:100%!important;max-width:100%!important;min-width:0!important;
+      margin:0;padding:0;flex:none!important;
+    }
+    #options-bar[data-layout="effect"] .effect-intensity-row .effect-value-label,
+    #options-bar[data-layout="effect"] .effect-feather-row .effect-value-label{
+      display:block;min-width:0;width:auto;flex:none;white-space:nowrap;
+    }
+    #options-bar[data-layout="effect"] .effect-intensity-row input[type="range"],
+    #options-bar[data-layout="effect"] .effect-feather-row input[type="range"]{
+      display:block!important;width:100%!important;min-width:0!important;
+      max-width:100%!important;flex:none!important;
+      margin:0;justify-self:stretch;
+      accent-color:#1677ff;touch-action:pan-x;
+    }
   }
 </style>
 </head>
