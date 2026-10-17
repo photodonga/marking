@@ -49,7 +49,13 @@
   function effectCacheKey(eff,naturalW,naturalH){
     return JSON.stringify([eff.rect,eff.faceRects,eff.autoFace,eff.shape,eff.mode,eff.rotation||0,eff.intensity,eff.feather,naturalW,naturalH]);
   }
-  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter,normRect,arrowDashPattern,effectBounds,effectCenter,effectCacheKey});
+  function pushHistoryEntry(history,index,objects,effects,maxHistory){
+    const next=history.slice(0,index+1);
+    next.push({objects:deepCloneObjects(objects),effects:deepCloneObjects(effects)});
+    if(next.length>maxHistory)next.shift();
+    return {history:next,index:next.length-1};
+  }
+  const helpers=Object.freeze({clamp,deepCloneObjects,effectSliderToValue,effectValueToSlider,rotatePoint,rectCenter,normRect,arrowDashPattern,effectBounds,effectCenter,effectCacheKey,pushHistoryEntry});
   if(typeof module!=="undefined" && module.exports) module.exports=helpers;
   else root.MarkingHelpers=helpers;
 })(typeof globalThis!=="undefined" ? globalThis : this);
