@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MARKING 회귀 검사</title>
-<style>body{font:14px system-ui;background:#16181d;color:#eee;margin:16px}button{padding:10px 16px;border-radius:8px}iframe{width:390px;max-width:100%;height:70vh;border:1px solid #777;border-radius:10px}pre{white-space:pre-wrap;background:#222;padding:12px;border-radius:8px}.pass{color:#7fe2a0}.fail{color:#ff9a9a}</style></head>
+<style>body{font:14px system-ui;background:#16181d;color:#eee;margin:16px}button{padding:10px 16px;border-radius:8px}iframe{width:390px;max-width:100%;height:70vh;border:1px solid #777;border-radius:10px}pre{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;background:#222;padding:12px;border-radius:8px}.pass{color:#7fe2a0}.fail{color:#ff9a9a}</style></head>
 <body><h2>MARKING 자동 회귀 검사</h2><p>검사 대상은 정식 버전이 아닌 <code>test.html</code>입니다. 실제 화면 크기에서 실행되며 사진은 임시 생성됩니다.</p>
 <label for="viewport">검사 화면: </label><select id="viewport"><option value="390">모바일 390px</option><option value="375">모바일 375px</option><option value="320">모바일 320px</option><option value="1280">PC 1280px</option></select> <button id="run">검사 다시 실행</button><pre id="report">준비 중…</pre><iframe id="app" title="MARKING 테스트"></iframe>
 <script>
@@ -24,14 +24,16 @@ const dt=new DataTransfer();dt.items.add(file);const input=d.querySelector('#fil
 const photo=d.querySelector('#view-canvas');
 let loaded=false;
 for(let attempt=0;attempt<40;attempt++){
-  if(photo.width>0&&photo.height>0&&d.querySelector('#btn-circle')&&!d.querySelector('#btn-circle').disabled){loaded=true;break;}
+  if(photo.classList.contains('ready')&&d.querySelector('#btn-save')?.disabled===false){loaded=true;break;}
   await sleep(100);
 }
-check('사진 로드',loaded,photo.width+'×'+photo.height);
+check('사진 로드',loaded,photo.width+'×'+photo.height+' / ready='+photo.classList.contains('ready'));
 if(!loaded)throw new Error('사진 로드 대기 4초 초과');
-d.querySelector('#btn-circle').click();await sleep(100);
+const circleTool=d.querySelector('#btn-circle');circleTool.click();await sleep(100);
+check('도형 도구 활성화',circleTool.classList.contains('active'),'class='+circleTool.className);
 const panel=d.querySelector('#options-bar');
-check('도형 설정창 표시',!panel.classList.contains('hidden'));
+check('도형 설정창 표시',!panel.classList.contains('hidden')&&!!panel.querySelector('.option-shape'),'layout='+panel.dataset.layout+', hidden='+panel.classList.contains('hidden'));
+if(!panel.querySelector('.option-shape'))throw new Error('도형 설정창 없음: layout='+panel.dataset.layout);
 const shape=panel.querySelector('.option-shape');const buttons=[...shape.querySelectorAll('button')];
 const palette=()=>[...panel.querySelectorAll('.palette-swatch')].map(e=>rect(e).cx);
 const snapshot=()=>({p:rect(panel),colors:palette(),stroke:rect(panel.querySelector('.option-stroke>span')),shape:rect(shape)});
