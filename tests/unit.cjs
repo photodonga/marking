@@ -2,6 +2,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const h = require('../src/editor-helpers.js');
+const canvas = require('../src/editor-canvas.js');
 
 assert.equal(h.clamp(-1, 0, 100), 0);
 assert.equal(h.clamp(120, 0, 100), 100);
@@ -54,7 +55,18 @@ assert.deepEqual(h.rectCenter({ x: 10, y: 20, w: 30, h: 40 }), { x: 25, y: 40 })
 const rotated = h.rotatePoint({ x: 2, y: 0 }, { x: 0, y: 0 }, Math.PI / 2);
 assert.ok(Math.abs(rotated.x) < 1e-9 && Math.abs(rotated.y - 2) < 1e-9);
 
-for (const name of ['src/editor-helpers.js', 'src/editor-app.js']) {
+const calls=[];
+const fake={clearRect:(...a)=>calls.push(['clearRect',...a]),drawImage:(...a)=>calls.push(['drawImage',...a])};
+const raster={};
+canvas.drawBase(fake,raster,960,640,480,320);
+assert.deepEqual(calls,[['clearRect',0,0,480,320],['drawImage',raster,0,0,960,640,0,0,480,320]]);
+calls.length=0;
+canvas.drawEffectLayer(fake,null,0.5);
+assert.equal(calls.length,0);
+const overlay={width:20,height:30};
+canvas.drawEffectLayer(fake,{canvas:overlay,sx:10,sy:20},0.5);
+assert.deepEqual(calls,[['drawImage',overlay,0,0,20,30,5,10,10,15]]);
+for (const name of ['src/editor-helpers.js', 'src/editor-canvas.js', 'src/editor-app.js']) {
   new vm.Script(fs.readFileSync(name, 'utf8'), { filename: name });
 }
 const html = fs.readFileSync('test.html', 'utf8');
