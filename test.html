@@ -2808,6 +2808,39 @@
   }
   }
 
+  // Test-only: center labels in the ACTUAL visible gaps without changing button layout.
+  function alignMobileOptionLabels(){
+    if(!mobileLayoutQuery.matches || optionsBar.classList.contains("hidden"))return;
+    const panel=optionsBar.getBoundingClientRect();
+    const place=(label,leftEdge,rightEdge)=>{
+      if(!label||!Number.isFinite(leftEdge)||!Number.isFinite(rightEdge)||rightEdge<=leftEdge)return;
+      label.style.transform='none';
+      const labelRect=label.getBoundingClientRect();
+      const target=(leftEdge+rightEdge)/2;
+      const current=labelRect.left+labelRect.width/2;
+      label.style.transform='translateX('+(target-current)+'px)';
+    };
+    if(optionsBar.dataset.layout==='effect'){
+      const controls=optionsBar.querySelector('.effect-controls');
+      const groups=controls?.querySelectorAll(':scope > .opt-group');
+      if(!groups||groups.length!==2)return;
+      const a=groups[0].getBoundingClientRect(),b=groups[1].getBoundingClientRect();
+      const leftBoundary=panel.left+parseFloat(getComputedStyle(optionsBar).paddingLeft||0);
+      place(controls.querySelector('.effect-mode-label'),leftBoundary,a.left);
+      place(controls.querySelector('.effect-target-label'),a.right,b.left);
+    }else if(optionsBar.dataset.layout==='drawing'){
+      const stroke=optionsBar.querySelector('.drawing-primary .option-stroke');
+      const line=optionsBar.querySelector('.drawing-primary .option-line-style');
+      if(!stroke||!line)return;
+      const strokeButtons=stroke.querySelector('.seg')?.getBoundingClientRect();
+      const lineButton=line.querySelector('.seg')?.getBoundingClientRect();
+      if(!strokeButtons||!lineButton)return;
+      const leftBoundary=panel.left+parseFloat(getComputedStyle(optionsBar).paddingLeft||0);
+      place(stroke.querySelector(':scope > span'),leftBoundary,strokeButtons.left);
+      place(line.querySelector('.line-style-current-label'),strokeButtons.right,lineButton.left);
+    }
+  }
+
   function buildOptionsBar(){
     optionsBar.innerHTML = "";
     // 모바일 패널은 기존 컨트롤을 재사용하면서 도구별 공통 그리드만 적용한다.
@@ -2954,6 +2987,7 @@
 
     decorateOptionIcons();
     arrangeMobileOptions();
+    if(mobileLayoutQuery.matches) requestAnimationFrame(alignMobileOptionLabels);
   }
 
   // Rebuild the option wrappers when orientation crosses the mobile/desktop breakpoint.
