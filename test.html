@@ -1490,9 +1490,9 @@
       box-shadow:0 8px 20px rgba(0,0,0,.28)!important;
     }
     .line-tool-menu button,.save-format-menu button{
-      height:34px!important;min-height:34px!important;
+      height:30px!important;min-height:30px!important;
       border-radius:8px!important;
-      padding:3px 6px!important;
+      padding:2px 5px!important;
     }
     .line-tool-menu button{grid-template-columns:15px minmax(0,1fr) 12px!important;}
     .save-format-menu button{grid-template-columns:minmax(0,1fr) 12px!important;}
@@ -2524,7 +2524,7 @@
     const mobile=window.matchMedia("(max-width:640px)").matches;
     const trigger=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
     const rect=trigger.getBoundingClientRect();
-    menu.style.width=mobile?(menu===lineToolMenu?'116px':'80px'):(menu===lineToolMenu?'96px':'62px');
+    menu.style.width=mobile?(menu===lineToolMenu?'106px':'72px'):(menu===lineToolMenu?'96px':'62px');
     menu.style.height='auto';
     menu.style.left='0px';
     menu.style.top='0px';
