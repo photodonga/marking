@@ -1315,15 +1315,16 @@
 
 @media(max-width:640px){
 #options-bar[data-layout="effect"]:not(.hidden){box-sizing:border-box;width:min(350px,calc(100vw - 16px));max-width:calc(100vw - 16px);padding:7px 8px;gap:3px;overflow-x:hidden;align-items:stretch}
-#options-bar[data-layout="effect"] .effect-unified-grid{display:grid;grid-template-columns:60px minmax(0,1fr);grid-template-rows:40px 28px 28px;gap:3px 8px;width:100%;min-width:0;align-items:center}
-#options-bar[data-layout="effect"] .effect-current-label{font-size:10px;white-space:nowrap;color:#c7c7d0}
-#options-bar[data-layout="effect"] .effect-controls{display:grid;grid-template-columns:minmax(0,1fr) 28px minmax(0,1fr);align-items:center;gap:3px;min-width:0;width:100%}
+#options-bar[data-layout="effect"] .effect-unified-grid{display:grid;grid-template-columns:60px minmax(0,1fr) 28px;grid-template-rows:40px 30px 30px;gap:4px 8px;width:100%;min-width:0;align-items:center}
+#options-bar[data-layout="effect"] .effect-controls{grid-column:1/-1;display:grid;grid-template-columns:72px minmax(0,1fr) 36px minmax(0,1fr);align-items:center;gap:4px;min-width:0;width:100%}
+#options-bar[data-layout="effect"] .effect-current-label{display:block;min-width:0;font-size:11px;line-height:1.2;white-space:nowrap;color:#d5d3db}
 #options-bar[data-layout="effect"] .effect-controls>.opt-group{min-width:0;width:100%;padding:0;margin:0;flex:initial}
 #options-bar[data-layout="effect"] .effect-controls .seg{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;padding:2px;width:100%;min-width:0}
-#options-bar[data-layout="effect"] .effect-controls .seg button{box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%!important;min-width:0!important;flex:initial!important;height:36px;min-height:36px;padding:3px!important;font-size:0!important;line-height:0;gap:0}
+#options-bar[data-layout="effect"] .effect-controls .seg button{box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%!important;min-width:0!important;flex:initial!important;height:36px;min-height:36px;padding:2px!important;font-size:0!important;line-height:0;gap:0}
 #options-bar[data-layout="effect"] .effect-controls .seg button::before,#options-bar[data-layout="effect"] .effect-controls .seg button::after{content:none!important}
-#options-bar[data-layout="effect"] .effect-controls .option-vector-icon{display:block;width:22px;height:22px;flex:0 0 22px;margin:0}
-#options-bar[data-layout="effect"] .effect-unified-grid>.effect-value-label{display:block;width:auto;min-width:0;font-size:11px;white-space:nowrap;color:#d6d7dc}
+#options-bar[data-layout="effect"] .effect-controls .option-vector-icon{display:block;width:19px;height:19px;flex:0 0 19px;margin:0}
+#options-bar[data-layout="effect"] .effect-slider-name{font-size:12px;color:#d6d7dc;white-space:nowrap}
+#options-bar[data-layout="effect"] .effect-slider-value{font-size:12px;color:#f0f0f4;text-align:right;font-variant-numeric:tabular-nums}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;margin:0!important;padding:0!important;flex:none!important}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>.effect-value-label{display:none!important}
 #options-bar[data-layout="effect"] .effect-unified-grid>.option-slider>input[type="range"]{display:block!important;box-sizing:border-box;width:100%!important;min-width:0!important;max-width:100%!important;height:28px;min-height:28px;margin:0!important;accent-color:#1677ff;touch-action:pan-x}
@@ -2482,23 +2483,32 @@
     const row2=createOptionRow(isEffect?"effect-sliders":"drawing-secondary");
     if(isEffect && nodes.length===4){
       const modeLabel=document.createElement("span");
-      modeLabel.className="effect-current-label";
+      modeLabel.className="effect-current-label effect-mode-label";
       modeLabel.textContent=blurMode==="mosaic"?"모자이크":"블러";
       const targetLabel=document.createElement("span");
-      targetLabel.className="effect-current-label";
+      targetLabel.className="effect-current-label effect-target-label";
       targetLabel.textContent=blurShape==="face"?"얼굴":"일반";
       const controls=document.createElement("div");
       controls.className="effect-controls";
-      controls.append(nodes[0],targetLabel,nodes[3]);
+      controls.append(modeLabel,nodes[0],targetLabel,nodes[3]);
       const grid=document.createElement("div");
       grid.className="effect-unified-grid";
-      const intensityLabel=nodes[1].querySelector(".effect-value-label");
-      const featherLabel=nodes[2].querySelector(".effect-value-label");
-      grid.append(modeLabel,controls);
-      for(const [group,label] of [[nodes[1],intensityLabel],[nodes[2],featherLabel]]){
-        const display=label.cloneNode(true);
-        group.querySelector("input").addEventListener("input",()=>{display.textContent=label.textContent;});
-        grid.append(display,group);
+      grid.append(controls);
+      for(const [group,name] of [[nodes[1],"강도"],[nodes[2],"페더"]]){
+        const sourceLabel=group.querySelector(".effect-value-label");
+        const label=document.createElement("span");
+        label.className="effect-slider-name";
+        label.textContent=name;
+        const value=document.createElement("span");
+        value.className="effect-slider-value";
+        const updateValue=()=>{
+          const match=(sourceLabel?.textContent||"").match(/(\\d+)\\s*$/);
+          value.textContent=match?match[1]:String(group.querySelector('input[type="range"]')?.value??50);
+        };
+        const range=group.querySelector('input[type="range"]');
+        if(range)range.addEventListener("input",()=>requestAnimationFrame(updateValue));
+        updateValue();
+        grid.append(label,group,value);
       }
       optionsBar.append(grid);
     } else if(isDrawing){
