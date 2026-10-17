@@ -651,16 +651,12 @@
 
   function doRedraw(){
     if(!naturalW) return;
-    vctx.clearRect(0,0,dispW,dispH);
-    vctx.drawImage(rasterCanvas, 0,0,naturalW,naturalH, 0,0,dispW,dispH);
+    window.MarkingCanvas.drawBase(vctx,rasterCanvas,naturalW,naturalH,dispW,dispH);
 
     // 저장 전까지 가림 효과는 원본에 합치지 않고 비파괴 객체로 렌더링한다.
     effects.forEach(eff=>{
       const rendered = renderEffectObject(eff);
-      if(rendered && rendered.canvas){
-        vctx.drawImage(rendered.canvas, 0,0,rendered.canvas.width,rendered.canvas.height,
-          rendered.sx*scale, rendered.sy*scale, rendered.canvas.width*scale, rendered.canvas.height*scale);
-      }
+      window.MarkingCanvas.drawEffectLayer(vctx,rendered,scale);
       // 저장하기 전에는 만들어 둔 모든 가림 영역의 경계를 계속 표시한다.
       // 선택된 영역만 X 버튼을 보여 주고, 나머지는 점선 가이드만 남긴다.
       if(eff.id===selectedId) drawEffectSelection(vctx, eff);
