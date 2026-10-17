@@ -34,6 +34,17 @@ jobs:
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/marking-server.log 2>&1 &
           echo $! > /tmp/marking-server.pid
+      - name: Wait for local app server
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8765/test.html; then
+              echo "Local app server ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/marking-server.log
+          exit 1
       - name: Run regression on all screen sizes
         run: node tests/run-browser-regression.cjs
       - name: Upload failure screenshots and reports
