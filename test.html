@@ -1654,16 +1654,8 @@
   // 편집 UI의 중앙(50)은 실제 이미지 처리값과 별개로, 현장용 기준 강도를 뜻한다.
   // 효과 데이터에는 기존과 동일한 0~100 실제 강도/페더를 저장한다.
   const EFFECT_BASELINE = {blur:{intensity:22,feather:82},mosaic:{intensity:58,feather:87}};
-  function effectSliderToValue(position, mode, key){
-    const mid=EFFECT_BASELINE[mode][key];
-    const p=Math.max(0,Math.min(100,Number(position)));
-    return p<=50 ? p*mid/50 : mid+(p-50)*(100-mid)/50;
-  }
-  function effectValueToSlider(value, mode, key){
-    const mid=EFFECT_BASELINE[mode][key];
-    const v=Math.max(0,Math.min(100,Number(value)));
-    return v<=mid ? v*50/mid : 50+(v-mid)*50/(100-mid);
-  }
+  const effectSliderToValue=(position,mode,key)=>window.MarkingHelpers.effectSliderToValue(position,mode,key,EFFECT_BASELINE);
+  const effectValueToSlider=(value,mode,key)=>window.MarkingHelpers.effectValueToSlider(value,mode,key,EFFECT_BASELINE);
   let intensity = EFFECT_BASELINE.blur.intensity;
   let feather = EFFECT_BASELINE.blur.feather;
   let strokeMultCurrent = 1; // legacy compatibility
@@ -2074,12 +2066,8 @@
     return {x:Math.min(o.x1,o.x2), y:Math.min(o.y1,o.y2), w:Math.abs(o.x2-o.x1), h:Math.abs(o.y2-o.y1)};
   }
 
-  function rotatePoint(p, c, angle){
-    const cos=Math.cos(angle||0), sin=Math.sin(angle||0);
-    const dx=p.x-c.x, dy=p.y-c.y;
-    return {x:c.x+dx*cos-dy*sin, y:c.y+dx*sin+dy*cos};
-  }
-  function rectCenter(o){ return {x:o.x+o.w/2,y:o.y+o.h/2}; }
+  const rotatePoint=window.MarkingHelpers.rotatePoint;
+  const rectCenter=window.MarkingHelpers.rectCenter;
   function rectCornerNatural(o,k){
     const c=rectCenter(o), sx=k.includes("e")?1:-1, sy=k.includes("s")?1:-1;
     return rotatePoint({x:c.x+sx*o.w/2,y:c.y+sy*o.h/2},c,o.rotation||0);
