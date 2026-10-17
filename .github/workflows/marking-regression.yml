@@ -29,7 +29,7 @@ jobs:
       - name: Install browser test dependencies
         run: |
           npm install --no-save playwright@1.56.1
-          npx playwright install --with-deps chromium
+          npx playwright install --with-deps chromium webkit
       - name: Start local app server
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/marking-server.log 2>&1 &
@@ -45,7 +45,12 @@ jobs:
           done
           cat /tmp/marking-server.log
           exit 1
-      - name: Run regression on all screen sizes
+      - name: Run Chromium regression on all screen sizes
+        run: node tests/run-browser-regression.cjs
+      - name: Run WebKit regression on all screen sizes
+        if: always()
+        env:
+          MARKING_BROWSER: webkit
         run: node tests/run-browser-regression.cjs
       - name: Upload failure screenshots and reports
         if: always()
