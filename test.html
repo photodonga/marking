@@ -787,6 +787,7 @@
     #toolbar .save-group .save-chevron{position:absolute;top:50%;right:7px;width:12px;height:12px;transform:translateY(-50%);pointer-events:none;}
     #toolbar .save-group .save-format-wrap::before{content:'';position:absolute;left:0;top:8px;height:24px;border-left:1px solid rgba(255,255,255,.36);}
     #options-bar:not(.hidden){position:static;transform:none;display:flex;flex-direction:row;flex-wrap:nowrap;align-items:center;justify-content:center;gap:7px;width:max-content;max-width:calc(100vw - 20px);min-height:0;height:auto;margin:0 auto;padding:8px 11px;border-radius:15px;overflow-x:auto;overflow-y:hidden;font-size:12px;}
+    #options-bar .option-row{display:contents;}
     #options-bar .opt-group{gap:4px;min-height:34px;}
     #options-bar .seg{gap:2px;padding:2px;}
     #options-bar .seg button{min-height:34px;padding:6px 10px;font-size:12px;}
@@ -854,6 +855,7 @@
       gap:5px;padding:7px 8px;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;
       border-radius:15px;font-size:11px;touch-action:pan-y;box-shadow:0 8px 24px rgba(0,0,0,.18);
     }
+    #options-bar.hidden{display:none;}
     #options-bar.mobile-menu-suspended{display:none;}
     #options-bar .option-row{display:flex;align-items:center;justify-content:space-between;box-sizing:border-box;width:100%;min-width:0;gap:clamp(3px,1.4vw,7px);}
     #options-bar .opt-group{display:flex;align-items:center;justify-content:center;box-sizing:border-box;min-width:0;min-height:34px;margin:0;gap:4px;white-space:nowrap;}
@@ -1253,6 +1255,7 @@
     #options-bar[data-layout="drawing"] .drawing-primary,
     #options-bar[data-layout="drawing"] .drawing-secondary{flex-wrap:nowrap;}
     #options-bar[data-layout="drawing"] .drawing-primary .opt-group{flex:0 0 auto;}
+    #options-bar[data-layout="drawing"] .drawing-primary .option-stroke{flex:0 1 auto;}
     #options-bar[data-layout="drawing"] .drawing-primary .option-stroke>span{font-size:11px;color:#d6d7dc;}
     #options-bar:is([data-layout="drawing"],[data-layout="effect"]) .seg{
       background:rgba(255,255,255,.10);border-color:rgba(255,255,255,.06);
@@ -1491,7 +1494,8 @@
       border-radius:8px!important;
       padding:2px 5px!important;
     }
-    /* Column templates are already defined in the earlier mobile menu rules. */
+    .line-tool-menu button{grid-template-columns:15px minmax(0,1fr) 12px!important;}
+    .save-format-menu button{grid-template-columns:minmax(0,1fr) 12px!important;}
     .line-tool-menu::after,.save-format-menu::after{
       content:'';position:absolute;top:100%;left:var(--bubble-tail-x,50%);
       width:9px;height:9px;box-sizing:border-box;
@@ -1531,16 +1535,6 @@
     position:static!important;left:auto!important;right:auto!important;
     transform:none!important;margin:0!important;padding:0!important;
     width:100%!important;text-align:left!important;justify-self:start!important;
-  }
-}
-
-/* Keep the circle/rectangle lock label's footprint constant.
-   Otherwise the shorter '정원 유지' text recenters the whole color row. */
-@media(max-width:640px){
-  #options-bar[data-layout="drawing"] .drawing-secondary .option-lock>span{
-    display:inline-block;
-    min-width:7.2em;
-    white-space:nowrap;
   }
 }
 
