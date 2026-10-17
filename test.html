@@ -1538,6 +1538,16 @@
   }
 }
 
+/* Keep the circle/rectangle lock label's footprint constant.
+   Otherwise the shorter '정원 유지' text recenters the whole color row. */
+@media(max-width:640px){
+  #options-bar[data-layout="drawing"] .drawing-secondary .option-lock>span{
+    display:inline-block;
+    min-width:7.2em;
+    white-space:nowrap;
+  }
+}
+
 /* test-only: center face label in existing gap without moving buttons */
 @media(max-width:640px){
   #options-bar[data-layout="effect"] .effect-controls{
