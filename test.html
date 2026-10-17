@@ -972,33 +972,37 @@
   .line-tool-menu button:hover,.save-format-menu button:hover{background:rgba(75,126,205,.45);}
   .line-tool-menu svg{flex:0 0 15px;width:15px;height:15px;}
   .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:auto;color:inherit;}
-  /* Mobile popup checks: one fixed right-hand column per menu. */
+  /* Mobile dropdowns: reserve the same 12px check column at the right edge. */
   @media(max-width:640px){
     .line-tool-menu,.save-format-menu{
-      box-sizing:border-box;
-      padding:4px;
+      box-sizing:border-box;padding:4px;
     }
     .line-tool-menu{width:126px;}
     .save-format-menu{width:86px;}
     .line-tool-menu button,.save-format-menu button{
-      box-sizing:border-box;
-      display:flex;
-      align-items:center;
-      justify-content:flex-start;
-      width:100%;
-      min-width:0;
-      gap:3px;
-      padding:3px 6px;
+      box-sizing:border-box;display:grid!important;
+      grid-template-columns:minmax(0,1fr) 12px!important;
+      align-items:center;column-gap:3px;
+      width:100%!important;min-width:0;
+      padding:3px 6px!important;
+    }
+    .line-tool-menu button{
+      grid-template-columns:15px minmax(0,1fr) 12px!important;
+    }
+    .line-tool-menu button>svg{grid-column:1;}
+    .line-tool-menu button>span:not(.line-menu-check){grid-column:2;min-width:0;}
+    .line-tool-menu .line-menu-check{
+      grid-column:3;
+    }
+    .save-format-menu button span{
+      grid-column:2;
     }
     .line-tool-menu .line-menu-check,.save-format-menu button span{
-      box-sizing:border-box;
-      flex:0 0 12px;
-      width:12px;
-      min-width:12px;
-      margin-left:auto!important;
-      text-align:center;
+      box-sizing:border-box;display:block!important;
+      width:12px!important;min-width:12px!important;
+      margin:0!important;text-align:center;
+      justify-self:center;line-height:1;
     }
-    .line-tool-menu button>span:not(.line-menu-check){min-width:0;}
   }
   @keyframes markingPopoverIn{
     from{opacity:0;transform:translateY(4px) scale(.98)}
