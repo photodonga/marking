@@ -972,6 +972,17 @@
   .line-tool-menu button:hover,.save-format-menu button:hover{background:rgba(75,126,205,.45);}
   .line-tool-menu svg{flex:0 0 15px;width:15px;height:15px;}
   .line-tool-menu .line-menu-check,.save-format-menu button span{margin-left:auto;color:inherit;}
+  /* Mobile: content-hugging popup rows; check stays immediately after text. */
+  @media(max-width:640px){
+    .line-tool-menu,.save-format-menu{width:max-content;padding:4px;}
+    .line-tool-menu button,.save-format-menu button{
+      width:max-content;min-width:0;justify-content:flex-start;
+      gap:4px;padding:3px 6px;
+    }
+    .line-tool-menu .line-menu-check,.save-format-menu button span{
+      margin-left:0!important;flex:0 0 12px;width:12px;min-width:12px;
+    }
+  }
   /* Both dropdowns: identical right-side check alignment, reduced text/check gap. */
   .line-tool-menu button,.save-format-menu button{
     padding-left:5px;padding-right:5px;gap:3px;
@@ -2369,12 +2380,26 @@
   function positionReplacementMenu(menu){
     const trigger=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
     const rect=trigger.getBoundingClientRect();
-    const width=menu===lineToolMenu?96:62;
-    menu.style.width=width+'px';
+    const mobile=window.matchMedia("(max-width:640px)").matches;
+    menu.style.width=mobile?'max-content':(menu===lineToolMenu?96:62)+'px';
     menu.style.height='auto';
-    const left=menu===lineToolMenu
-      ? rect.left+rect.width/2-width/2
-      : rect.right-width+8;
+    menu.style.left='0px';
+    const width=menu.getBoundingClientRect().width;
+    let left;
+    if(mobile && menu===lineToolMenu){
+      // Align the selected-row check mark above the main arrow icon.
+      const check=menu.querySelector('[data-line-kind="arrow"] .line-menu-check');
+      const arrow=lineToolButton.querySelector('.glyph')||lineToolButton;
+      const checkRect=check.getBoundingClientRect();
+      const arrowRect=arrow.getBoundingClientRect();
+      left=arrowRect.left+arrowRect.width/2-(checkRect.left+checkRect.width/2);
+    }else if(mobile){
+      const chevron=saveFormatWrap.querySelector('button:last-child')||saveFormatWrap;
+      const chevronRect=chevron.getBoundingClientRect();
+      left=chevronRect.left+chevronRect.width/2-width/2;
+    }else{
+      left=menu===lineToolMenu?rect.left+rect.width/2-width/2:rect.right-width+8;
+    }
     menu.style.left=Math.max(8,Math.min(window.innerWidth-width-8,left))+'px';
     menu.style.top='0px';
     const height=menu.getBoundingClientRect().height;
