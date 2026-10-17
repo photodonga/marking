@@ -165,10 +165,9 @@
 
   // ---------------- history ----------------
   function pushHistory(){
-    history = history.slice(0, historyIndex+1);
-    history.push({ objects: deepCloneObjects(objects), effects: deepCloneObjects(effects) });
-    if(history.length > MAX_HISTORY){ history.shift(); }
-    historyIndex = history.length - 1;
+    const next=window.MarkingHelpers.pushHistoryEntry(history,historyIndex,objects,effects,MAX_HISTORY);
+    history=next.history;
+    historyIndex=next.index;
     updateHistoryButtons();
   }
 
