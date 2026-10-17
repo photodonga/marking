@@ -9,13 +9,14 @@ const path = require('node:path');
   const results = [];
   let failures = 0;
   try {
+    for (const reference of ['index', 'test']) {
     for (const width of [320, 375, 390, 1280]) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
       const page = await context.newPage();
       const errors = [];
       page.on('pageerror', err => errors.push(err.message));
       try {
-        await page.goto('http://127.0.0.1:8765/tests/regression.html', { waitUntil: 'load', timeout: 30000 });
+        await page.goto('http://127.0.0.1:8765/tests/regression.html?reference=' + reference, { waitUntil: 'load', timeout: 30000 });
         await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
         if (width !== 390) {
           const previousRun = Number(await page.locator('#report').getAttribute('data-run-completed') || 0);
@@ -69,16 +70,24 @@ const path = require('node:path');
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
         const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
         if (!ok) failures++;
-        results.push({ width, ok, passed: passLines.length, failed: failLines.length, errors, report });
-        await page.screenshot({ path: path.join(outDir, `regression-${width}.png`), fullPage: true });
-        console.log(`[${ok ? 'PASS' : 'FAIL'}] ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
+        results.push({ reference, width, ok, passed: passLines.length, failed: failLines.length, errors, report });
+        await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}.png`), fullPage: true });
+        console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
         failures++;
-        results.push({ width, ok: false, error: String(error), errors });
-        console.error(`[ERROR] ${width}px: ${error}`);
-        await page.screenshot({ path: path.join(outDir, `regression-${width}-error.png`), fullPage: true }).catch(() => {});
+        results.push({ reference, width, ok: false, error: String(error), errors });
+        console.error(`[ERROR] ${reference} ${width}px: ${error}`);
+        await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}-error.png`), fullPage: true }).catch(() => {});
       } finally {
         await context.close();
+      }
+    }
+    }
+    for (const width of [320, 375, 390, 1280]) {
+      const baseline = results.find(r => r.reference === 'index' && r.width === width);
+      const candidate = results.find(r => r.reference === 'test' && r.width === width);
+      if (baseline && candidate && baseline.ok && !candidate.ok) {
+        console.error(`[PARITY] ${width}px: production passes but refactored test fails`);
       }
     }
   } finally {
