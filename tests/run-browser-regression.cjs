@@ -84,6 +84,20 @@ const path = require('node:path');
           const target = path.join(outDir, `${reference}-${width}-${name}`);
           await download.saveAs(target);
           if (fs.statSync(target).size < 1000) throw new Error('Downloaded image too small');
+          const bytes = fs.readFileSync(target);
+          if (name.toLowerCase().endsWith('.png')) {
+            const signature = Buffer.from([137,80,78,71,13,10,26,10]);
+            if (!bytes.subarray(0,8).equals(signature)) throw new Error('Invalid PNG signature');
+            const exportedWidth = bytes.readUInt32BE(16);
+            const exportedHeight = bytes.readUInt32BE(20);
+            if (exportedWidth < 100 || exportedHeight < 100) {
+              throw new Error('Exported PNG has unexpected dimensions: ' + exportedWidth + 'x' + exportedHeight);
+            }
+          } else {
+            if (bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[bytes.length-2] !== 0xff || bytes[bytes.length-1] !== 0xd9) {
+              throw new Error('Invalid JPEG file markers');
+            }
+          }
         }
         const report = await page.locator('#report').textContent();
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
