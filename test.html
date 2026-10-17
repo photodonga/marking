@@ -2757,7 +2757,7 @@
       modeLabel.textContent="가림";
       const targetLabel=document.createElement("span");
       targetLabel.className="effect-current-label effect-target-label";
-      targetLabel.textContent="얼굴";
+      targetLabel.textContent=blurShape==="rect"?"영역":"얼굴";
       const controls=document.createElement("div");
       controls.className="effect-controls";
       controls.append(modeLabel,nodes[0],targetLabel,nodes[3]);
