@@ -85,7 +85,7 @@ const path = require('node:path');
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
         const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
         if (!ok) failures++;
-        results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, errors, report });
+        results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: passLines.map(line => line.split(' — ')[0]), errors, report });
         await page.screenshot({ path: path.join(outDir, `regression-${reference}-${width}.png`), fullPage: true });
         console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
@@ -103,6 +103,10 @@ const path = require('node:path');
       const candidate = results.find(r => r.reference === 'test' && r.width === width);
       if (baseline && candidate && baseline.ok && !candidate.ok) {
         console.error(`[PARITY] ${width}px: production passes but refactored test fails`);
+      }
+      if (baseline?.ok && candidate?.ok && JSON.stringify(baseline.checks)!==JSON.stringify(candidate.checks)) {
+        failures++;
+        console.error('Regression check names/order differ at ' + width + 'px');
       }
       if (baseline?.ok && candidate?.ok && baseline.passed !== candidate.passed) {
         failures++;
