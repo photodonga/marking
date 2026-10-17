@@ -1509,8 +1509,10 @@
 
 /* test-only: optically center the face label between effect control groups */
 @media(max-width:640px){
-  #options-bar[data-layout="effect"] .effect-controls>.effect-current-label:nth-child(3){
-    position:relative;left:-4px;
+  #options-bar[data-layout="effect"] .effect-controls>.effect-target-label{
+    position:relative!important;left:-9px!important;
+    width:28px!important;text-align:left!important;
+    transform:none!important;
   }
 }
 </style>
