@@ -2939,7 +2939,7 @@
       if(activeTool==="circle"){
         const gs=document.createElement("div"); gs.className="opt-group option-shape";
         const segs=document.createElement("div"); segs.className="seg";
-        [["circle","원/타원"],["rect","네모"]].forEach(([k,n])=>{ const b=document.createElement("button"); b.textContent=n; b.className=shapeKind===k?"active":""; b.onclick=()=>{shapeKind=k;buildOptionsBar();}; segs.appendChild(b); });
+        [["circle","원/타원"],["rect","네모"]].forEach(([k,n])=>{ const b=document.createElement("button"); b.textContent=n; b.className=shapeKind===k?"active":""; b.onclick=()=>{if(shapeKind===k)return;shapeKind=k;buildOptionsBar();}; segs.appendChild(b); });
         gs.appendChild(segs); optionsBar.appendChild(gs);
       }
 
