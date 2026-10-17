@@ -17,7 +17,7 @@ const path = require('node:path');
       page.on('pageerror', err => errors.push(err.message));
       try {
         await page.goto('http://127.0.0.1:8765/tests/regression.html?reference=' + reference, { waitUntil: 'load', timeout: 30000 });
-        await page.waitForFunction(() => document.querySelector('#report')?.textContent?.includes('완료:'), null, { timeout: 30000 });
+        await page.waitForFunction(() => { const report=document.querySelector('#report'); return Number(report?.dataset.runCompleted || 0)>0 && report?.textContent?.includes('완료:'); }, null, { timeout: 30000 });
         if (width !== 390) {
           const previousRun = Number(await page.locator('#report').getAttribute('data-run-completed') || 0);
           await page.locator('#viewport').selectOption(String(width));
