@@ -689,7 +689,7 @@
   #toolbar .line-tool-chevron:focus-visible,.line-tool-menu button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .line-tool-menu{position:fixed;z-index:1000;width:156px;box-sizing:border-box;padding:5px;background:#fff;border:1px solid rgba(40,55,75,.18);border-radius:12px;box-shadow:0 8px 26px rgba(0,0,0,.18);animation:line-menu-in .13s ease-out both;}
   .line-tool-menu[hidden]{display:none!important;}
-  .line-tool-menu button{display:flex;align-items:center;gap:9px;width:100%;min-height:42px;padding:9px 10px;border:0;border-radius:8px;background:transparent;color:#20283a;font:inherit;font-size:13px;cursor:pointer;text-align:left;}
+  .line-tool-menu button{display:flex;align-items:center;gap:6px;width:100%;min-height:42px;padding:8px 7px;border:0;border-radius:8px;background:transparent;color:#20283a;font:inherit;font-size:13px;cursor:pointer;text-align:left;}
   .line-tool-menu button:hover,.line-tool-menu button[aria-checked="true"]{background:#eaf2ff;}
   .line-tool-menu svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
   .line-tool-menu .line-menu-check{margin-left:auto;color:#1976d2;visibility:hidden;}
@@ -2342,10 +2342,13 @@
   function positionReplacementMenu(menu){
     const trigger=menu===lineToolMenu?lineMenuButton:saveFormatWrap;
     const rect=trigger.getBoundingClientRect();
-    const width=menu===lineToolMenu?136:88;
+    const width=menu===lineToolMenu?116:88;
     menu.style.width=width+'px';
     menu.style.height='auto';
-    menu.style.left=Math.max(8,Math.min(window.innerWidth-width-8,rect.right-width+8))+'px';
+    const left=menu===lineToolMenu
+      ? rect.left+rect.width/2-width/2
+      : rect.right-width+8;
+    menu.style.left=Math.max(8,Math.min(window.innerWidth-width-8,left))+'px';
     menu.style.top='0px';
     const height=menu.getBoundingClientRect().height;
     menu.style.top=Math.max(8,rect.top-height-9)+'px';
