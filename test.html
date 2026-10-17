@@ -1227,6 +1227,23 @@
       width:clamp(27px,8vw,33px);min-width:27px;flex:0 0 clamp(27px,8vw,33px);
     }
     #options-bar[data-layout="effect"] .effect-primary{gap:8px;flex-wrap:nowrap;}
+    /* Slider rows must own the panel width; older effect rules constrained them to 155px. */
+    #options-bar[data-layout="effect"] .effect-intensity-row,
+    #options-bar[data-layout="effect"] .effect-feather-row{
+      display:flex;flex-wrap:nowrap;width:100%;min-width:0;
+      align-self:stretch;box-sizing:border-box;
+    }
+    #options-bar[data-layout="effect"] .effect-intensity-row>.option-slider,
+    #options-bar[data-layout="effect"] .effect-feather-row>.option-slider{
+      box-sizing:border-box;display:grid;grid-template-columns:68px minmax(90px,1fr);
+      width:100%;min-width:0;max-width:none;flex:1 1 100%;gap:8px;
+    }
+    #options-bar[data-layout="effect"] .effect-intensity-row input[type="range"],
+    #options-bar[data-layout="effect"] .effect-feather-row input[type="range"]{
+      display:block;box-sizing:border-box;width:100%;min-width:0;max-width:none;
+      justify-self:stretch;opacity:1;visibility:visible;
+    }
+
     #options-bar[data-layout="effect"] .effect-intensity-row,
     #options-bar[data-layout="effect"] .effect-feather-row{justify-content:space-between;}
     #options-bar[data-layout="effect"] .effect-intensity-row>.option-slider,
@@ -2354,7 +2371,7 @@
   // Keep icon definitions stable across toolbar rebuilds.
   const OPTION_ICON_PATHS=Object.freeze({
       "블러":'<path d="M12 3C9.4 7 6 10.4 6 14a6 6 0 0 0 12 0c0-3.6-3.4-7-6-11Z"/>',
-      "모자이크":'<rect x="4" y="4" width="2.8" height="2.8" rx=".35"/><rect x="8" y="4" width="2.8" height="2.8" rx=".35"/><rect x="12" y="4" width="2.8" height="2.8" rx=".35"/><rect x="16" y="4" width="2.8" height="2.8" rx=".35"/><rect x="4" y="8" width="2.8" height="2.8" rx=".35"/><rect x="8" y="8" width="2.8" height="2.8" rx=".35"/><rect x="12" y="8" width="2.8" height="2.8" rx=".35"/><rect x="16" y="8" width="2.8" height="2.8" rx=".35"/><rect x="4" y="12" width="2.8" height="2.8" rx=".35"/><rect x="8" y="12" width="2.8" height="2.8" rx=".35"/><rect x="12" y="12" width="2.8" height="2.8" rx=".35"/><rect x="16" y="12" width="2.8" height="2.8" rx=".35"/><rect x="4" y="16" width="2.8" height="2.8" rx=".35"/><rect x="8" y="16" width="2.8" height="2.8" rx=".35"/><rect x="12" y="16" width="2.8" height="2.8" rx=".35"/><rect x="16" y="16" width="2.8" height="2.8" rx=".35"/>',
+      "모자이크":'<rect x="4" y="4" width="7" height="7" rx="1.1"/><rect x="13" y="4" width="7" height="7" rx="1.1"/><rect x="4" y="13" width="7" height="7" rx="1.1"/><rect x="13" y="13" width="7" height="7" rx="1.1"/>',
       "얼굴":'<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M15 10h.01M9 15q3 3 6 0"/>',
       "사각형":'<rect x="5" y="5" width="14" height="14" rx="2"/>',
       "원/타원":'<ellipse cx="12" cy="12" rx="8" ry="6"/>',
