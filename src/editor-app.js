@@ -2259,16 +2259,8 @@
     return result;
   }
   function renderEffectObjectUncached(eff){
-    const effectOptions={intensity:eff.intensity, feather:eff.feather};
-    const rs=eff.faceRects&&eff.faceRects.length?eff.faceRects:[eff.rect];
-    let result;
-    if(rs.length===1){ result=computeEffectRegion(rs[0], eff.autoFace?'ellipse':eff.shape, eff.mode, eff.rotation||0, effectOptions); }
-    else {
-      const overlay=document.createElement('canvas'); overlay.width=naturalW; overlay.height=naturalH;
-      const oc=overlay.getContext('2d'); rs.forEach(r=>{const z=computeEffectRegion(r,'ellipse',eff.mode,eff.rotation||0,effectOptions);oc.drawImage(z.canvas,z.sx,z.sy);});
-      result={canvas:overlay,sx:0,sy:0};
-    }
-    return result;
+    return window.MarkingCanvas.composeEffectObject(
+      eff,computeEffectRegion,naturalW,naturalH,()=>document.createElement('canvas'));
   }
 
   // ---------------- undo/redo buttons ----------------
