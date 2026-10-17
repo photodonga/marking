@@ -8,6 +8,9 @@ const removeImplementation=s=>s
   .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'')
   .replace(/>\s+</g,'><')
   .trim();
+const style=s=>s.match(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/i)?.[0];
+assert.ok(style(baseline),'Production stylesheet missing');
+assert.equal(style(candidate),style(baseline),'CSS differs from production index.html');
 assert.equal(removeImplementation(candidate),removeImplementation(baseline),
   'UI HTML markup differs from production index.html (outside styles/scripts)');
 const ids=s=>[...s.matchAll(/\bid="([^"]+)"/g)].map(x=>x[1]).sort();
