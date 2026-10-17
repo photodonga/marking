@@ -51,10 +51,15 @@ const path = require('node:path');
           const ctx = el.getContext('2d');
           const { width, height } = el;
           const samples = [];
-          for (const [fx, fy] of [[.25,.25],[.35,.35],[.5,.5],[.65,.65],[.75,.75]]) {
-            const x=Math.min(width-1,Math.floor(width*fx));
-            const y=Math.min(height-1,Math.floor(height*fy));
-            samples.push([...ctx.getImageData(x,y,1,1).data]);
+          // Sample a 16x16 grid, covering the whole canvas instead of five points.
+          const pixels=ctx.getImageData(0,0,width,height).data;
+          for (let row=0;row<16;row++) {
+            for (let col=0;col<16;col++) {
+              const x=Math.min(width-1,Math.floor((col+.5)*width/16));
+              const y=Math.min(height-1,Math.floor((row+.5)*height/16));
+              const offset=(y*width+x)*4;
+              samples.push(...pixels.slice(offset,offset+4));
+            }
           }
           return { width, height, samples };
         });
