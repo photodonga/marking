@@ -3,10 +3,11 @@ name: MARKING browser regression
 on:
   push:
     paths:
-      - 'test.html'
       - 'index.html'
       - 'src/**'
       - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/marking-regression.yml'
   workflow_dispatch:
 
@@ -23,12 +24,10 @@ jobs:
         with:
           node-version: '22'
       - name: Verify extracted modules and helper behavior
-        run: node tests/unit.cjs
-      - name: Verify production markup parity
-        run: node tests/production-parity.cjs
+        run: npm test
       - name: Install browser test dependencies
         run: |
-          npm install --no-save playwright@1.56.1
+          npm install --no-save --package-lock=false
           npx playwright install --with-deps chromium webkit
       - name: Start local app server
         run: |
@@ -37,7 +36,7 @@ jobs:
       - name: Wait for local app server
         run: |
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --output /dev/null http://127.0.0.1:8765/test.html; then
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8765/index.html; then
               echo "Local app server ready"
               exit 0
             fi
