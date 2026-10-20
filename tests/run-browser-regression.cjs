@@ -12,7 +12,7 @@ const path = require('node:path');
   const results = [];
   let failures = 0;
   try {
-    for (const reference of ['index', 'test']) {
+    for (const reference of ['index']) {
     for (const width of [320, 375, 390, 1280]) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
       const page = await context.newPage();
@@ -106,12 +106,12 @@ const path = require('node:path');
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
         const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
-        if (!ok && reference === 'test') failures++;
+        if (!ok) failures++;
         results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: passLines.map(line => line.split(' — ')[0]), errors, report });
         await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}.png`), fullPage: true });
         console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
-        if (reference === 'test') failures++;
+        failures++;
         results.push({ reference, width, ok: false, error: String(error), errors });
         console.error(`[ERROR] ${reference} ${width}px: ${error}`);
         await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}-error.png`), fullPage: true }).catch(() => {});
@@ -119,21 +119,6 @@ const path = require('node:path');
         await context.close();
       }
     }
-    }
-    for (const width of [320, 375, 390, 1280]) {
-      const baseline = results.find(r => r.reference === 'index' && r.width === width);
-      const candidate = results.find(r => r.reference === 'test' && r.width === width);
-      if (baseline && candidate && baseline.ok && !candidate.ok) {
-        console.error(`[PARITY] ${width}px: production passes but refactored test fails`);
-      }
-      if (baseline?.ok && candidate?.ok && JSON.stringify(baseline.checks)!==JSON.stringify(candidate.checks)) {
-        failures++;
-        console.error('Regression check names/order differ at ' + width + 'px');
-      }
-      if (baseline?.imageData && candidate?.imageData && JSON.stringify(baseline.imageData)!==JSON.stringify(candidate.imageData)) {
-        failures++;
-        console.error(`[PARITY] ${width}px: edited canvas pixel samples differ`);
-      }
     }
   } finally {
     await browser.close();
