@@ -57,6 +57,14 @@ PWA 시작 URL: test.html (index.html과 바이트 동일)
 
 **기준값 갱신은 반드시 수동으로 리뷰·커밋합니다.** 변경을 리뷰한 후 기준 main 커밋 SHA를 확정하고, 별도 `git worktree`에 해당 SHA를 체크아웃합니다. 생성 스크립트는 `git rev-parse HEAD`가 지정 SHA와 일치하는지 확인해야 합니다. CI와 같은 Ubuntu 및 고정 Playwright 버전에서 화면 폭별 결과를 생성하고, fixture에 원본 SHA·브라우저 엔진·버전·화면 폭·검사 이름과 순서·RGBA 샘플을 기록합니다. 생성 도구 `scripts/generate-ui-baseline.cjs`는 Linux에서만 실행되고, worktree의 HEAD와 지정한 40자리 main SHA가 다르면 중단합니다. 동일 환경에서 브라우저 회귀 테스트가 생성한 `test-results/report-chromium.json`, `report-webkit.json`을 읽어 fixture를 만들며, 기존 fixture 파일을 덮어쓰지 않습니다. GitHub Actions의 수동 `baseline-fixtures` 작업은 main의 별도 worktree에서 `MARKING_COLLECT_BASELINE=1`로 수집해 기존 fixture 비교를 건너뛰고, 생성된 파일을 아티팩트로 업로드합니다. 일반 CI에서는 수집 모드를 켜지 않습니다. `tests/verify-baseline-artifact.cjs`로 생성 아티팩트와 커밋된 fixture의 검사 이름·순서, 복원한 RGBA 바이트, 전체 캔버스 해시, 저장 파일 해시를 비교할 수 있습니다. 아티팩트를 검토한 후 수동으로 `tests/fixtures/browser-main.json`에 커밋해야 합니다(이번 기준값은 별도 작업 브랜치에 커밋되어 검토 대기 중입니다). 결과 파일 변경은 별도 PR 리뷰가 필요하며 일반 테스트 실행 시 자동 덮어쓰지 않습니다. main의 merge-base만 바뀌었다고 fixture를 갱신하지 않습니다. 기준 SHA 이후 보호 대상 앱 파일이 변경될 때만 새 기준과 리뷰가 필요합니다.
 
+### 의도적인 UI 변경 PR의 기준값 갱신
+
+1. **생성 대상 커밋 결정:** UI 변경을 포함한 PR의 정확한 40자리 커밋 SHA를 선택합니다. 워크플로는 `origin/main`의 조상만 허용하므로, **새 UI를 main에 반영하기 전에는 기존 baseline을 변경하지 않고** PR에서 변경 사항과 예상 결과를 별도로 리뷰합니다. UI 변경 커밋이 main에 병합된 뒤 해당 main 커밋을 생성 대상으로 지정합니다.
+2. **수동 생성:** Actions → MARKING browser regression → Run workflow에서 `baseline_sha`에 해당 커밋을 입력합니다. 40자리 소문자 16진수 검사 및 `git merge-base --is-ancestor "$BASELINE_SHA" origin/main`을 통과해야 합니다. 별도 Linux worktree에서 `MARKING_COLLECT_BASELINE=1`로 검사 결과를 수집하고 `scripts/generate-ui-baseline.cjs <SHA> test-results/browser-main.generated.json`으로 기존 fixture와 **다른 경로**에 생성합니다. 저장소 내 `tests/fixtures/browser-main.json`은 자동으로 덮어쓰지 않습니다.
+3. **검토:** Actions의 `reviewed-main-browser-fixtures` 아티팩트를 내려받아 변경 전·후 검사 항목 이름/순서, 전체 캔버스 SHA-256, 압축을 풀어 비교한 RGBA 샘플, 1280px 내보내기 해시를 검토합니다. 변경이 의도한 UI에만 국한되는지 스크린샷과 실제 브라우저에서 확인합니다. 기준값이 기존과 같을 때는 `tests/verify-baseline-artifact.cjs`로 자동 일치 검사를 수행합니다. 달라지는 경우 리뷰어가 차이를 승인해야 합니다.
+4. **fixture 갱신 순서:** 별도 fixture 갱신 PR에서 먼저 `tests/fixtures/ui-main.json`의 `baselineSha`, CSS·마크업 해시를 **같은 대상 커밋**으로 갱신하고, 이어 아티팩트를 검토해 `tests/fixtures/browser-main.json`의 `baselineSha` 및 브라우저 기준값을 갱신합니다. 두 파일의 SHA가 동일한지, SHA가 HEAD의 조상인지, 보호 대상 앱 소스 diff가 의도대로 반영됐는지 확인합니다. 현재 `tests/check-ui-fixtures.cjs`는 기존 baseline 대비 앱 소스 변경 시 실패하도록 설계돼 있으므로, **의도적인 UI 변경을 허용하는 새로운 기준 전환에서는 기준점 검증 정책을 별도 리뷰해 조정해야 합니다.** 기준값 갱신만으로 자동 병합하지 않습니다.
+5. **승인:** 생성 커밋 SHA, Actions 실행 링크, fixture diff, 검토 의견, Chromium·WebKit 테스트 결과를 PR에 첨부하고 리뷰 승인 후 병합합니다. 앱 소스가 변경되지 않은 문서·테스트 PR에서는 fixture를 재생성하지 않습니다.
+
 실기기 Safari, Android, EXIF 회전, 고해상도 원본, 장시간 편집 및 CMS 내 배포는 별도 수동 검증이 필요합니다.
 
 ## 5. 개발팀 첫 점검 제안
