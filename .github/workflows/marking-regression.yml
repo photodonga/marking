@@ -31,6 +31,14 @@ jobs:
         run: git fetch origin main
       - name: Verify extracted modules and helper behavior
         run: npm test
+      - name: Reproduce no-ff merge and verify fixture CI check
+        if: github.event_name == 'pull_request'
+        run: |
+          PR_HEAD="${{ github.event.pull_request.head.sha }}"
+          git worktree add -b ci-merge-simulation /tmp/marking-merge origin/main
+          git -C /tmp/marking-merge -c user.name=CI -c user.email=ci@example.invalid merge --no-ff -m "CI merge simulation" "$PR_HEAD"
+          (cd /tmp/marking-merge && CI=1 node tests/check-ui-fixtures.cjs)
+          git worktree remove --force /tmp/marking-merge
       - name: Install browser test dependencies
         run: |
           npm install --no-save --package-lock=false
