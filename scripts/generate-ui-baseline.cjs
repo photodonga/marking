@@ -10,7 +10,7 @@ assert.match(sha||'',/^[0-9a-f]{40}$/,'Usage: node scripts/generate-ui-baseline.
 const head=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 assert.equal(head,sha,'Refusing baseline generation: HEAD differs from specified main SHA');
 assert.equal(process.platform,'linux','Baseline must be generated on Linux');
-const pkg=JSON.parse(fs.readFileSync('package.json','utf8'));
+const pkg=require('../package.json');
 assert.equal(pkg.devDependencies.playwright,'1.56.1','Unexpected Playwright version');
 const {version}=require('playwright/package.json');
 assert.equal(version,'1.56.1','Installed Playwright version differs');
