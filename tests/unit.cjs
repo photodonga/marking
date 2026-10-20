@@ -87,7 +87,7 @@ assert.equal(seen[2].shape,'ellipse');
 for (const name of ['src/editor-helpers.js', 'src/editor-canvas.js', 'src/editor-app.js']) {
   new vm.Script(fs.readFileSync(name, 'utf8'), { filename: name });
 }
-const html = fs.readFileSync('test.html', 'utf8');
+const html = fs.readFileSync('index.html', 'utf8');
 assert.match(html, /src="\.\/src\/editor-helpers\.js"/);
 assert.match(html, /src="\.\/src\/editor-app\.js"/);
 assert.ok(html.includes('src="./src/editor-canvas.js"'));
