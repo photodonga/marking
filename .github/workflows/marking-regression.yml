@@ -46,7 +46,8 @@ jobs:
           git worktree remove --force /tmp/marking-merge
       - name: Install browser test dependencies
         run: |
-          npm install --no-save --package-lock=false
+          npm ci
+          node -e "const p=require('playwright/package.json'); if(p.version!=='1.56.1')process.exit(1); console.log('Installed Playwright version:',p.version)"
           npx playwright install --with-deps chromium webkit
       - name: Start local app server
         run: |
@@ -91,7 +92,7 @@ jobs:
           node-version: '22'
       - name: Install pinned browser tooling
         run: |
-          npm install --no-save --package-lock=false
+          npm ci
           npx playwright install --with-deps chromium webkit
       - name: Validate baseline SHA and checkout detached worktree
         env:
