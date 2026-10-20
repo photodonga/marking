@@ -104,6 +104,7 @@ jobs:
           MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA=5c05e979af54c1e1f4f3e58ea032163f2147f826 node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
           MARKING_BROWSER=webkit MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA=5c05e979af54c1e1f4f3e58ea032163f2147f826 node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
           node "$GITHUB_WORKSPACE/scripts/generate-ui-baseline.cjs" 5c05e979af54c1e1f4f3e58ea032163f2147f826
+          node "$GITHUB_WORKSPACE/tests/verify-baseline-artifact.cjs" /tmp/marking-main/tests/fixtures/browser-main.json "$GITHUB_WORKSPACE/tests/fixtures/browser-main.json"
       - uses: actions/upload-artifact@v4
         with:
           name: reviewed-main-browser-fixtures
