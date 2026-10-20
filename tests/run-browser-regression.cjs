@@ -119,6 +119,7 @@ const path = require('node:path');
         await context.close();
       }
     }
+    }
     for (const width of [320, 375, 390, 1280]) {
       const production = results.find(r => r.reference === 'index' && r.width === width);
       const pwa = results.find(r => r.reference === 'test' && r.width === width);
