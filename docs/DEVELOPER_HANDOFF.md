@@ -12,6 +12,7 @@ MARKING은 사진 위에 도형과 가림 효과 등을 적용하고 결과 이�
 스크립트 로드 순서는 **helpers → canvas → app**입니다. `test.html`은 `index.html`과 바이트 단위로 동일하며 PWA 매니페스트의 `start_url`이므로 유지합니다. 매니페스트 이전과 설치·업데이트 검증 전에는 삭제하지 마세요.
 
 ## 검증
+- `npm ci`: lockfile에 고정된 Playwright 1.56.1 등 개발 의존성을 재현 가능하게 설치합니다.
 - `npm test`: 순수 함수·모듈 구문·의존성 로드 순서 및 정식/PWA 진입점 바이트 일치 및 main 기준 CSS·마크업 fixture 검사.
 - `tests/regression.html`: 정식 `index.html` 및 PWA `test.html`을 대상으로 사진 로드, 도구, 모바일 옵션 레이아웃 등을 검사하는 브라우저 하네스.
 - `npm run test:browser`: Playwright Chromium으로 320·375·390·1280px, 캔버스 샘플 및 저장 파일 검사.
@@ -20,7 +21,7 @@ MARKING은 사진 위에 도형과 가림 효과 등을 적용하고 결과 이�
 
 로컬 브라우저 테스트 예시 (프로젝트 루트):
 ```bash
-npm install
+npm ci
 npx playwright install chromium webkit
 npm test
 python3 -m http.server 8765
