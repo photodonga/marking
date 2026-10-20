@@ -5,6 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {execFileSync}=require('node:child_process');
 const assert=require('node:assert/strict');
+const zlib=require('node:zlib');
 const sha=process.argv[2];
 assert.match(sha||'',/^[0-9a-f]{40}$/,'Usage: node scripts/generate-ui-baseline.cjs <reviewed-main-sha>');
 const head=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
@@ -24,7 +25,18 @@ for(const engine of engines){
     const row=results.find(x=>x.reference==='index'&&x.width===width);
     assert.ok(row?.ok,'Baseline run must pass: '+engine+' '+width);
     assert.ok(row.imageData?.samples?.length===1024,'Expected 16x16 RGBA grid');
-    fixture.engines[engine][width]={checks:row.checks,imageData:row.imageData};
+    assert.match(row.imageData.canvasSha256,/^[0-9a-f]{64}$/,'Missing full canvas SHA-256');
+    if(width===1280)assert.match(row.exportSha256,/^[0-9a-f]{64}$/,'Missing export SHA-256');
+    fixture.engines[engine][width]={
+      checks:row.checks,
+      imageData:{
+        width:row.imageData.width,
+        height:row.imageData.height,
+        canvasSha256:row.imageData.canvasSha256,
+        samplesZlibBase64:zlib.deflateSync(Buffer.from(row.imageData.samples)).toString('base64')
+      },
+      ...(width===1280?{exportSha256:row.exportSha256}:{})
+    };
   }
 }
 fs.mkdirSync('tests/fixtures',{recursive:true});
