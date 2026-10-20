@@ -4,7 +4,7 @@
   "private": true,
   "description": "MARKING browser photo editor regression tooling",
   "scripts": {
-    "test": "node tests/unit.cjs && node tests/production-parity.cjs && node tests/check-ui-fixtures.cjs",
+    "test": "node tests/unit.cjs && node tests/production-parity.cjs && node tests/check-ui-fixtures.cjs && node scripts/check-test.mjs",
     "test:browser": "node tests/run-browser-regression.cjs",
     "test:browser:webkit": "MARKING_BROWSER=webkit node tests/run-browser-regression.cjs"
   },
