@@ -4,6 +4,15 @@ if (!['chromium', 'webkit'].includes(engine)) throw new Error('Unsupported brows
 const browserType = engine === 'webkit' ? webkit : chromium;
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
+const crypto = require('node:crypto');
+const collecting = process.env.MARKING_COLLECT_BASELINE === '1';
+if (collecting && !process.env.MARKING_BASELINE_SHA) throw new Error('Collection requires MARKING_BASELINE_SHA');
+const baselineFile = path.join(__dirname, 'fixtures/browser-main.json');
+if (!collecting && !fs.existsSync(baselineFile)) throw new Error('Reviewed browser fixture missing');
+const baseline = collecting ? null : JSON.parse(fs.readFileSync(baselineFile,'utf8'));
+if (!collecting && baseline.platform !== 'linux') throw new Error('Browser fixture must originate from Linux');
+if (collecting && process.platform !== 'linux') throw new Error('Collect baseline only on Linux');
 
 (async () => {
   const outDir = path.join(process.cwd(), 'test-results');
@@ -50,12 +59,14 @@ const path = require('node:path');
         await canvas.evaluate(() => new Promise(resolve =>
           requestAnimationFrame(() => requestAnimationFrame(resolve))));
         // Capture deterministic edited pixels for production/refactor comparison.
-        const imageData = await canvas.evaluate(el => {
+        const imageData = await canvas.evaluate(async el => {
           const ctx = el.getContext('2d');
           const { width, height } = el;
           const samples = [];
           // Sample a 16x16 grid, covering the whole canvas instead of five points.
           const pixels=ctx.getImageData(0,0,width,height).data;
+          const digest=await crypto.subtle.digest('SHA-256',pixels);
+          const canvasSha256=[...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,'0')).join('');
           for (let row=0;row<16;row++) {
             for (let col=0;col<16;col++) {
               const x=Math.min(width-1,Math.floor((col+.5)*width/16));
@@ -64,7 +75,7 @@ const path = require('node:path');
               samples.push(...pixels.slice(offset,offset+4));
             }
           }
-          return { width, height, samples };
+          return { width, height, samples, canvasSha256 };
         });
         const undo = app.locator('#btn-undo'), redo = app.locator('#btn-redo');
         if (await undo.isDisabled()) throw new Error('Drawing did not create undo history');
@@ -74,6 +85,7 @@ const path = require('node:path');
         await redo.click();
         if (await undo.isDisabled()) throw new Error('Redo did not restore history');
         if (!(await redo.isDisabled())) throw new Error('Redo did not return to newest history state');
+        let exportSha256 = null;
         // Test actual export only on desktop to avoid mobile share-sheet behavior.
         if (width === 1280) {
           const save = app.locator('#btn-save');
@@ -88,6 +100,7 @@ const path = require('node:path');
           await download.saveAs(target);
           if (fs.statSync(target).size < 1000) throw new Error('Downloaded image too small');
           const bytes = fs.readFileSync(target);
+          exportSha256 = crypto.createHash('sha256').update(bytes).digest('hex');
           if (name.toLowerCase().endsWith('.png')) {
             const signature = Buffer.from([137,80,78,71,13,10,26,10]);
             if (!bytes.subarray(0,8).equals(signature)) throw new Error('Invalid PNG signature');
@@ -105,13 +118,27 @@ const path = require('node:path');
         const report = await page.locator('#report').textContent();
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
-        const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
-        if (!ok && reference === 'test') failures++;
-        results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: passLines.map(line => line.split(' — ')[0]), errors, report });
+        const actualChecks = passLines.map(line => line.split(' — ')[0]);
+        const expected = baseline?.engines?.[engine]?.[width];
+        let fixtureMatches = true;
+        if (!collecting) {
+          fixtureMatches = baseline.playwright === require('playwright/package.json').version
+            && !!expected
+            && JSON.stringify(actualChecks) === JSON.stringify(expected.checks)
+            && imageData.width === expected.imageData.width
+            && imageData.height === expected.imageData.height
+            && imageData.canvasSha256 === expected.imageData.canvasSha256
+            && (width !== 1280 || exportSha256 === expected.exportSha256)
+            && Buffer.from(imageData.samples).equals(zlib.inflateSync(Buffer.from(expected.imageData.samplesZlibBase64,'base64')));
+          if (!fixtureMatches) console.error('[FIXTURE] '+engine+' '+reference+' '+width+'px baseline mismatch');
+        }
+        const ok = failLines.length === 0 && errors.length === 0 && fixtureMatches;
+        if (!ok) failures++;
+        results.push({ reference, width, imageData, exportSha256, ok, passed: passLines.length, failed: failLines.length, checks: actualChecks, errors, report });
         await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}.png`), fullPage: true });
         console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
-        if (reference === 'test') failures++;
+        failures++;
         results.push({ reference, width, ok: false, error: String(error), errors });
         console.error(`[ERROR] ${reference} ${width}px: ${error}`);
         await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}-error.png`), fullPage: true }).catch(() => {});
@@ -121,18 +148,16 @@ const path = require('node:path');
     }
     }
     for (const width of [320, 375, 390, 1280]) {
-      const baseline = results.find(r => r.reference === 'index' && r.width === width);
-      const candidate = results.find(r => r.reference === 'test' && r.width === width);
-      if (baseline && candidate && baseline.ok && !candidate.ok) {
-        console.error(`[PARITY] ${width}px: production passes but refactored test fails`);
-      }
-      if (baseline?.ok && candidate?.ok && JSON.stringify(baseline.checks)!==JSON.stringify(candidate.checks)) {
+      const production = results.find(r => r.reference === 'index' && r.width === width);
+      const pwa = results.find(r => r.reference === 'test' && r.width === width);
+      if (!production?.ok || !pwa?.ok) continue;
+      if (JSON.stringify(production.checks)!==JSON.stringify(pwa.checks)) {
         failures++;
-        console.error('Regression check names/order differ at ' + width + 'px');
+        console.error('[PARITY] Check list mismatch at '+width+'px');
       }
-      if (baseline?.imageData && candidate?.imageData && JSON.stringify(baseline.imageData)!==JSON.stringify(candidate.imageData)) {
+      if (JSON.stringify(production.imageData)!==JSON.stringify(pwa.imageData) || production.exportSha256!==pwa.exportSha256) {
         failures++;
-        console.error(`[PARITY] ${width}px: edited canvas pixel samples differ`);
+        console.error('[PARITY] Canvas pixel mismatch at '+width+'px');
       }
     }
   } finally {

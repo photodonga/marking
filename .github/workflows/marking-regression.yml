@@ -3,12 +3,20 @@ name: MARKING browser regression
 on:
   push:
     paths:
-      - 'test.html'
       - 'index.html'
+      - 'test.html'
       - 'src/**'
       - 'tests/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/marking-regression.yml'
   workflow_dispatch:
+    inputs:
+      baseline_sha:
+        description: 'Full 40-character commit SHA from origin/main ancestry'
+        required: true
+        type: string
+  pull_request:
 
 permissions:
   contents: read
@@ -19,16 +27,26 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Fetch main for fixture merge-base
+        run: git fetch origin main
       - name: Verify extracted modules and helper behavior
-        run: node tests/unit.cjs
-      - name: Verify production markup parity
-        run: node tests/production-parity.cjs
+        run: npm test
+      - name: Reproduce no-ff merge and verify fixture CI check
+        if: github.event_name == 'pull_request'
+        run: |
+          PR_HEAD="${{ github.event.pull_request.head.sha }}"
+          git worktree add -b ci-merge-simulation /tmp/marking-merge origin/main
+          git -C /tmp/marking-merge -c user.name=CI -c user.email=ci@example.invalid merge --no-ff -m "CI merge simulation" "$PR_HEAD"
+          (cd /tmp/marking-merge && CI=1 node tests/check-ui-fixtures.cjs)
+          git worktree remove --force /tmp/marking-merge
       - name: Install browser test dependencies
         run: |
-          npm install --no-save playwright@1.56.1
+          npm install --no-save --package-lock=false
           npx playwright install --with-deps chromium webkit
       - name: Start local app server
         run: |
@@ -37,7 +55,7 @@ jobs:
       - name: Wait for local app server
         run: |
           for attempt in $(seq 1 30); do
-            if curl --fail --silent --output /dev/null http://127.0.0.1:8765/test.html; then
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8765/index.html; then
               echo "Local app server ready"
               exit 0
             fi
@@ -59,3 +77,51 @@ jobs:
           name: marking-browser-regression
           path: test-results/
           if-no-files-found: warn
+
+  baseline-fixtures:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser tooling
+        run: |
+          npm install --no-save --package-lock=false
+          npx playwright install --with-deps chromium webkit
+      - name: Validate baseline SHA and checkout detached worktree
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
+        run: |
+          [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid baseline SHA (40 lowercase hex required)'; exit 1; }
+          git fetch origin main
+          git merge-base --is-ancestor "$BASELINE_SHA" origin/main || { echo 'Baseline is not an ancestor of origin/main'; exit 1; }
+          git worktree add --detach /tmp/marking-main "$BASELINE_SHA"
+          test "$(git -C /tmp/marking-main rev-parse HEAD)" = "$BASELINE_SHA"
+      - name: Run reviewed main in Linux for baseline collection
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
+        run: |
+          cd /tmp/marking-main
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/marking-baseline-server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8765/index.html; then break; fi
+            sleep 1
+          done
+          MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
+          MARKING_BROWSER=webkit MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
+          node "$GITHUB_WORKSPACE/scripts/generate-ui-baseline.cjs" "$BASELINE_SHA" test-results/browser-main.generated.json
+          if [ "$BASELINE_SHA" = "$(node -p 'require(process.env.GITHUB_WORKSPACE+"/tests/fixtures/browser-main.json").baselineSha')" ]; then
+            node "$GITHUB_WORKSPACE/tests/verify-baseline-artifact.cjs" test-results/browser-main.generated.json "$GITHUB_WORKSPACE/tests/fixtures/browser-main.json"
+          else
+            echo 'New baseline SHA: generated artifact requires manual review; committed fixture intentionally differs.'
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: reviewed-main-browser-fixtures
+          path: /tmp/marking-main/test-results/browser-main.generated.json
+          if-no-files-found: error
