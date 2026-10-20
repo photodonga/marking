@@ -13,10 +13,17 @@ const hash = text => {
   return h.toString(16).padStart(16,'0');
 };
 assert.equal(fixture.algorithm,'fnv1a64-utf8');
+assert.match(fixture.baselineSha,/^[0-9a-f]{40}$/);
 assert.equal(hash(css),fixture.cssHash,'CSS differs from reviewed main baseline');
 assert.equal(hash(markup),fixture.markupHash,'Markup differs from reviewed main baseline');
 if(process.env.CI) {
-  const mergeBase = execFileSync('git',['merge-base','HEAD','origin/main'],{encoding:'utf8'}).trim();
-  assert.equal(mergeBase,fixture.baselineSha,'Fixture is stale: merge-base differs from baseline SHA');
+  const run = (args) => {
+    try { execFileSync('git', args, {stdio:'pipe'}); return true; }
+    catch (error) { if(error.status===1)return false; throw error; }
+  };
+  assert.ok(run(['merge-base','--is-ancestor',fixture.baselineSha,'HEAD']),
+    'Fixture baseline must be an ancestor of HEAD');
+  assert.ok(run(['diff','--quiet',fixture.baselineSha,'HEAD','--','index.html','test.html','src/']),
+    'Fixture update required: protected app sources differ from baseline');
 }
 console.log('PASS: CSS and markup match reviewed main baseline '+fixture.baselineSha);
