@@ -11,6 +11,11 @@ on:
       - 'package-lock.json'
       - '.github/workflows/marking-regression.yml'
   workflow_dispatch:
+    inputs:
+      baseline_sha:
+        description: 'Full 40-character commit SHA from origin/main ancestry'
+        required: true
+        type: string
   pull_request:
 
 permissions:
@@ -88,12 +93,18 @@ jobs:
         run: |
           npm install --no-save --package-lock=false
           npx playwright install --with-deps chromium webkit
-      - name: Checkout reviewed main SHA as detached worktree
+      - name: Validate baseline SHA and checkout detached worktree
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
         run: |
+          [[ "$BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo 'Invalid baseline SHA (40 lowercase hex required)'; exit 1; }
           git fetch origin main
-          git worktree add --detach /tmp/marking-main 5c05e979af54c1e1f4f3e58ea032163f2147f826
-          test "$(git -C /tmp/marking-main rev-parse HEAD)" = "5c05e979af54c1e1f4f3e58ea032163f2147f826"
+          git merge-base --is-ancestor "$BASELINE_SHA" origin/main || { echo 'Baseline is not an ancestor of origin/main'; exit 1; }
+          git worktree add --detach /tmp/marking-main "$BASELINE_SHA"
+          test "$(git -C /tmp/marking-main rev-parse HEAD)" = "$BASELINE_SHA"
       - name: Run reviewed main in Linux for baseline collection
+        env:
+          BASELINE_SHA: ${{ inputs.baseline_sha }}
         run: |
           cd /tmp/marking-main
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/marking-baseline-server.log 2>&1 &
@@ -101,12 +112,16 @@ jobs:
             if curl --fail --silent --output /dev/null http://127.0.0.1:8765/index.html; then break; fi
             sleep 1
           done
-          MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA=5c05e979af54c1e1f4f3e58ea032163f2147f826 node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
-          MARKING_BROWSER=webkit MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA=5c05e979af54c1e1f4f3e58ea032163f2147f826 node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
-          node "$GITHUB_WORKSPACE/scripts/generate-ui-baseline.cjs" 5c05e979af54c1e1f4f3e58ea032163f2147f826
-          node "$GITHUB_WORKSPACE/tests/verify-baseline-artifact.cjs" /tmp/marking-main/tests/fixtures/browser-main.json "$GITHUB_WORKSPACE/tests/fixtures/browser-main.json"
+          MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
+          MARKING_BROWSER=webkit MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
+          node "$GITHUB_WORKSPACE/scripts/generate-ui-baseline.cjs" "$BASELINE_SHA" test-results/browser-main.generated.json
+          if [ "$BASELINE_SHA" = "$(node -p \"require(process.env.GITHUB_WORKSPACE+'/tests/fixtures/browser-main.json').baselineSha\")" ]; then
+            node "$GITHUB_WORKSPACE/tests/verify-baseline-artifact.cjs" test-results/browser-main.generated.json "$GITHUB_WORKSPACE/tests/fixtures/browser-main.json"
+          else
+            echo 'New baseline SHA: generated artifact requires manual review; committed fixture intentionally differs.'
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: reviewed-main-browser-fixtures
-          path: /tmp/marking-main/tests/fixtures/browser-main.json
+          path: /tmp/marking-main/test-results/browser-main.generated.json
           if-no-files-found: error
