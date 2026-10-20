@@ -74,7 +74,7 @@ jobs:
           if-no-files-found: warn
 
   baseline-fixtures:
-    # One-time PR run to regenerate and audit the reviewed main baseline; revert to manual after artifact capture.
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
