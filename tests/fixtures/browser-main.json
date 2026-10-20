@@ -24,7 +24,8 @@
         "imageData": {
           "width": 296,
           "height": 197,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKoYBIgRG8Wj4TfQGACZWGWS"
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRG8Wj4TfQGACZWGWS",
+          "canvasSha256": "71e458dfc676967b68664f39aaefc7f60f2223476d62510666bb3b7575b1c0a0"
         }
       },
       "375": {
@@ -47,7 +48,8 @@
         "imageData": {
           "width": 351,
           "height": 234,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKoYBIgRozfOm/tkQPUP9fAbjhgA0DBkqA=="
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRozfOm/tkQPUP9fAbjhgA0DBkqA==",
+          "canvasSha256": "4351c2b7743f8f1457851fc960e7919eee0da784f2b3c4df42deb1213d2aab60"
         }
       },
       "390": {
@@ -70,7 +72,8 @@
         "imageData": {
           "width": 366,
           "height": 244,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKoYBIgRozd263pPkX7XzvcjOvyGIwYAEQNkRg=="
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRozd263pPkX7XTsr0D/XwG44YABEDZEY=",
+          "canvasSha256": "2a19f7e1acbc11e03a38a605cd4278ceff6c12cd38244b168f9048b7a5778b5d"
         }
       },
       "1280": {
@@ -90,8 +93,10 @@
         "imageData": {
           "width": 960,
           "height": 640,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKp49pabo+EwGn5DAgMA2PZitg=="
-        }
+          "samplesZlibBase64": "eJw7c+bM/zOjmKp49pabA+6GoYxHw49+GADY9mK2",
+          "canvasSha256": "859fa94433f1db8edd0a3978d456f5808fd41147a84b6290230cddd1ea82a051"
+        },
+        "exportSha256": "b78becbc53f1184c683c17cdf56df57db6b2b8ad7adb0ae2b96b083ab83c9888"
       }
     },
     "webkit": {
@@ -115,7 +120,8 @@
         "imageData": {
           "width": 296,
           "height": 197,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKoYBC4tX4aCQWCg3TVny80hE37EiI1iyjEASalkQw=="
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBC4tX4aCQWCg3TVny80BdwOx4UeM2CimHAMASalkQw==",
+          "canvasSha256": "69a37a0352495e9d849404f29f1a8d55a77e9bf63424bfa10caf6ea765e395a0"
         }
       },
       "375": {
@@ -138,7 +144,8 @@
         "imageData": {
           "width": 351,
           "height": 234,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKoYBO7FRf9/XF4KxyAw0O7iyvk/ZMKPGLFRTDkGAPaQYhc="
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBO7FRf9/XF4KxyAw0O7iyhl4NxAbfsSIjWLKMQD2kGIX",
+          "canvasSha256": "2047ab2d623bcea291088aa67965881075e768630bd9f339de9030322f6cafe5"
         }
       },
       "390": {
@@ -161,7 +168,8 @@
         "imageData": {
           "width": 366,
           "height": 244,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKoYBNDFDt36P+Du4sqhzA3Zc54NWPgdHAThNxwxAEvsY2c="
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBNDFDt3CFKM35sqhzA3Zc54NWPgdHAThNxwxAEvsY2c=",
+          "canvasSha256": "2ea349d9a4ce2abd55bc088970798d02f151bec4eb9fca6a7198a8b8a404f898"
         }
       },
       "1280": {
@@ -181,8 +189,10 @@
         "imageData": {
           "width": 960,
           "height": 640,
-          "samplesZlibBase64": "eNo7c+bM/zOjmKp49pabo+EwGn5DAgMA2PZitg=="
-        }
+          "samplesZlibBase64": "eJw7c+bM/zOjmKp49pabA+6GoYxHw49+GADY9mK2",
+          "canvasSha256": "0efe2d37c306b638213fc919c27a34494cc1c0204025447e898e28b42ac7bfed"
+        },
+        "exportSha256": "6a4f846ed80609b94f9abb193314e0ede14b65dd1b588c7246bc2a4457e2e408"
       }
     }
   }
