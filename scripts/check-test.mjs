@@ -13,6 +13,8 @@ for(const name of ['editor-helpers','editor-canvas','editor-app']){
   if(!html.includes('src="./src/'+name+'.js"')) fail('Missing module: '+name);
   const code=readFileSync(new URL('../src/'+name+'.js',import.meta.url),'utf8');
   try{new Script(code,{filename:name+'.js'});}catch(error){fail('Syntax error in '+name+': '+error.message);}
+  const selfReference=code.match(/\\bconst\\s+([A-Za-z_$][\\w$]*)\\s*=\\s*\\1\\s*;/);
+  if(selfReference)fail('Self-referential const initializer in '+name+': '+selfReference[1]);
 }
 
 const app = readFileSync(new URL('../src/editor-app.js',import.meta.url),'utf8');
