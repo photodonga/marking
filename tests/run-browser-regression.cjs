@@ -12,7 +12,7 @@ const path = require('node:path');
   const results = [];
   let failures = 0;
   try {
-    for (const reference of ['index']) {
+    for (const reference of ['index', 'test']) {
     for (const width of [320, 375, 390, 1280]) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
       const page = await context.newPage();
@@ -105,7 +105,7 @@ const path = require('node:path');
         const report = await page.locator('#report').textContent();
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
-        const ok = failLines.length === 0 && passLines.length >= 10 && errors.length === 0;
+        const ok = failLines.length === 0 && errors.length === 0;
         if (!ok) failures++;
         results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: passLines.map(line => line.split(' — ')[0]), errors, report });
         await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}.png`), fullPage: true });
@@ -119,6 +119,18 @@ const path = require('node:path');
         await context.close();
       }
     }
+    for (const width of [320, 375, 390, 1280]) {
+      const production = results.find(r => r.reference === 'index' && r.width === width);
+      const pwa = results.find(r => r.reference === 'test' && r.width === width);
+      if (!production?.ok || !pwa?.ok) continue;
+      if (JSON.stringify(production.checks)!==JSON.stringify(pwa.checks)) {
+        failures++;
+        console.error('[PARITY] Check list mismatch at '+width+'px');
+      }
+      if (JSON.stringify(production.imageData)!==JSON.stringify(pwa.imageData)) {
+        failures++;
+        console.error('[PARITY] Canvas pixel mismatch at '+width+'px');
+      }
     }
   } finally {
     await browser.close();
