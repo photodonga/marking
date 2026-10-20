@@ -4,6 +4,7 @@ if (!['chromium', 'webkit'].includes(engine)) throw new Error('Unsupported brows
 const browserType = engine === 'webkit' ? webkit : chromium;
 const fs = require('node:fs');
 const path = require('node:path');
+const zlib = require('node:zlib');
 const baselineFile = path.join(__dirname, 'fixtures/browser-main.json');
 const baseline = fs.existsSync(baselineFile) ? JSON.parse(fs.readFileSync(baselineFile,'utf8')) : null;
 
@@ -115,7 +116,9 @@ const baseline = fs.existsSync(baselineFile) ? JSON.parse(fs.readFileSync(baseli
             && baseline.playwright === '1.56.1'
             && !!expected
             && JSON.stringify(actualChecks) === JSON.stringify(expected.checks)
-            && JSON.stringify(imageData) === JSON.stringify(expected.imageData);
+            && imageData.width === expected.imageData.width
+            && imageData.height === expected.imageData.height
+            && Buffer.from(imageData.samples).equals(zlib.inflateSync(Buffer.from(expected.imageData.samplesZlibBase64,'base64')));
           if (!fixtureMatches) console.error('[FIXTURE] '+engine+' '+reference+' '+width+'px baseline mismatch');
         }
         const ok = failLines.length === 0 && errors.length === 0 && fixtureMatches;
