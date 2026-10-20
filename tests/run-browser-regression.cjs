@@ -6,7 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 const baselineFile = path.join(__dirname, 'fixtures/browser-main.json');
-const baseline = fs.existsSync(baselineFile) ? JSON.parse(fs.readFileSync(baselineFile,'utf8')) : null;
+if (!fs.existsSync(baselineFile)) throw new Error('Reviewed browser fixture missing');
+const baseline = JSON.parse(fs.readFileSync(baselineFile,'utf8'));
+if (baseline.platform !== 'linux') throw new Error('Browser fixture must originate from Linux');
 
 (async () => {
   const outDir = path.join(process.cwd(), 'test-results');
