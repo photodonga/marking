@@ -4,6 +4,8 @@ if (!['chromium', 'webkit'].includes(engine)) throw new Error('Unsupported brows
 const browserType = engine === 'webkit' ? webkit : chromium;
 const fs = require('node:fs');
 const path = require('node:path');
+const baselineFile = path.join(__dirname, 'fixtures/browser-main.json');
+const baseline = fs.existsSync(baselineFile) ? JSON.parse(fs.readFileSync(baselineFile,'utf8')) : null;
 
 (async () => {
   const outDir = path.join(process.cwd(), 'test-results');
@@ -105,9 +107,20 @@ const path = require('node:path');
         const report = await page.locator('#report').textContent();
         const failLines = report.split('\n').filter(line => line.startsWith('FAIL '));
         const passLines = report.split('\n').filter(line => line.startsWith('PASS '));
-        const ok = failLines.length === 0 && errors.length === 0;
+        const actualChecks = passLines.map(line => line.split(' — ')[0]);
+        const expected = baseline?.engines?.[engine]?.[width];
+        let fixtureMatches = true;
+        if (baseline) {
+          fixtureMatches = baseline.baselineSha === '5c05e979af54c1e1f4f3e58ea032163f2147f826'
+            && baseline.playwright === '1.56.1'
+            && !!expected
+            && JSON.stringify(actualChecks) === JSON.stringify(expected.checks)
+            && JSON.stringify(imageData) === JSON.stringify(expected.imageData);
+          if (!fixtureMatches) console.error('[FIXTURE] '+engine+' '+reference+' '+width+'px baseline mismatch');
+        }
+        const ok = failLines.length === 0 && errors.length === 0 && fixtureMatches;
         if (!ok) failures++;
-        results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: passLines.map(line => line.split(' — ')[0]), errors, report });
+        results.push({ reference, width, imageData, ok, passed: passLines.length, failed: failLines.length, checks: actualChecks, errors, report });
         await page.screenshot({ path: path.join(outDir, `regression-${engine}-${reference}-${width}.png`), fullPage: true });
         console.log(`[${ok ? 'PASS' : 'FAIL'}] ${reference} ${width}px: ${passLines.length} passed, ${failLines.length} failed`);
       } catch (error) {
