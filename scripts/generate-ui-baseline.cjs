@@ -7,7 +7,9 @@ const {execFileSync}=require('node:child_process');
 const assert=require('node:assert/strict');
 const zlib=require('node:zlib');
 const sha=process.argv[2];
-assert.match(sha||'',/^[0-9a-f]{40}$/,'Usage: node scripts/generate-ui-baseline.cjs <reviewed-main-sha>');
+const output=process.argv[3];
+assert.match(sha||'',/^[0-9a-f]{40}$/,'Usage: node scripts/generate-ui-baseline.cjs <reviewed-main-sha> <output-json-path>');
+assert.ok(output && output.endsWith('.json'),'Specify an output JSON path');
 const head=execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim();
 assert.equal(head,sha,'Refusing baseline generation: HEAD differs from specified main SHA');
 assert.equal(process.platform,'linux','Baseline must be generated on Linux');
@@ -39,8 +41,10 @@ for(const engine of engines){
     };
   }
 }
-fs.mkdirSync('tests/fixtures',{recursive:true});
-const destination='tests/fixtures/browser-main.json';
+const destination=path.resolve(output);
+const reviewedFixture=path.resolve('tests/fixtures/browser-main.json');
+assert.notEqual(destination,reviewedFixture,'Cannot overwrite reviewed fixture');
+fs.mkdirSync(path.dirname(destination),{recursive:true});
 assert.ok(!fs.existsSync(destination),'Refusing to overwrite existing reviewed baseline');
 fs.writeFileSync(destination,JSON.stringify(fixture,null,2)+'\n');
 console.log('Created '+destination+' from '+sha+'; review and commit manually.');
