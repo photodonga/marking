@@ -115,7 +115,7 @@ jobs:
           MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
           MARKING_BROWSER=webkit MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
           node "$GITHUB_WORKSPACE/scripts/generate-ui-baseline.cjs" "$BASELINE_SHA" test-results/browser-main.generated.json
-          if [ "$BASELINE_SHA" = "$(node -p \"require(process.env.GITHUB_WORKSPACE+'/tests/fixtures/browser-main.json').baselineSha\")" ]; then
+          if [ "$BASELINE_SHA" = "$(node -p 'require(process.env.GITHUB_WORKSPACE+"/tests/fixtures/browser-main.json").baselineSha')" ]; then
             node "$GITHUB_WORKSPACE/tests/verify-baseline-artifact.cjs" test-results/browser-main.generated.json "$GITHUB_WORKSPACE/tests/fixtures/browser-main.json"
           else
             echo 'New baseline SHA: generated artifact requires manual review; committed fixture intentionally differs.'
