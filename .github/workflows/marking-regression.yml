@@ -45,15 +45,23 @@ jobs:
           (cd /tmp/marking-merge && CI=1 node tests/check-ui-fixtures.cjs)
           git worktree remove --force /tmp/marking-merge
       - name: Install browser test dependencies
+        id: deps
+        # fixture 검사가 실패해도(앱 소스 변경 PR) 브라우저 검증 결과는 항상 확인한다. job 실패 판정은 유지된다.
+        if: always()
         run: |
           npm ci
           node -e "const p=require('playwright/package.json'); if(p.version!=='1.56.1')process.exit(1); console.log('Installed Playwright version:',p.version)"
           npx playwright install --with-deps chromium webkit
+      # 아래 단계는 앞 단계가 성공했을 때만 실행해, 설치·서버 실패가 연쇄 오류로 번지지 않게 한다.
       - name: Start local app server
+        id: server
+        if: always() && steps.deps.outcome == 'success'
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/marking-server.log 2>&1 &
           echo $! > /tmp/marking-server.pid
       - name: Wait for local app server
+        id: ready
+        if: always() && steps.server.outcome == 'success'
         run: |
           for attempt in $(seq 1 30); do
             if curl --fail --silent --output /dev/null http://127.0.0.1:8765/index.html; then
@@ -65,12 +73,44 @@ jobs:
           cat /tmp/marking-server.log
           exit 1
       - name: Run Chromium regression on all screen sizes
+        if: always() && steps.ready.outcome == 'success'
         run: node tests/run-browser-regression.cjs
       - name: Run WebKit regression on all screen sizes
-        if: always()
+        if: always() && steps.ready.outcome == 'success'
         env:
           MARKING_BROWSER: webkit
         run: node tests/run-browser-regression.cjs
+      - name: Run PC workarea and edge masking regression (Chromium)
+        if: always() && steps.ready.outcome == 'success'
+        run: node tests/run-pc-edge-regression.cjs
+      - name: Run PC workarea and edge masking regression (WebKit)
+        if: always() && steps.ready.outcome == 'success'
+        env:
+          MARKING_BROWSER: webkit
+        run: node tests/run-pc-edge-regression.cjs
+      - name: Start origin/main server for export comparison
+        id: main_ready
+        if: always() && steps.ready.outcome == 'success'
+        run: |
+          git worktree add --detach /tmp/marking-main origin/main
+          (cd /tmp/marking-main && python3 -m http.server 8766 --bind 127.0.0.1 > /tmp/marking-main-server.log 2>&1 &)
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8766/index.html; then
+              echo "main server ready at $(git -C /tmp/marking-main rev-parse HEAD)"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/marking-main-server.log
+          exit 1
+      - name: Compare exports with origin/main (Chromium)
+        if: always() && steps.main_ready.outcome == 'success'
+        run: node tests/compare-main-export.cjs
+      - name: Compare exports with origin/main (WebKit)
+        if: always() && steps.main_ready.outcome == 'success'
+        env:
+          MARKING_BROWSER: webkit
+        run: node tests/compare-main-export.cjs
       - name: Upload failure screenshots and reports
         if: always()
         uses: actions/upload-artifact@v4
