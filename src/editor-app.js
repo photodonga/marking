@@ -1543,11 +1543,28 @@
     workarea.style.cursor = spacePanDrag ? "grabbing" : (spacePanHeld && naturalW ? "grab" : "");
     viewCanvas.style.cursor = workarea.style.cursor;
   }
+  // 키보드로 포커스를 옮긴 버튼·링크 등에서는 Space의 기본 동작(누르기)을 그대로 둔다.
+  // 마우스로 눌러서 생긴 포커스는 Space 이동을 막지 않는다.
+  // (:focus-visible은 키를 누르는 순간 마우스 포커스도 켜지므로 판별에 쓰지 않고,
+  //  포커스가 들어온 시점의 입력 방식을 직접 기록한다.)
+  const INTERACTIVE_SELECTOR='button,a[href],input,select,textarea,summary,[role="button"],[role="menuitem"],[role="menuitemradio"],[role="checkbox"],[role="switch"],[role="tab"],[tabindex]:not([tabindex="-1"]),[contenteditable="true"]';
+  let lastInputModality = "keyboard"; // 판별 전에는 키보드 동작을 우선한다.
+  let focusCameFromKeyboard = true;
+  document.addEventListener("pointerdown", ()=>{ lastInputModality="pointer"; }, true);
+  document.addEventListener("keydown", e=>{ if(e.code!=="Space") lastInputModality="keyboard"; }, true);
+  document.addEventListener("focusin", ()=>{ focusCameFromKeyboard = lastInputModality==="keyboard"; }, true);
+  function hasKeyboardFocusedControl(){
+    const a=document.activeElement;
+    if(!a || a===document.body || a===document.documentElement || a===viewCanvas || a===workarea) return false;
+    if(!a.matches || !a.matches(INTERACTIVE_SELECTOR)) return false;
+    return focusCameFromKeyboard;
+  }
   workarea.addEventListener("pointerenter", e=>{ if(e.pointerType!=="touch") pointerOverWorkarea=true; });
   workarea.addEventListener("pointerleave", ()=>{ pointerOverWorkarea=false; });
   window.addEventListener("keydown", e=>{
     if(e.code!=="Space" || e.ctrlKey || e.metaKey || e.altKey) return;
     if(!naturalW || isTextEntryTarget(e.target)) return;
+    if(!spacePanHeld && hasKeyboardFocusedControl()) return;
     // 사진 위에 마우스가 있거나 이미 이동 중일 때만 Space를 가져간다.
     // (그 외에는 포커스된 버튼의 Space 키보드 동작을 그대로 둔다.)
     if(!pointerOverWorkarea && !spacePanHeld) return;
@@ -1681,12 +1698,15 @@
       // 효과 중심은 사진 안에 남겨 효과가 사진 밖으로 사라지지 않게 한다.
       // 이미 중심이 밖에 있으면 더 멀어지는 방향만 막는다.
       let mdx, mdy;
-      if(edgeOverflow){
+      // 사진 밖 이동은 가장자리에 걸친 얼굴을 덮기 위한 '얼굴(타원)' 가림에만 허용한다.
+      // 사각형 가림은 PC에서도 기존처럼 효과 전체가 사진 안에 남게 한다.
+      const faceEffect = eff.shape==="ellipse" || !!eff.autoFace;
+      if(edgeOverflow && faceEffect){
         const cx=b.x+b.w/2, cy=b.y+b.h/2;
         mdx=clamp(dx,Math.min(0,cx)-cx,Math.max(naturalW,cx)-cx);
         mdy=clamp(dy,Math.min(0,cy)-cy,Math.max(naturalH,cy)-cy);
       }else{
-        // 모바일: 기존처럼 효과 전체가 사진 안에 남도록 제한한다.
+        // 모바일 및 사각형 가림: 기존처럼 효과 전체가 사진 안에 남도록 제한한다.
         // (사진 안에 있는 효과는 이전 계산과 동일하고, 이미 밖에 걸친 효과는 억지로 끌어당기지 않는다.)
         mdx=clamp(dx,Math.min(0,-b.x),Math.max(0,naturalW-(b.x+b.w)));
         mdy=clamp(dy,Math.min(0,-b.y),Math.max(0,naturalH-(b.y+b.h)));
