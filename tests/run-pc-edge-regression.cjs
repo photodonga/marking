@@ -120,28 +120,40 @@ async function patchStd(page, bytes, patches) {
     const portrait = await makePhoto(seed, 1067, 1600);
     await seed.context().close();
 
-    // 1. PC: 사진이 하단 도구바·보조 도구(설정창)에 가려지지 않고, 도구를 바꿔도 크기가 그대로다.
-    for (const [label, photo] of [['가로', landscape], ['세로', portrait]]) {
-      const ctx = await desktop();
-      const { page, errors } = await openEditor(ctx, photo);
-      const before = await box(page, '#view-canvas');
-      await chooseMasking(page, '모자이크', '얼굴');
-      await frames(page);
-      const after = await box(page, '#view-canvas');
-      const options = await box(page, '#options-bar');
-      const toolbar = await box(page, '#toolbar');
-      check(`PC ${label}: 사진 하단이 보조 도구 위에 있다`, after.y + after.height <= options.y + 0.5,
-        JSON.stringify({ canvasBottom: after.y + after.height, optionsTop: options.y }));
-      check(`PC ${label}: 사진 하단이 도구바 위에 있다`, after.y + after.height <= toolbar.y + 0.5);
-      check(`PC ${label}: 보조 도구 표시 전후 사진 크기·위치 동일`,
-        Math.abs(before.width - after.width) < 0.5 && Math.abs(before.height - after.height) < 0.5 && Math.abs(before.y - after.y) < 0.5,
-        JSON.stringify({ before, after }));
-      for (const tool of ['#btn-circle', '#btn-arrow', '#btn-blur']) { await page.locator(tool).click(); await frames(page); }
-      const cycled = await box(page, '#view-canvas');
-      check(`PC ${label}: 도구 전환 후에도 사진 크기 동일`, Math.abs(cycled.height - after.height) < 0.5 && Math.abs(cycled.y - after.y) < 0.5,
-        JSON.stringify({ after, cycled }));
-      check(`PC ${label}: 자바스크립트 오류 없음`, errors.length === 0, errors.join(' | '));
-      await ctx.close();
+    // 1. PC: 여러 창 크기·확대율에서 사진이 하단 도구바·보조 도구(설정창)에 가려지지 않고,
+    //    도구를 바꿔도 크기가 그대로다. 브라우저 125% 확대는 CSS 뷰포트 축소 + DPR 1.25로 재현한다
+    //    (예: 1280×720 창의 125% = 1024×576 CSS px).
+    const sizes = [[1280, 800, 1, '1280×800'], [1280, 720, 1, '1280×720'], [1024, 768, 1, '1024×768'], [800, 600, 1, '800×600'],
+      [1024, 576, 1.25, '1280×720 @125%'], [1024, 640, 1.25, '1280×800 @125%']];
+    for (const [w, h, dpr, sizeLabel] of sizes) {
+      for (const [label, photo] of [['가로', landscape], ['세로', portrait]]) {
+        const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, acceptDownloads: true });
+        const { page, errors } = await openEditor(ctx, photo);
+        const before = await box(page, '#view-canvas');
+        const states = [];
+        const record = async (state) => {
+          await frames(page);
+          const canvas = await box(page, '#view-canvas');
+          const toolbar = await box(page, '#toolbar');
+          const optionsVisible = await page.locator('#options-bar').evaluate(el => !el.classList.contains('hidden') && el.getBoundingClientRect().height > 0);
+          const options = optionsVisible ? await box(page, '#options-bar') : null;
+          const limit = Math.min(toolbar.y, options ? options.y : Infinity);
+          states.push({ state, canvas, overlap: canvas.y + canvas.height - limit, inViewport: toolbar.y + toolbar.height <= h + 0.5 && (!options || options.y >= 0) });
+        };
+        await record('도구 없음');
+        await chooseMasking(page, '모자이크', '얼굴'); await record('가림·얼굴');
+        await page.locator('#options-bar button', { hasText: '사각형' }).first().click(); await record('가림·사각형');
+        await page.locator('#btn-circle').click(); await record('도형');
+        await page.locator('#btn-arrow').click(); await record('화살표');
+        const worst = states.reduce((a, b) => (b.overlap > a.overlap ? b : a));
+        check(`${sizeLabel} ${label}: 모든 도구 상태에서 사진이 도구바·설정창에 가려지지 않는다`, worst.overlap <= 0.5,
+          JSON.stringify({ state: worst.state, overlapPx: +worst.overlap.toFixed(1) }));
+        check(`${sizeLabel} ${label}: 도구바·설정창이 화면 안에 있다`, states.every(x => x.inViewport));
+        const moved = states.find(x => Math.abs(x.canvas.width - before.width) > 0.5 || Math.abs(x.canvas.height - before.height) > 0.5 || Math.abs(x.canvas.y - before.y) > 0.5);
+        check(`${sizeLabel} ${label}: 도구를 바꿔도 사진 크기·위치 동일`, !moved, JSON.stringify(moved || {}));
+        check(`${sizeLabel} ${label}: 자바스크립트 오류 없음`, errors.length === 0, errors.join(' | '));
+        await ctx.close();
+      }
     }
 
     // 2. 1배율 Space+드래그 이동 — 편집은 생기지 않고, 모서리를 작업 영역 중앙까지 옮길 수 있다.
@@ -230,6 +242,100 @@ async function patchStd(page, bytes, patches) {
       const panned = await shaFor([137, -91]);
       check('이동 상태 확인(보기만 이동)', Math.abs(panned.view.x - 137) < 0.01 && Math.abs(panned.view.y + 91) < 0.01 && Math.abs(panned.view.scale - 1) < 0.0001, JSON.stringify(panned.view));
       check('이동 전후 같은 편집의 저장 파일이 픽셀·바이트 단위로 일치', still.sha === panned.sha, JSON.stringify({ still: still.sha, panned: panned.sha }));
+    }
+
+    // 8. 사진 밖 이동은 '얼굴' 가림에만 허용, 사각형 가림은 기존처럼 사진 안에 남는다.
+    {
+      const moveResult = async (shape) => {
+        const ctx = await desktop();
+        const { page } = await openEditor(ctx, landscape);
+        await chooseMasking(page, '모자이크', shape);
+        const c = await box(page, '#view-canvas');
+        // 사진 왼쪽 10%~30% 영역에 가림을 만든다.
+        await drag(page, { x: c.x + c.width * 0.10, y: c.y + c.height * 0.40 }, { x: c.x + c.width * 0.30, y: c.y + c.height * 0.60 });
+        if (shape === '얼굴') {
+          // 자동 얼굴 보정(비동기)이 끝난 뒤 이동한다.
+          await page.locator('#toast').filter({ hasText: /가림|보정|실패/ }).waitFor({ timeout: 15000 }).catch(() => {});
+          await page.waitForTimeout(300);
+        }
+        // 가림 가운데를 잡고 왼쪽으로 사진 폭의 50%만큼 끈다.
+        await drag(page, { x: c.x + c.width * 0.20, y: c.y + c.height * 0.50 }, { x: c.x + c.width * 0.20 - c.width * 0.5, y: c.y + c.height * 0.50 });
+        await page.keyboard.press('Escape');
+        const bytes = await exportBytes(page, 'move-' + (shape === '얼굴' ? 'face' : 'rect'));
+        // 사진 x=15% 지점: 사각형이 안에 남았다면 가려져 있고(분산 낮음), 얼굴이 밖으로 나갔다면 원본 그대로다.
+        const [at15, untouched] = await patchStd(page, bytes, [[0.15, 0.5, 24], [0.75, 0.5, 24]]);
+        await ctx.close();
+        return { at15, untouched };
+      };
+      const rect = await moveResult('사각형');
+      check('PC 사각형 가림: 사진 밖으로 끌어도 사진 안에 남는다(기존 제한 유지)', rect.at15 < rect.untouched * 0.35,
+        JSON.stringify({ at15: +rect.at15.toFixed(1), untouched: +rect.untouched.toFixed(1) }));
+      const face = await moveResult('얼굴');
+      check('PC 얼굴 가림: 사진 가장자리 밖으로 옮길 수 있다', face.at15 > face.untouched * 0.7,
+        JSON.stringify({ at15: +face.at15.toFixed(1), untouched: +face.untouched.toFixed(1) }));
+    }
+
+    // 9. Space 키 포커스 규칙과 편집 동작 비충돌.
+    {
+      // 9-a. 키보드(Tab)로 포커스한 버튼에서는 마우스가 사진 위에 있어도 Space가 버튼을 누른다.
+      const ctx = await desktop();
+      const { page } = await openEditor(ctx, landscape);
+      const c = await box(page, '#view-canvas');
+      await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2);
+      let focused = null;
+      for (let i = 0; i < 40; i++) {
+        await page.keyboard.press('Tab');
+        focused = await page.evaluate(() => {
+          const a = document.activeElement;
+          if (!a || a.tagName !== 'BUTTON' || a.disabled || !a.closest('#toolbar')) return null;
+          return { id: a.id || a.textContent.trim(), visible: a.matches(':focus-visible') };
+        });
+        if (focused) break;
+      }
+      check('Tab으로 도구바 버튼에 키보드 포커스(:focus-visible)', !!focused && focused.visible, JSON.stringify(focused));
+      await page.evaluate(() => { window.__spaceClicks = 0; document.activeElement.addEventListener('click', () => window.__spaceClicks++); });
+      await page.keyboard.down('Space');
+      const cursorWhileHeld = await page.locator('#workarea').evaluate(el => el.style.cursor);
+      await page.keyboard.up('Space');
+      await frames(page);
+      check('키보드 포커스된 버튼: Space가 버튼을 누른다', (await page.evaluate(() => window.__spaceClicks)) === 1, String(await page.evaluate(() => window.__spaceClicks)));
+      check('키보드 포커스된 버튼: Space 이동 모드로 바뀌지 않는다', cursorWhileHeld !== 'grab' && isHome(await viewState(page)), cursorWhileHeld);
+      await ctx.close();
+    }
+    {
+      // 9-b. 마우스로 누른 도구 버튼(포커스 표시 없음)은 Space에 눌리지 않고 Space+드래그 이동이 된다.
+      const ctx = await desktop();
+      const { page } = await openEditor(ctx, landscape);
+      await page.locator('#btn-circle').click();
+      const activeBefore = await page.locator('#btn-circle').getAttribute('class');
+      await page.evaluate(() => { window.__spaceClicks = 0; document.querySelector('#btn-circle').addEventListener('click', () => window.__spaceClicks++); });
+      await spacePan(page, 120, 80);
+      const v = await viewState(page);
+      check('마우스로 고른 도구: Space+드래그로 사진 이동', Math.abs(v.x - 120) < 0.01 && Math.abs(v.y - 80) < 0.01, JSON.stringify(v));
+      check('마우스로 고른 도구: Space가 도구 버튼을 누르지 않는다',
+        (await page.evaluate(() => window.__spaceClicks)) === 0 && (await page.locator('#btn-circle').getAttribute('class')) === activeBefore);
+      check('Space+드래그 중 도형이 그려지지 않는다', await page.locator('#btn-undo').isDisabled());
+      await ctx.close();
+    }
+    {
+      // 9-c. 기존 가림 위에서 Space+드래그해도 가림이 움직이거나 선택이 바뀌지 않는다(저장 결과 동일).
+      const ctx = await desktop();
+      const { page } = await openEditor(ctx, landscape);
+      await chooseMasking(page, '모자이크', '사각형');
+      const c = await box(page, '#view-canvas');
+      await drag(page, { x: c.x + c.width * 0.40, y: c.y + c.height * 0.40 }, { x: c.x + c.width * 0.60, y: c.y + c.height * 0.60 });
+      await page.keyboard.press('Escape');
+      const before = crypto.createHash('sha256').update(await exportBytes(page, 'space-before')).digest('hex');
+      await page.mouse.move(c.x + c.width * 0.5, c.y + c.height * 0.5);
+      await page.keyboard.down('Space');
+      await page.mouse.down();
+      await page.mouse.move(c.x + c.width * 0.5 + 160, c.y + c.height * 0.5 + 60, { steps: 8 });
+      await page.mouse.up();
+      await page.keyboard.up('Space');
+      await frames(page);
+      const after = crypto.createHash('sha256').update(await exportBytes(page, 'space-after')).digest('hex');
+      check('가림 위 Space+드래그: 가림이 움직이지 않는다(저장 결과 동일)', before === after, JSON.stringify({ before, after }));
+      await ctx.close();
     }
 
     // 7. 모바일 터치: 가장자리 밖 허용과 Space 이동은 적용되지 않는다(기존 동작 유지). Chromium 전용.

@@ -8,7 +8,9 @@
     "test:browser": "node tests/run-browser-regression.cjs",
     "test:browser:webkit": "MARKING_BROWSER=webkit node tests/run-browser-regression.cjs",
     "test:pc-edge": "node tests/run-pc-edge-regression.cjs",
-    "test:pc-edge:webkit": "MARKING_BROWSER=webkit node tests/run-pc-edge-regression.cjs"
+    "test:pc-edge:webkit": "MARKING_BROWSER=webkit node tests/run-pc-edge-regression.cjs",
+    "test:compare-main": "node tests/compare-main-export.cjs",
+    "test:compare-main:webkit": "MARKING_BROWSER=webkit node tests/compare-main-export.cjs"
   },
   "devDependencies": {
     "playwright": "1.56.1"
