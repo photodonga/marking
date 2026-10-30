@@ -19,6 +19,8 @@ function check(name, ok, detail = '') {
   results.push({ name, ok, detail });
   console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${ok ? '' : ' — ' + detail}`);
   if (!ok) failures++;
+  // GitHub Actions에서는 실패 항목을 주석(annotation)으로 남겨 로그 없이도 확인할 수 있게 한다.
+  if (!ok && process.env.GITHUB_ACTIONS) console.log(`::error title=PC edge ${engine}::${name} — ${String(detail).replace(/\n/g, ' ')}`);
 }
 
 // 결정적인 노이즈 사진(가림 전후 차이를 픽셀 분산으로 판별할 수 있게 한다).
@@ -249,5 +251,6 @@ async function patchStd(page, bytes, patches) {
   }
   fs.writeFileSync(path.join(outDir, `pc-edge-report-${engine}.json`), JSON.stringify(results, null, 2));
   console.log(failures ? `실패 ${failures}건` : '모두 통과');
+  if (process.env.GITHUB_ACTIONS) console.log(`::notice title=PC edge ${engine}::${results.length - failures}/${results.length} 통과`);
   if (failures) process.exitCode = 1;
 })().catch(error => { console.error(error); process.exitCode = 1; });

@@ -45,15 +45,19 @@ jobs:
           (cd /tmp/marking-merge && CI=1 node tests/check-ui-fixtures.cjs)
           git worktree remove --force /tmp/marking-merge
       - name: Install browser test dependencies
+        # fixture 검사가 실패해도(앱 소스 변경 PR) 브라우저 검증 결과는 항상 확인한다. job 실패 판정은 유지된다.
+        if: always()
         run: |
           npm ci
           node -e "const p=require('playwright/package.json'); if(p.version!=='1.56.1')process.exit(1); console.log('Installed Playwright version:',p.version)"
           npx playwright install --with-deps chromium webkit
       - name: Start local app server
+        if: always()
         run: |
           python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/marking-server.log 2>&1 &
           echo $! > /tmp/marking-server.pid
       - name: Wait for local app server
+        if: always()
         run: |
           for attempt in $(seq 1 30); do
             if curl --fail --silent --output /dev/null http://127.0.0.1:8765/index.html; then
@@ -65,6 +69,7 @@ jobs:
           cat /tmp/marking-server.log
           exit 1
       - name: Run Chromium regression on all screen sizes
+        if: always()
         run: node tests/run-browser-regression.cjs
       - name: Run WebKit regression on all screen sizes
         if: always()
