@@ -131,6 +131,17 @@ if (collecting && process.platform !== 'linux') throw new Error('Collect baselin
             && (width !== 1280 || exportSha256 === expected.exportSha256)
             && Buffer.from(imageData.samples).equals(zlib.inflateSync(Buffer.from(expected.imageData.samplesZlibBase64,'base64')));
           if (!fixtureMatches) console.error('[FIXTURE] '+engine+' '+reference+' '+width+'px baseline mismatch');
+          // 진단 전용 출력(판정 로직 불변): GitHub Actions 주석으로 어떤 항목이 기준과 다른지 남긴다.
+          if (!fixtureMatches && process.env.GITHUB_ACTIONS) {
+            const diag = {
+              checks: JSON.stringify(actualChecks) === JSON.stringify(expected?.checks),
+              size: imageData.width === expected?.imageData?.width && imageData.height === expected?.imageData?.height,
+              canvas: imageData.canvasSha256 === expected?.imageData?.canvasSha256,
+              exportFile: width !== 1280 || exportSha256 === expected?.exportSha256,
+              preview: imageData.width + 'x' + imageData.height
+            };
+            console.log(`::warning title=Fixture ${engine} ${reference} ${width}px::${JSON.stringify(diag)}`);
+          }
         }
         const ok = failLines.length === 0 && errors.length === 0 && fixtureMatches;
         if (!ok) failures++;

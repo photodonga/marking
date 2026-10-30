@@ -57,6 +57,12 @@ async function openEditor(context, photo) {
 }
 const box = (page, sel) => page.locator(sel).boundingBox();
 const transformOf = page => page.locator('#view-canvas').evaluate(el => el.style.transform);
+// 엔진마다 transform 문자열 표기가 다르므로(WebKit: translate(0px)) 숫자로 비교한다.
+const viewState = page => page.locator('#view-canvas').evaluate(el => {
+  const m = new DOMMatrixReadOnly(getComputedStyle(el).transform === 'none' ? undefined : getComputedStyle(el).transform);
+  return { x: m.e, y: m.f, scale: Math.hypot(m.a, m.b) };
+});
+const isHome = v => Math.abs(v.x) < 0.01 && Math.abs(v.y) < 0.01 && Math.abs(v.scale - 1) < 0.0001;
 async function frames(page) { await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))); }
 async function chooseMasking(page, mode, shape) {
   const blur = page.locator('#btn-blur');
@@ -147,7 +153,8 @@ async function patchStd(page, bytes, patches) {
       const t = await transformOf(page);
       const c = await box(page, '#view-canvas');
       const wa = await box(page, '#workarea');
-      check('1배율 Space+드래그로 사진이 이동한다', /scale\(1\)/.test(t) && !/translate\(0px, 0px\)/.test(t), t);
+      const v = await viewState(page);
+      check('1배율 Space+드래그로 사진이 이동한다', Math.abs(v.scale - 1) < 0.0001 && (Math.abs(v.x) > 1 || Math.abs(v.y) > 1), t);
       check('왼쪽 위 모서리를 작업 영역 중앙까지 옮길 수 있다',
         Math.abs(c.x - (wa.x + wa.width / 2)) <= 2 && Math.abs(c.y - (wa.y + wa.height / 2)) <= 2,
         JSON.stringify({ corner: [c.x, c.y], center: [wa.x + wa.width / 2, wa.y + wa.height / 2] }));
@@ -171,13 +178,13 @@ async function patchStd(page, bytes, patches) {
       const zoomed = await transformOf(page);
       await spacePan(page, 150, -90);
       const panned = await transformOf(page);
-      check('확대 후 Space+드래그 이동', zoomed !== panned && !/scale\(1\)/.test(panned), JSON.stringify({ zoomed, panned }));
+      check('확대 후 Space+드래그 이동', zoomed !== panned && (await viewState(page)).scale > 1.01, JSON.stringify({ zoomed, panned }));
       const c = await box(page, '#view-canvas');
       await page.mouse.dblclick(c.x + c.width / 2, c.y + c.height / 2);
       await frames(page);
       const back = await box(page, '#view-canvas');
-      check('더블클릭하면 원래 위치·배율로 돌아온다', (await transformOf(page)) === 'translate(0px, 0px) scale(1)'
-        && Math.abs(back.x - home.x) < 0.5 && Math.abs(back.y - home.y) < 0.5, await transformOf(page));
+      check('더블클릭하면 원래 위치·배율로 돌아온다', isHome(await viewState(page))
+        && Math.abs(back.x - home.x) < 0.5 && Math.abs(back.y - home.y) < 0.5, JSON.stringify(await viewState(page)));
       await ctx.close();
     }
 
@@ -215,13 +222,13 @@ async function patchStd(page, bytes, patches) {
         await drag(page, { x: c.x + c.width * 0.20, y: c.y + c.height * 0.25 }, { x: c.x + c.width * 0.45, y: c.y + c.height * 0.55 });
         await page.keyboard.press('Escape');
         const bytes = await exportBytes(page, pan ? 'panned' : 'still');
-        const transform = await transformOf(page);
+        const view = await viewState(page);
         await ctx.close();
-        return { sha: crypto.createHash('sha256').update(bytes).digest('hex'), transform };
+        return { sha: crypto.createHash('sha256').update(bytes).digest('hex'), view };
       };
       const still = await shaFor(null);
       const panned = await shaFor([137, -91]);
-      check('이동 상태 확인(보기만 이동)', /translate\(137px, -91px\) scale\(1\)/.test(panned.transform), panned.transform);
+      check('이동 상태 확인(보기만 이동)', Math.abs(panned.view.x - 137) < 0.01 && Math.abs(panned.view.y + 91) < 0.01 && Math.abs(panned.view.scale - 1) < 0.0001, JSON.stringify(panned.view));
       check('이동 전후 같은 편집의 저장 파일이 픽셀·바이트 단위로 일치', still.sha === panned.sha, JSON.stringify({ still: still.sha, panned: panned.sha }));
     }
 
@@ -242,7 +249,7 @@ async function patchStd(page, bytes, patches) {
       const toast = await page.locator('#toast').textContent();
       check('모바일: 터치로 사진 밖까지 끌어도 가장자리 밖 가림으로 처리되지 않는다', !/가장자리까지/.test(toast || ''), toast);
       check('모바일: 터치 가림 생성은 기존처럼 동작한다', !(await page.locator('#btn-undo').isDisabled()));
-      check('모바일: 보기 이동 없음(1배율 유지)', (await transformOf(page)) === 'translate(0px, 0px) scale(1)', await transformOf(page));
+      check('모바일: 보기 이동 없음(1배율 유지)', isHome(await viewState(page)), JSON.stringify(await viewState(page)));
       check('모바일: 자바스크립트 오류 없음', errors.length === 0, errors.join(' | '));
       await ctx.close();
     }
