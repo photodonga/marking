@@ -71,6 +71,14 @@ jobs:
         env:
           MARKING_BROWSER: webkit
         run: node tests/run-browser-regression.cjs
+      - name: Run PC workarea and edge masking regression (Chromium)
+        if: always()
+        run: node tests/run-pc-edge-regression.cjs
+      - name: Run PC workarea and edge masking regression (WebKit)
+        if: always()
+        env:
+          MARKING_BROWSER: webkit
+        run: node tests/run-pc-edge-regression.cjs
       - name: Upload failure screenshots and reports
         if: always()
         uses: actions/upload-artifact@v4
