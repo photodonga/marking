@@ -75,21 +75,41 @@
 
   // 1차 안정화: 설정 패널은 항상 툴바의 형제로 유지한다.
   // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
+  // PC: 하단 도구바와 그 위 보조 도구(설정창) 자리를 항상 비워 사진이 그 아래로 들어가지 않게 한다.
+  // 설정창이 열리고 닫혀도 사진 크기가 흔들리지 않도록, 설정창이 닫혀 있을 때도 같은 높이를 예약한다.
+  const DESKTOP_OPTIONS_MIN_RESERVE = 58; // 1280px 기준 가림·도형 설정창 실측 높이
+  const DESKTOP_DOCK_GAP = 8;             // #chrome의 PC gap
+  let desktopOptionsReserve = DESKTOP_OPTIONS_MIN_RESERVE;
+  let desktopDockReserve = 0;              // 작업 영역 하단에서 비워둔 높이(px)
+  function measureDesktopDockReserve(){
+    const toolbarRect = toolbarEl.getBoundingClientRect();
+    if(!toolbarRect.height) return desktopDockReserve;
+    if(!optionsBar.classList.contains("hidden")){
+      const optionsHeight = optionsBar.getBoundingClientRect().height;
+      if(optionsHeight > desktopOptionsReserve) desktopOptionsReserve = Math.ceil(optionsHeight);
+    }
+    const appBottom = workarea.parentElement ? workarea.parentElement.getBoundingClientRect().bottom : window.innerHeight;
+    return Math.max(0, Math.ceil(appBottom - toolbarRect.top + DESKTOP_DOCK_GAP + desktopOptionsReserve));
+  }
   function syncEditorInsets(){
     const mobile = window.matchMedia("(max-width: 640px)").matches;
     const height = chromeEl.getBoundingClientRect().height;
     const inset = Math.ceil(height + (mobile ? 24 : 24));
     const root = document.documentElement;
-    // Desktop dock floats over the image: it must not reserve space above it.
-    // Reserving the dock height at the top made the image jump when options opened.
     const top = "0px";
-    const bottom = mobile ? inset + "px" : "0px";
+    const previousReserve = desktopDockReserve;
+    desktopDockReserve = mobile ? 0 : measureDesktopDockReserve();
+    const bottom = mobile ? inset + "px" : desktopDockReserve + "px";
     if(root.style.getPropertyValue("--editor-top")===top && root.style.getPropertyValue("--editor-bottom")===bottom) return;
     root.style.setProperty("--editor-top",top);
     root.style.setProperty("--editor-bottom",bottom);
-    // Toolbar/option-panel changes must not change the displayed photo scale.
-    // Only actual viewport resize events call fitCanvas().
+    // 예약 높이는 설정창 표시 여부와 무관하므로 도구 전환만으로는 바뀌지 않는다.
+    // 첫 측정이나 실제 높이 변화로 예약 공간이 바뀐 경우에만 PC 사진 크기를 다시 맞춘다.
+    if(!mobile && previousReserve!==desktopDockReserve && naturalW){ fitCanvas(); redraw(); }
   }
+  // 선 굵기·가림 강도의 기준 배율은 도구 영역 예약 전과 같은 작업 영역(창 전체)으로 계산한다.
+  // 예약으로 미리보기만 작아지고, 같은 편집의 저장 결과는 바뀌지 않는다.
+  function referenceWorkareaHeight(){ return workarea.clientHeight + desktopDockReserve; }
   const chromeObserver = new ResizeObserver(()=>requestAnimationFrame(syncEditorInsets));
   chromeObserver.observe(chromeEl);
   window.addEventListener("resize", syncEditorInsets, {passive:true});
@@ -223,7 +243,7 @@
         naturalW = img.naturalWidth;
         naturalH = img.naturalHeight;
         sourceImageFilename = file.name || "";
-        referenceFitScale = Math.min(1, Math.max(0.00001, Math.min((workarea.clientWidth-24)/naturalW,(workarea.clientHeight-24)/naturalH)));
+        referenceFitScale = Math.min(1, Math.max(0.00001, Math.min((workarea.clientWidth-24)/naturalW,(referenceWorkareaHeight()-24)/naturalH)));
         strokePxCurrent = 2;
         rasterCanvas=nextRaster;
         rasterCtx=nextContext;
@@ -310,15 +330,27 @@
     viewCanvas.style.transformOrigin = "50% 50%";
     viewCanvas.style.transform = `translate(${viewPanX}px, ${viewPanY}px) scale(${viewZoom})`;
   }
+  // PC Space+드래그로 사진을 옮긴 상태. 켜져 있으면 1배율에서도 이동량을 유지하고
+  // 사진 모서리가 작업 영역 중앙까지 오도록 이동 범위를 넓힌다. 모바일은 이 값을 켜지 않는다.
+  let freeViewPan = false;
+  function hasViewOffset(){ return viewZoom>1.001 || Math.abs(viewPanX)>0.5 || Math.abs(viewPanY)>0.5; }
   function resetView(){
-    viewZoom=1; viewPanX=0; viewPanY=0;
+    viewZoom=1; viewPanX=0; viewPanY=0; freeViewPan=false;
     applyViewTransform();
   }
   function clampView(){
-    if(viewZoom<=1.001){ viewZoom=1; viewPanX=0; viewPanY=0; return; }
+    if(viewZoom<=1.001){
+      viewZoom=1;
+      if(!freeViewPan){ viewPanX=0; viewPanY=0; return; }
+    }
     // 사진이 화면에서 완전히 사라지지 않을 정도로 이동 범위를 제한한다.
-    const maxX=Math.max(0,(dispW*viewZoom-workarea.clientWidth)/2 + workarea.clientWidth*0.42);
-    const maxY=Math.max(0,(dispH*viewZoom-workarea.clientHeight)/2 + workarea.clientHeight*0.42);
+    let maxX=Math.max(0,(dispW*viewZoom-workarea.clientWidth)/2 + workarea.clientWidth*0.42);
+    let maxY=Math.max(0,(dispH*viewZoom-workarea.clientHeight)/2 + workarea.clientHeight*0.42);
+    if(freeViewPan){
+      // 사진의 네 모서리를 작업 영역 중앙까지 옮길 수 있게 한다.
+      maxX=Math.max(maxX,dispW*viewZoom/2);
+      maxY=Math.max(maxY,dispH*viewZoom/2);
+    }
     viewPanX=clamp(viewPanX,-maxX,maxX);
     viewPanY=clamp(viewPanY,-maxY,maxY);
   }
@@ -856,14 +888,23 @@
   const normRect=window.MarkingHelpers.normRect;
 
   // ---------------- pointer coordinate helpers ----------------
-  function getDispPoint(e){
+  // 얼굴 가림 영역이 사진 가장자리 밖으로 나갈 수 있는 최대 비율(사진 크기 대비).
+  const EFFECT_OVERFLOW_RATIO = 0.5;
+  function getDispPoint(e, allowOverflow){
     const rect = viewCanvas.getBoundingClientRect();
     // CSS 확대/이동 뒤의 화면 좌표를 base canvas 좌표로 역변환한다.
     const rw=rect.width||dispW, rh=rect.height||dispH;
+    // 기본은 사진 경계 안으로 제한한다. 얼굴 가림을 그릴 때만 가장자리에 걸린 얼굴을
+    // 덮을 수 있도록 사진 밖까지 허용한다. 사진 밖 부분은 렌더링·저장에서 잘려 나간다.
+    const ox = allowOverflow ? dispW*EFFECT_OVERFLOW_RATIO : 0;
+    const oy = allowOverflow ? dispH*EFFECT_OVERFLOW_RATIO : 0;
     return {
-      x: clamp((e.clientX-rect.left)*(dispW/rw),0,dispW),
-      y: clamp((e.clientY-rect.top)*(dispH/rh),0,dispH)
+      x: clamp((e.clientX-rect.left)*(dispW/rw),-ox,dispW+ox),
+      y: clamp((e.clientY-rect.top)*(dispH/rh),-oy,dispH+oy)
     };
+  }
+  function natRectExceedsImage(r){
+    return r.x<0 || r.y<0 || r.x+r.w>naturalW || r.y+r.h>naturalH;
   }
   function dispToNat(p){ return { x:p.x/scale, y:p.y/scale }; }
 
@@ -1402,7 +1443,7 @@
   document.addEventListener("dblclick", function(e){
     if(!e.target.closest || !e.target.closest("#app")) return;
     e.preventDefault();
-    if(naturalW && viewZoom>1.001){ resetView(); redraw(); }
+    if(naturalW && hasViewOffset()){ resetView(); redraw(); }
   }, {passive:false});
 
   // ---------------- pointer interaction ----------------
@@ -1486,6 +1527,68 @@
     setViewZoom(viewZoom*factor,e.clientX,e.clientY);
   },{passive:false});
 
+  // PC: Space를 누른 채 드래그하면 사진을 옮긴다(보기 전용 CSS 이동, 편집 좌표·저장 결과 불변).
+  // 1배율에서도 이동할 수 있어 사진 모서리를 작업 영역 중앙으로 가져와 편집할 수 있다.
+  // 더블클릭하면 원래 위치로 돌아간다. 터치 입력에는 적용하지 않는다.
+  let spacePanHeld = false, spacePanHintShown = false, pointerOverWorkarea = false;
+  let spacePanDrag = null;
+  function isTextEntryTarget(t){
+    if(!t || !t.tagName) return false;
+    if(t.isContentEditable) return true;
+    if(t.tagName==="TEXTAREA" || t.tagName==="SELECT") return true;
+    if(t.tagName!=="INPUT") return false;
+    return !["range","checkbox","radio","button","color","file"].includes((t.type||"").toLowerCase());
+  }
+  function syncSpacePanCursor(){
+    workarea.style.cursor = spacePanDrag ? "grabbing" : (spacePanHeld && naturalW ? "grab" : "");
+    viewCanvas.style.cursor = workarea.style.cursor;
+  }
+  workarea.addEventListener("pointerenter", e=>{ if(e.pointerType!=="touch") pointerOverWorkarea=true; });
+  workarea.addEventListener("pointerleave", ()=>{ pointerOverWorkarea=false; });
+  window.addEventListener("keydown", e=>{
+    if(e.code!=="Space" || e.ctrlKey || e.metaKey || e.altKey) return;
+    if(!naturalW || isTextEntryTarget(e.target)) return;
+    // 사진 위에 마우스가 있거나 이미 이동 중일 때만 Space를 가져간다.
+    // (그 외에는 포커스된 버튼의 Space 키보드 동작을 그대로 둔다.)
+    if(!pointerOverWorkarea && !spacePanHeld) return;
+    e.preventDefault();
+    if(spacePanHeld) return;
+    spacePanHeld = true;
+    syncSpacePanCursor();
+    if(!spacePanHintShown){ spacePanHintShown=true; showToast("드래그해서 사진 이동 · 더블클릭하면 원위치",1600); }
+  });
+  window.addEventListener("keyup", e=>{
+    if(e.code!=="Space" || !spacePanHeld) return;
+    // 포커스된 버튼이 Space keyup으로 눌리지 않게 막는다.
+    e.preventDefault();
+    spacePanHeld = false;
+    syncSpacePanCursor();
+  });
+  window.addEventListener("blur", ()=>{ spacePanHeld=false; spacePanDrag=null; syncSpacePanCursor(); });
+  // 캡처 단계에서 가로채 Space 이동 중에는 그리기·선택이 시작되지 않게 한다.
+  workarea.addEventListener("pointerdown", e=>{
+    if(!spacePanHeld || !naturalW || e.pointerType==="touch" || e.button!==0) return;
+    e.preventDefault(); e.stopPropagation();
+    try{ workarea.setPointerCapture && workarea.setPointerCapture(e.pointerId); }catch(_){ }
+    spacePanDrag = {id:e.pointerId, x:e.clientX, y:e.clientY, panX:viewPanX, panY:viewPanY};
+    syncSpacePanCursor();
+  }, true);
+  workarea.addEventListener("pointermove", e=>{
+    if(!spacePanDrag || e.pointerId!==spacePanDrag.id) return;
+    e.preventDefault(); e.stopPropagation();
+    freeViewPan = true;
+    viewPanX = spacePanDrag.panX + (e.clientX-spacePanDrag.x);
+    viewPanY = spacePanDrag.panY + (e.clientY-spacePanDrag.y);
+    clampView(); applyViewTransform();
+  }, true);
+  function endSpacePan(e){
+    if(!spacePanDrag || (e && e.pointerId!==spacePanDrag.id)) return;
+    spacePanDrag = null;
+    syncSpacePanCursor();
+  }
+  workarea.addEventListener("pointerup", endSpacePan, true);
+  workarea.addEventListener("pointercancel", endSpacePan, true);
+
   function onPointerDown(e){
     if(!naturalW) return;
     e.preventDefault();
@@ -1554,7 +1657,9 @@
 
   function onPointerMove(e){
     if(!drag) return;
-    const dp = getDispPoint(e);
+    // 가장자리 밖 허용은 PC(마우스·펜)에만 적용한다. 모바일 터치 동작은 기존 그대로 유지한다.
+    const edgeOverflow = e.pointerType!=="touch";
+    const dp = getDispPoint(e, edgeOverflow && drag.mode==="create" && activeTool==="blur" && blurShape==="face");
     if(drag.mode==="create"){
       drag.curDisp = dp;
       redraw();
@@ -1572,9 +1677,20 @@
       const dx=nat.x-drag.last.x, dy=nat.y-drag.last.y;
       const eff=drag.effect;
       const b=effectBounds(eff);
-      // 효과 전체가 사진 밖으로 사라지지 않도록 이동량을 제한한다.
-      const mdx=clamp(dx,-b.x,naturalW-(b.x+b.w));
-      const mdy=clamp(dy,-b.y,naturalH-(b.y+b.h));
+      // 가장자리에 걸친 얼굴을 덮을 수 있도록 효과 일부가 사진 밖으로 나가는 것은 허용하되,
+      // 효과 중심은 사진 안에 남겨 효과가 사진 밖으로 사라지지 않게 한다.
+      // 이미 중심이 밖에 있으면 더 멀어지는 방향만 막는다.
+      let mdx, mdy;
+      if(edgeOverflow){
+        const cx=b.x+b.w/2, cy=b.y+b.h/2;
+        mdx=clamp(dx,Math.min(0,cx)-cx,Math.max(naturalW,cx)-cx);
+        mdy=clamp(dy,Math.min(0,cy)-cy,Math.max(naturalH,cy)-cy);
+      }else{
+        // 모바일: 기존처럼 효과 전체가 사진 안에 남도록 제한한다.
+        // (사진 안에 있는 효과는 이전 계산과 동일하고, 이미 밖에 걸친 효과는 억지로 끌어당기지 않는다.)
+        mdx=clamp(dx,Math.min(0,-b.x),Math.max(0,naturalW-(b.x+b.w)));
+        mdy=clamp(dy,Math.min(0,-b.y),Math.max(0,naturalH-(b.y+b.h)));
+      }
       eff.rect.x+=mdx; eff.rect.y+=mdy;
       if(eff.faceRects&&eff.faceRects.length) eff.faceRects.forEach(r=>{r.x+=mdx;r.y+=mdy;});
       drag.last={x:nat.x-(dx-mdx),y:nat.y-(dy-mdy)};
@@ -1681,6 +1797,9 @@
             const eff={id:genId(),type:'effect',rect:Object.assign({},r),faceRects:[],autoFace:false,
               mode:blurMode,shape:'ellipse',rotation:0,intensity:intensity,feather:feather};
             effects.push(eff);selectedId=eff.id;pushHistory();buildOptionsBar();redraw();
+            // 사진 가장자리 밖까지 그린 경우는 잘린 얼굴을 덮으려는 의도이므로 자동 얼굴 보정을 하지 않는다.
+            // (보정하면 사진 안쪽 얼굴 박스로 줄어들어 모서리가 다시 드러난다.)
+            if(natRectExceedsImage(r)){ showToast("사진 가장자리까지 가림",1000); return; }
             const generation=imageGeneration;
             const initial=JSON.stringify(eff);
             const historyEntry=history[historyIndex];
