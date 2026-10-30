@@ -5,7 +5,7 @@
 // A. 기존 회귀 테스트의 1280px 조건(1280×700)과 같은 방식(미리보기 35%→65% 마우스 드래그)으로 원을 그리고,
 //    앱이 실제로 받은 포인터 좌표를 원본 이미지 좌표로 환산해 두 버전을 비교한다.
 //    원본 좌표 차이 여부와 저장 파일 차이 여부가 일치하는지 확인한다.
-// B. 브랜치 창을 하단 예약 높이만큼만 더 길게 열어 두 버전의 작업 영역·미리보기 위치·배율을
+// B. 각 버전의 창을 하단 예약 높이만큼 더 길게 열어 두 버전의 작업 영역·미리보기 위치·배율을
 //    똑같이 맞춘다(둘 다 폭 기준 맞춤이라 선 굵기·가림 강도 기준 배율도 같다). 그러면 같은 정수
 //    마우스 좌표가 같은 원본 좌표가 되므로(WebKit 정수 좌표 제약과 무관), 원·화살표·사각형
 //    모자이크·사각형 블러를 같은 원본 좌표에 넣고 저장 파일을 비교할 수 있다.
@@ -124,12 +124,14 @@ const maxDiff = (m, b) => Math.max(...[0, 1].flatMap(i => [Math.abs(m[i].x - b[i
       JSON.stringify({ receivedIntegerCoords: integerCoords, maxNaturalDiffPx: +natDiff.toFixed(3), exportSame: aSame }));
 
     // ---------- B: 같은 원본 좌표 ----------
-    const MAIN_H = 900;
-    const probe = await open(browser, BRANCH, photo, MAIN_H);
-    const reserve = probe.geo.reserve;
-    await probe.ctx.close();
-    const pm = await open(browser, MAIN, photo, MAIN_H), pb = await open(browser, BRANCH, photo, MAIN_H + reserve);
+    // 작업 영역 높이를 900px로 맞춘다: 각 버전의 하단 예약 높이를 먼저 재고 그만큼 창을 늘린다
+    // (예약이 없는 버전은 900, 있는 버전은 900+예약).
+    const WORK_H = 900;
+    const reserveOf = async base => { const p = await open(browser, base, photo, WORK_H); const r = p.geo.reserve; await p.ctx.close(); return r; };
+    const reserveMain = await reserveOf(MAIN), reserveBranch = await reserveOf(BRANCH);
+    const pm = await open(browser, MAIN, photo, WORK_H + reserveMain), pb = await open(browser, BRANCH, photo, WORK_H + reserveBranch);
     const same = ['left', 'top', 'width', 'height', 'scale', 'waW', 'waH'].every(k => Math.abs(pm.geo[k] - pb.geo[k]) < 1e-9);
+    const reserve = { main: reserveMain, branch: reserveBranch };
     check('B 준비: 두 버전의 작업 영역·미리보기 위치·크기·배율이 같다', same,
       JSON.stringify({ reservePx: reserve, main: pm.geo, branch: pb.geo }));
     const ensureBlur = async p => {
