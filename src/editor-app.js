@@ -2315,7 +2315,15 @@
     rotation=rotation||0;
     const effectIntensity = options && Number.isFinite(options.intensity) ? options.intensity : intensity;
     const effectFeather = options && Number.isFinite(options.feather) ? options.feather : feather;
-    const radiusOrBlock = mode==="blur" ? blurRadiusNatural(natRect, effectIntensity) : mosaicBlockNatural(natRect, effectIntensity);
+    // Small printed text needs a stronger blur than faces. Keep the established
+    // face/ellipse rendering unchanged; only rectangular blur gains headroom
+    // above intensity 50. All measurements remain in source-image pixels.
+    const textBlurBoost = mode==="blur" && shape==="rect"
+      ? 1 + 3 * Math.pow(clamp((effectIntensity - 50) / 50, 0, 1), 1.5)
+      : 1;
+    const radiusOrBlock = mode==="blur"
+      ? blurRadiusNatural(natRect, effectIntensity) * textBlurBoost
+      : mosaicBlockNatural(natRect, effectIntensity);
     const base = Math.max(8, Math.min(natRect.w, natRect.h));
     const ft = clamp(effectFeather/100,0,1);
     // 페더는 익명화 강도를 낮추지 않고 가장자리 전환 폭만 넓힌다.
