@@ -18,7 +18,7 @@ for(const name of ['editor-helpers','editor-canvas','editor-app']){
 }
 
 const app = readFileSync(new URL('../src/editor-app.js',import.meta.url),'utf8');
-for(const name of ['buildOptionsBar','arrangeMobileOptions','fitCanvas','handleSaveClick','handleEditorKeydown','decorateOptionIcons']){
+for(const name of ['buildOptionsBar','arrangeOptions','fitCanvas','handleSaveClick','handleEditorKeydown','decorateOptionIcons']){
   if(!new RegExp('\\bfunction\\s+'+name+'\\s*\\(').test(app)) fail('Missing essential function in editor-app.js: '+name);
 }
 // Minimal CSS syntax guard only. Hash/pixel fixtures, not brace counting, protect UI parity.
