@@ -1617,6 +1617,73 @@ html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button:fi
     margin-top:6px; text-align:center; font-size:11px; color:var(--ink-faint);
   }
 }
+/* ===== 패밀리 도크: 설정 + 툴바를 한 장의 카드로 (PC·모바일 공통) ===== */
+html:root{--dock-btn:32px;}
+@media (max-width:640px){html:root{--dock-btn:38px;}}
+html:root body #app #chrome{
+  position:absolute!important; top:auto!important; right:auto!important; left:50%!important;
+  bottom:calc(14px + var(--safe-b))!important; transform:translateX(-50%)!important;
+  width:max-content!important; max-width:calc(100vw - 16px)!important; height:auto!important;
+  display:flex!important; flex-direction:column-reverse!important; align-items:stretch!important; gap:0!important;
+  padding:5px!important; background:var(--panel)!important; border:1px solid var(--panel-border)!important;
+  border-radius:999px!important; box-shadow:0 10px 28px rgba(0,0,0,.35)!important; pointer-events:auto!important;
+}
+html:root body #app #chrome:has(#options-bar:not(.hidden)){border-radius:22px!important; padding:10px 8px 5px!important;}
+html:root body #chrome #toolbar, html:root body #chrome #options-bar{
+  position:static!important; transform:none!important; margin:0!important; padding:0!important;
+  width:auto!important; max-width:none!important; min-width:0!important; height:auto!important;
+  background:transparent!important; border:0!important; border-radius:0!important; box-shadow:none!important;
+  backdrop-filter:none!important; -webkit-backdrop-filter:none!important;
+}
+html:root body #chrome #toolbar{display:flex!important; align-items:center!important; justify-content:center!important; gap:2px!important; overflow:visible!important;}
+html:root body #chrome #toolbar .brand{display:none!important;}
+html:root body #chrome #toolbar :is(.tools,.toolbar-edit,.toolbar-history,.toolbar-delete,.line-tool-combo){display:flex!important; align-items:center!important; gap:2px!important; margin:0!important; padding:0!important; border:0!important; background:transparent!important; flex:0 0 auto!important;}
+html:root body #chrome #toolbar .toolbar-history{border-left:1px solid var(--panel-border)!important; padding-left:4px!important; margin-left:4px!important;}
+html:root body #chrome #toolbar :is(.tool-btn,.icon-btn){
+  width:var(--dock-btn)!important; height:var(--dock-btn)!important; min-width:0!important; min-height:0!important;
+  padding:0!important; border-radius:999px!important; display:grid!important; place-items:center!important; flex:0 0 auto!important;
+}
+html:root body #chrome #toolbar .tool-btn .label{display:none!important;}
+html:root body #chrome #toolbar :is(.tool-btn .glyph, .icon-btn) svg{width:18px!important; height:18px!important;}
+html:root body #chrome #toolbar .tool-btn .glyph{display:grid!important; place-items:center!important; width:auto!important; height:auto!important;}
+html:root body #chrome #toolbar .line-tool-chevron{width:18px!important; height:var(--dock-btn)!important; min-width:0!important; padding:0!important; border-radius:999px!important; background:transparent!important; border:0!important;}
+html:root body #chrome #toolbar .save-group{gap:0!important; margin-left:6px!important; flex:0 0 auto!important; display:flex!important; align-items:center!important; background:transparent!important; border:0!important; box-shadow:none!important; padding:0!important; border-radius:999px!important; overflow:hidden!important;}
+html:root body #chrome #toolbar .save-btn{height:var(--dock-btn)!important; min-height:0!important; padding:0 12px 0 16px!important; border-radius:999px 0 0 999px!important; font-size:13.5px!important; line-height:1!important;}
+html:root body #chrome #toolbar .save-group .save-format-wrap{flex:0 0 30px!important; min-width:30px!important; max-width:30px!important; height:var(--dock-btn)!important; min-height:0!important; width:30px!important; border-radius:0 999px 999px 0!important; border-left:0!important; display:block!important; position:relative!important;}
+html:root body #chrome #toolbar .save-group .save-format-wrap::before{content:''!important; position:absolute!important; left:0!important; top:25%!important; height:50%!important; border-left:1px solid rgba(255,255,255,.35)!important;}
+html:root body #chrome #toolbar .save-group .save-chevron{position:absolute!important; top:50%!important; left:50%!important; right:auto!important; width:12px!important; height:12px!important; transform:translate(-55%,-50%)!important; color:#fff!important;}
+html:root body #chrome #toolbar .save-group .save-btn{flex:0 0 auto!important; width:auto!important; min-width:0!important; margin:0!important;}
+/* 설정창: 두 줄 */
+html:root body #chrome #options-bar.hidden{display:none!important;}
+html:root body #chrome #options-bar:not(.hidden){display:flex!important; flex-direction:column!important; align-items:center!important; gap:8px!important; padding:0 4px 10px!important; margin-bottom:5px!important; border-bottom:1px solid var(--panel-border)!important; overflow:visible!important;}
+html:root body #options-bar .option-row{height:auto!important; min-height:0!important; display:flex!important; align-items:center!important; justify-content:center!important; gap:10px!important; flex-wrap:nowrap!important; width:100%!important; margin:0!important; padding:0!important; grid-template-columns:none!important;}
+html:root body #options-bar .opt-group{height:auto!important; min-height:0!important; max-height:none!important; display:flex!important; align-items:center!important; gap:8px!important; margin:0!important; padding:0!important; flex:0 0 auto!important; width:auto!important; min-width:0!important; border:0!important; position:static!important; transform:none!important;}
+html:root body #options-bar :is(.option-stroke,.option-color) > span{display:none!important;}
+html:root body #options-bar .seg{display:flex!important; gap:2px!important; padding:2px!important; border:1px solid var(--panel-border)!important; border-radius:999px!important; background:transparent!important; width:auto!important; height:auto!important;}
+html:root body #options-bar .seg button{
+  height:var(--dock-btn)!important; min-height:0!important; width:auto!important; min-width:0!important; flex:0 0 auto!important;
+  padding:0 11px!important; border:0!important; border-radius:999px!important; font-size:12.5px!important; line-height:1!important;
+  background:transparent!important; color:var(--ink-soft)!important; box-shadow:none!important;
+}
+html:root body #options-bar .seg button.icon-option{width:var(--dock-btn)!important; padding:0!important; font-size:0!important; display:flex!important; align-items:center!important; justify-content:center!important;}
+html:root body #options-bar .seg button .option-vector-icon{display:block!important; position:static!important; transform:none!important;}
+html:root body #options-bar .seg button .option-vector-icon{width:18px!important; height:18px!important; flex-basis:18px!important; margin:0!important;}
+html:root body #options-bar .seg button.active{background:var(--accent)!important; color:#fff!important;}
+html:root body #options-bar .option-slider{gap:8px!important;}
+html:root body #options-bar .option-slider .effect-value-label{min-width:48px!important; font-size:12.5px!important; color:var(--ink-soft)!important; font-variant-numeric:tabular-nums;}
+html:root body #options-bar .option-slider input[type=range]{width:120px!important; min-width:0!important; margin:0!important; height:24px!important; padding:0!important; background:transparent!important; border:0!important; box-shadow:none!important;}
+html:root body #options-bar .annotation-palette{display:flex!important; gap:6px!important;}
+html:root body #options-bar .option-lock{font-size:12.5px!important; color:var(--ink-soft)!important; gap:6px!important;}
+html:root body #options-bar .option-lock span{min-width:7em!important; white-space:nowrap!important;}
+html:root body #options-bar .danger-opt{height:var(--dock-btn)!important; border-radius:999px!important;}
+@media (max-width:640px){
+  html:root body #app #chrome{width:calc(100vw - 16px)!important;}
+  html:root body #options-bar[data-layout="effect"] .option-row-secondary{flex-direction:column!important; align-items:stretch!important; gap:6px!important;}
+  html:root body #options-bar .option-row-secondary .option-slider{display:grid!important; grid-template-columns:52px minmax(0,1fr)!important; grid-template-rows:auto!important; grid-auto-rows:auto!important; grid-template-areas:none!important; row-gap:0!important; align-items:center!important; width:100%!important;}
+  html:root body #options-bar .option-row-secondary .option-slider > *{grid-area:auto!important; grid-row:1!important;}
+  html:root body #options-bar .option-row-secondary .option-slider input[type=range]{display:block!important; width:100%!important; max-width:none!important; flex:none!important;}
+  html:root body #chrome #toolbar{justify-content:space-between!important;}
+}
 </style>
 </head>
 <body>
@@ -1625,7 +1692,7 @@ html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button:fi
     <header id="toolbar">
       <div class="brand">마킹</div>
       <div class="tools"><div class="toolbar-edit">
-        <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="10" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="16" y="4" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="4" y="10" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="10" y="10" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="16" y="10" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="4" y="16" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="10" y="16" width="4" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="16" y="16" width="4" height="4" rx="1" fill="currentColor" stroke="none"/></svg></span><span class="label">가림</span></button>
+        <button class="tool-btn" data-tool="blur" id="btn-blur"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="6" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="6" r="1.6" fill="currentColor" stroke="none"/><circle cx="18" cy="6" r="1.6" fill="currentColor" stroke="none"/><circle cx="6" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="18" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="6" cy="18" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="18" r="1.6" fill="currentColor" stroke="none"/><circle cx="18" cy="18" r="1.6" fill="currentColor" stroke="none"/></svg></span><span class="label">가림</span></button>
         <button class="tool-btn" data-tool="circle" id="btn-circle"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="5" width="14" height="14" rx="3"/></svg></span><span class="label">도형</span></button>
         <div class="line-tool-combo" id="line-tool-combo" role="group" aria-label="선 도구">
           <button class="tool-btn" data-tool="arrow" id="btn-arrow" aria-label="화살표 도구" title="화살표 도구"><span class="glyph"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13"/><path d="m14 7 5 5-5 5"/></svg></span><span class="label">화살표</span></button>
