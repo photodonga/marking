@@ -1561,6 +1561,62 @@
     column-gap:6px!important;
   }
 }
+/* ===== 형제 앱 통일 UI (코랄 오렌지 · 평면) ===== */
+html:root{
+  --accent:#D46F4D; --accent-ink:#ffffff; --accent-soft:rgba(212,111,77,.18);
+  --ink:#F4F5F7; --ink-soft:#B8C0CB; --ink-faint:#8C95A3;
+  --panel:#23262C; --panel-hi:#2C3037; --panel-border:rgba(184,193,207,.20);
+  --glass:var(--panel); --glass-strong:var(--panel); --glass-border:var(--panel-border); --glass-shadow:rgba(0,0,0,.35);
+  --chip-bg:transparent; --chip-border:var(--panel-border);
+  --canvas-bg:#15171B; --danger:#E5534B;
+}
+html:root body, html:root #app, html:root #workarea{background:var(--canvas-bg);}
+html:root #toolbar, html:root #options-bar{
+  background:var(--panel)!important; backdrop-filter:none!important; -webkit-backdrop-filter:none!important;
+  border:1px solid var(--panel-border)!important; box-shadow:0 10px 28px rgba(0,0,0,.35)!important; border-radius:16px!important;
+}
+html:root #toolbar .tool-btn:not(.active), html:root #toolbar .icon-btn, html:root #toolbar .line-tool-chevron{color:var(--ink-soft)!important;}
+html:root #toolbar .tool-btn:not(.active):hover{background:var(--panel-hi)!important;border-color:transparent!important;color:var(--ink)!important;}
+html:root #toolbar .tool-btn.active, html:root #toolbar .line-tool-combo:has(.active) .line-tool-chevron{background:var(--accent-soft)!important;color:var(--accent)!important;border-color:transparent!important;box-shadow:none!important;}
+html:root #toolbar .icon-btn{background:transparent!important;border-color:transparent!important;box-shadow:none!important;}
+html:root #toolbar .icon-btn:hover:not(:disabled){background:var(--panel-hi)!important;color:var(--ink)!important;}
+html:root #toolbar .icon-btn:disabled{color:rgba(184,192,203,.30)!important;background:transparent!important;}
+html:root #toolbar #btn-clear-photo:not(:disabled){background:transparent!important;color:var(--ink-soft)!important;box-shadow:none!important;border-color:transparent!important;}
+html:root #toolbar #btn-clear-photo:hover:not(:disabled){background:rgba(229,83,75,.16)!important;color:var(--danger)!important;}
+html:root .save-btn, html:root #toolbar .save-btn{background:var(--accent)!important;color:#fff!important;box-shadow:none!important;}
+html:root .save-btn:hover{background:#C9643F!important;filter:none!important;}
+html:root .save-btn:disabled, html:root #toolbar .save-btn:disabled{background:var(--panel-hi)!important;color:rgba(184,192,203,.45)!important;opacity:1!important;}
+html:root #toolbar #format-select, html:root #toolbar .save-format-wrap{background:var(--accent)!important;color:#fff!important;border-color:transparent!important;box-shadow:none!important;}
+html:root #toolbar .save-btn:disabled ~ .save-format-wrap, html:root #toolbar .save-btn:disabled ~ .save-format-wrap #format-select{background:var(--panel-hi)!important;color:rgba(184,192,203,.45)!important;}
+html:root #toolbar :is(.sep,.toolbar-history,.toolbar-delete){border-color:var(--panel-border)!important;}
+/* 옵션 바: 라벨은 읽히게, 선택은 코랄 */
+html:root #options-bar{color:var(--ink)!important;}
+html:root #options-bar :is(label, .opt-label, span){color:var(--ink-soft);}
+html:root #options-bar :is(button,.seg button,.chip){color:var(--ink-soft);}
+html:root #options-bar :is(button.active,.active,[aria-pressed="true"]):not(.color-swatch):not([data-color]){background:var(--accent)!important;color:#fff!important;border-color:var(--accent)!important;box-shadow:none!important;}
+html:root #options-bar :is(.seg,.segmented,.pill-group){background:transparent!important;border:1px solid var(--panel-border)!important;}
+html:root input[type=range]{accent-color:var(--accent)!important;}
+html:root input[type=range]::-webkit-slider-thumb{background:var(--accent)!important;border-color:#fff!important;}
+html:root input[type=checkbox]{accent-color:var(--accent)!important;}
+/* 빈 화면 · 알림 */
+html:root #placeholder .ph-icon{background:transparent!important;border:1.5px solid var(--panel-border)!important;color:var(--ink-soft)!important;box-shadow:none!important;}
+html:root #placeholder .ph-icon:hover{border-color:var(--accent)!important;color:var(--accent)!important;}
+html:root #placeholder.dragover .ph-icon{background:var(--accent-soft)!important;}
+html:root #toast{background:var(--panel)!important;border:1px solid var(--panel-border)!important;color:var(--ink)!important;backdrop-filter:none!important;}
+html:root .save-format-menu, html:root #line-tool-menu{background:var(--panel)!important;border:1px solid var(--panel-border)!important;backdrop-filter:none!important;color:var(--ink)!important;}
+html:root .palette-swatch.selected, html:root #options-bar[data-layout="drawing"] .palette-swatch.selected::before{outline-color:#F4F5F7!important;}
+/* 얼굴 자동 맞춤을 못 쓸 때: 알림 대신 "얼굴" 옆에 조용히 표시 */
+html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button:first-child.active)::after{
+  content:"자동 맞춤 안 됨"; align-self:center; margin-left:8px; white-space:nowrap;
+  font-size:11px; color:var(--ink-faint);
+}
+@media (max-width:640px){
+  html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button:first-child.active)::after{content:none;}
+  html:root #options-bar[data-face-auto="off"][data-layout="effect"]:has(.option-target .seg > button:first-child.active)::after{
+    content:"얼굴 자동 맞춤 안 됨"; display:block; width:100%; flex:0 0 100%;
+    margin-top:6px; text-align:center; font-size:11px; color:var(--ink-faint);
+  }
+}
 </style>
 </head>
 <body>

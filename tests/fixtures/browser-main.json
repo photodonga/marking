@@ -1,5 +1,5 @@
 {
-  "baselineSha": "d75cf9b833c125db8ab5d980a770baa80dc7ccda",
+  "baselineSha": "541b7ade25241fdf211ac3f11220e11d533631c5",
   "playwright": "1.56.1",
   "platform": "linux",
   "engines": {
@@ -24,7 +24,7 @@
         "imageData": {
           "width": 296,
           "height": 197,
-          "canvasSha256": "71e458dfc676967b68664f39aaefc7f60f2223476d62510666bb3b7575b1c0a0",
+          "canvasSha256": "32538518b62d2a7fdb1c8a0cb9255969c0e02fcc144c44e00f732e209a1b6050",
           "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRG8Wj4TfQGACZWGWS"
         }
       },
@@ -48,8 +48,8 @@
         "imageData": {
           "width": 351,
           "height": 234,
-          "canvasSha256": "4351c2b7743f8f1457851fc960e7919eee0da784f2b3c4df42deb1213d2aab60",
-          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRozfOm/tkQPUP9fAbjhgA0DBkqA=="
+          "canvasSha256": "2f6de2c95f631e88970395a1a6fba3db7cc4bef64e84679f0f08d3e9fd6e4e79",
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRozc+P79vQPUP9fAbjhgABFtkwg=="
         }
       },
       "390": {
@@ -72,8 +72,8 @@
         "imageData": {
           "width": 366,
           "height": 244,
-          "canvasSha256": "2a19f7e1acbc11e03a38a605cd4278ceff6c12cd38244b168f9048b7a5778b5d",
-          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRozd263pPkX7XTsr0D/XwG44YABEDZEY="
+          "canvasSha256": "23d97e64a1e474f49338e7d1b7461513d48725eeae195f8214ba3b012c644b3b",
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBIgRoze+2FNCmf5uyvQP9fAbjhgAWw9kaw=="
         }
       },
       "1280": {
@@ -93,8 +93,8 @@
         "imageData": {
           "width": 813,
           "height": 542,
-          "canvasSha256": "b8e579d7f9c13d60f37876508c0bc742670bbfb504cf90c16ab62fb682ed30af",
-          "samplesZlibBase64": "eJw7c+bM/zOjmKrYueMDhpgLFrFRPBp+A40BhPZgjA=="
+          "canvasSha256": "41a0d646def355ed6f9ac98c511c8c55aad1d94b420196417dff90854203dd5a",
+          "samplesZlibBase64": "eJw7c+bM/zOjmKr4YlcRhtil7uIBd9dQwaPhRz8MACFXYNg="
         },
         "exportSha256": "b78becbc53f1184c683c17cdf56df57db6b2b8ad7adb0ae2b96b083ab83c9888"
       }
@@ -120,8 +120,8 @@
         "imageData": {
           "width": 296,
           "height": 197,
-          "canvasSha256": "69a37a0352495e9d849404f29f1a8d55a77e9bf63424bfa10caf6ea765e395a0",
-          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBC4tX4aCQWCg3TVny80BdwOx4UeM2CimHAMASalkQw=="
+          "canvasSha256": "271092fdfa3dec4943b19defc72da4798850b3ebd5f7898241ecc90f879adb4b",
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBC4tX4aCQWCg3XVu65oBdwOx4UeM2CimHAMAVnpkSQ=="
         }
       },
       "375": {
@@ -144,8 +144,8 @@
         "imageData": {
           "width": 351,
           "height": 234,
-          "canvasSha256": "2047ab2d623bcea291088aa67965881075e768630bd9f339de9030322f6cafe5",
-          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBO7FRf9/XF4KxyAw0O7iyhl4NxAbfsSIjWLKMQD2kGIX"
+          "canvasSha256": "e958bf6a5041332fe2526b9a051f09e9b35b0757a74613f8a7eb667e14068aa1",
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBO7FRf9/XF4KxyAw0O66ku874G4gNvyIERvFlGMAMBxiMg=="
         }
       },
       "390": {
@@ -168,8 +168,8 @@
         "imageData": {
           "width": 366,
           "height": 244,
-          "canvasSha256": "2ea349d9a4ce2abd55bc088970798d02f151bec4eb9fca6a7198a8b8a404f898",
-          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBNDFDt3CFKM35sqhzA3Zc54NWPgdHAThNxwxAEvsY2c="
+          "canvasSha256": "bdfb7c670c7184617735189b7456fa1ec2f7e7baaadb22686ce5707d21087e31",
+          "samplesZlibBase64": "eJw7c+bM/zOjmKoYBNDFvty+NODuupLvS5H+C/N6R3T4DUcMALlbY50="
         }
       },
       "1280": {
@@ -189,8 +189,8 @@
         "imageData": {
           "width": 813,
           "height": 542,
-          "canvasSha256": "cfdb96ba261949cc2a8c9b835b9921ec0852d40a460ed57483005089065c7122",
-          "samplesZlibBase64": "eJw7c+bM/zOjmKrYquXTgLthKOPR8KMfBgDtlGHG"
+          "canvasSha256": "06b8845ba336550e08f0de6c83dfeb8d8a6ab6f7627a81110dc29892f82d6696",
+          "samplesZlibBase64": "eJw7c+bM/zOjmKr4UlvugLthKOPR8KMfBgBFq2Hw"
         },
         "exportSha256": "225ba8ac74f6c1906715408385915952b878724c78e35bcabeb048b5876c70b1"
       }

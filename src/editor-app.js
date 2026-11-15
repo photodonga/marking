@@ -649,7 +649,7 @@
   // 강조색은 CSS 변수에서 한 번만 읽는다(매 프레임 getComputedStyle 호출 방지).
   let accentColorCache = null;
   function var_accent_blue(){
-    if(accentColorCache==null) accentColorCache = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#0a6cff";
+    if(accentColorCache==null) accentColorCache = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#D46F4D";
     return accentColorCache;
   }
 
@@ -754,13 +754,13 @@
       vctx.restore();
     }
 
-    // 가림 범위를 놓은 직후, 실제로 인식된 얼굴 중심을 잠깐 파란 점으로 보여준다.
+    // 가림 범위를 놓은 직후, 실제로 인식된 얼굴 중심을 잠깐 코랄 점으로 보여준다.
     if(faceDebugPoints.length){
       vctx.save();
       faceDebugPoints.forEach(p=>{
         const x=p.x*scale, y=p.y*scale;
         vctx.beginPath(); vctx.arc(x,y,6,0,Math.PI*2);
-        vctx.fillStyle="#0a84ff"; vctx.fill();
+        vctx.fillStyle=getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()||"#D46F4D"; vctx.fill();
         vctx.lineWidth=2; vctx.strokeStyle="rgba(255,255,255,.95)"; vctx.stroke();
       });
       vctx.restore();
@@ -1833,8 +1833,8 @@
               history[historyIndex]={objects:deepCloneObjects(objects),effects:deepCloneObjects(effects)};
               redraw();
               if(faceRects.length)showToast("얼굴 위치 보정",1000);
-              else if(faceDetectorLoadError)showToast("얼굴 인식 모듈 로드 실패 · 지정 영역 사용",1600);
-              else showToast("지정한 영역 그대로 가림",1100);
+              // 인식 모듈을 못 쓸 때는 알림으로 화면을 가리지 않고, 가림 설정의 "얼굴" 옆에만 조용히 표시한다.
+              else if(!faceDetectorLoadError)showToast("지정한 영역 그대로 가림",1100);
             });
           }
         }
@@ -1905,15 +1905,21 @@
   // Face Landmarker보다 '얼굴이 있는지/어디 있는지' 찾는 목적에 맞고, 작은 얼굴·사선 얼굴에도 유리하다.
   // 사용자가 직접 그린 영역이 항상 기준이며 자동 검출 실패 시 수동 영역을 그대로 사용한다.
   const TASKS_VISION_VERSION = "0.10.35";
-  const TASKS_VISION_BUNDLE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/vision_bundle.mjs`;
-  const TASKS_VISION_WASM = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${TASKS_VISION_VERSION}/wasm`;
-  const FACE_DETECTOR_MODEL = "https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite";
-  const FACE_LANDMARKER_MODEL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task";
+  // 회사망·현장 통신에서도 실패하지 않도록 저장소에 함께 둔 사본(vendor/mediapipe)을 쓴다.
+  const VENDOR_MEDIAPIPE = new URL("./vendor/mediapipe/", document.baseURI).href;
+  const TASKS_VISION_BUNDLE = `${VENDOR_MEDIAPIPE}vision_bundle.mjs`;
+  const TASKS_VISION_WASM = `${VENDOR_MEDIAPIPE}wasm`;
+  const FACE_DETECTOR_MODEL = `${VENDOR_MEDIAPIPE}models/blaze_face_full_range.tflite`;
+  const FACE_LANDMARKER_MODEL = `${VENDOR_MEDIAPIPE}models/face_landmarker.task`;
 
   let visionRuntimePromise = null;
   let faceDetectorPromise = null;
   let faceLandmarkerPromise = null;
   let faceDetectorLoadError = false;
+  function syncFaceAutoStatus(){
+    if(faceDetectorLoadError) optionsBar.dataset.faceAuto = "off";
+    else delete optionsBar.dataset.faceAuto;
+  }
 
   function loadVisionRuntime(){
     if(visionRuntimePromise) return visionRuntimePromise;
@@ -1922,11 +1928,11 @@
         // jsDelivr의 +esm 변환본 대신 MediaPipe가 배포한 원본 ESM bundle을 직접 사용한다.
         const vision = await import(TASKS_VISION_BUNDLE);
         const fileset = await vision.FilesetResolver.forVisionTasks(TASKS_VISION_WASM);
-        faceDetectorLoadError = false;
+        faceDetectorLoadError = false; syncFaceAutoStatus();
         return {vision, fileset};
       }catch(err){
         console.warn("MediaPipe runtime load failed.", err);
-        faceDetectorLoadError = true;
+        faceDetectorLoadError = true; syncFaceAutoStatus();
         visionRuntimePromise = null; // 다음 시도에서 재시도
         return null;
       }
@@ -1956,11 +1962,11 @@
           minDetectionConfidence:0.25,
           minSuppressionThreshold:0.30
         });
-        faceDetectorLoadError = false;
+        faceDetectorLoadError = false; syncFaceAutoStatus();
         return detector;
       }catch(err){
         console.warn("Face Detector init failed.", err);
-        faceDetectorLoadError = true;
+        faceDetectorLoadError = true; syncFaceAutoStatus();
         faceDetectorPromise = null;
         return null;
       }
