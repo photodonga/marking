@@ -1,0 +1,49 @@
+name: 새 디자인 기준 fixture 생성 (일회용)
+
+on:
+  push:
+    branches: [design/unified-dock]
+    paths: ['.github/workflows/regen-ui-fixture.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  regen:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      BASELINE_SHA: 715f865a5690cb9174e3cf67c7b0abb6c97672a3
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser tooling
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium webkit
+      - name: Collect baseline from the reviewed design commit
+        run: |
+          git worktree add --detach /tmp/marking-main "$BASELINE_SHA"
+          cd /tmp/marking-main
+          python3 -m http.server 8765 --bind 127.0.0.1 > /tmp/server.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:8765/index.html; then break; fi
+            sleep 1
+          done
+          MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
+          MARKING_BROWSER=webkit MARKING_COLLECT_BASELINE=1 MARKING_BASELINE_SHA="$BASELINE_SHA" node "$GITHUB_WORKSPACE/tests/run-browser-regression.cjs"
+          ln -s "$GITHUB_WORKSPACE/node_modules" node_modules
+          node "$GITHUB_WORKSPACE/scripts/generate-ui-baseline.cjs" "$BASELINE_SHA" test-results/browser-main.generated.json
+          cp test-results/browser-main.generated.json "$GITHUB_WORKSPACE/tests/fixtures/browser-main.json"
+      - name: Commit fixture
+        run: |
+          git config user.name "Eunsuk Song"
+          git config user.email "331175269+photodonga@users.noreply.github.com"
+          git rm -q .github/workflows/regen-ui-fixture.yml
+          git add tests/fixtures/browser-main.json
+          git commit -m "브라우저 기준 fixture를 새 디자인(715f865)으로 갱신"
+          git push
