@@ -77,7 +77,7 @@
   // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
   // PC: 하단 도구바와 그 위 보조 도구(설정창) 자리를 항상 비워 사진이 그 아래로 들어가지 않게 한다.
   // 설정창이 열리고 닫혀도 사진 크기가 흔들리지 않도록, 설정창이 닫혀 있을 때도 같은 높이를 예약한다.
-  const DESKTOP_OPTIONS_MIN_RESERVE = 58; // 1280px 기준 가림·도형 설정창 실측 높이
+  const DESKTOP_OPTIONS_MIN_RESERVE = 106; // 도크 설정 부분(두 줄) 실측 최대 높이 104px + 여유
   const DESKTOP_DOCK_GAP = 8;             // #chrome의 PC gap
   let desktopOptionsReserve = DESKTOP_OPTIONS_MIN_RESERVE;
   let desktopDockReserve = 0;              // 작업 영역 하단에서 비워둔 높이(px)
@@ -85,7 +85,8 @@
     const toolbarRect = toolbarEl.getBoundingClientRect();
     if(!toolbarRect.height) return desktopDockReserve;
     if(!optionsBar.classList.contains("hidden")){
-      const optionsHeight = optionsBar.getBoundingClientRect().height;
+      // 설정창과 툴바가 한 장의 도크라서, 설정 부분 높이 = 도크 윗변 ~ 툴바 윗변.
+      const optionsHeight = toolbarRect.top - chromeEl.getBoundingClientRect().top;
       if(optionsHeight > desktopOptionsReserve) desktopOptionsReserve = Math.ceil(optionsHeight);
     }
     const appBottom = workarea.parentElement ? workarea.parentElement.getBoundingClientRect().bottom : window.innerHeight;
@@ -503,20 +504,12 @@
     group.setAttribute("role","group"); group.setAttribute("aria-label","선 스타일");
     const seg=document.createElement("div"); seg.className="seg";
     const current=selectedObject ? !!selectedObject.dashed : dashedCurrent;
-    if(window.matchMedia("(max-width:640px)").matches){
-      // Mobile: one button cycles solid ↔ dashed; desktop keeps its original two choices.
-      const styleLabel=document.createElement("span");
-      styleLabel.className="line-style-current-label";
-      styleLabel.textContent=current?"점선":"실선";
-      group.appendChild(styleLabel);
+    // PC·모바일 모두 실선/점선 두 버튼.
+    [["실선",false],["점선",true]].forEach(([label,dashed])=>{
       const button=document.createElement("button"); button.type="button";
-      button.className="active line-style-toggle";
-      button.textContent=current?"점선":"실선";
-      button.title=current?"점선 — 눌러 실선으로 변경":"실선 — 눌러 점선으로 변경";
-      button.setAttribute("aria-label",button.title);
-      button.setAttribute("aria-pressed",String(current));
+      button.textContent=label; button.className=current===dashed?"active":"";
+      button.setAttribute("aria-pressed",String(current===dashed));
       button.onclick=()=>{
-        const dashed=!(selectedObject ? !!selectedObject.dashed : dashedCurrent);
         dashedCurrent=dashed;
         if(selectedObject && selectedObject.dashed!==dashed){
           selectedObject.dashed=dashed;pushHistory();redraw();
@@ -524,21 +517,7 @@
         buildOptionsBar();
       };
       seg.appendChild(button);
-    }else{
-      [["실선",false],["점선",true]].forEach(([label,dashed])=>{
-        const button=document.createElement("button"); button.type="button";
-        button.textContent=label; button.className=current===dashed?"active":"";
-        button.setAttribute("aria-pressed",String(current===dashed));
-        button.onclick=()=>{
-          dashedCurrent=dashed;
-          if(selectedObject && selectedObject.dashed!==dashed){
-            selectedObject.dashed=dashed;pushHistory();redraw();
-          }
-          buildOptionsBar();
-        };
-        seg.appendChild(button);
-      });
-    }
+    });
     group.appendChild(seg);container.appendChild(group);
   }
 
@@ -1129,6 +1108,9 @@
       const label=button.textContent.trim();
       const paths=OPTION_ICON_PATHS[label];
       if(!paths || button.querySelector('svg'))return;
+      if(!button.title) button.title=label;
+      button.setAttribute('aria-label',label);
+      button.classList.add('icon-option');
       const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
       svg.setAttribute('viewBox','0 0 24 24');
       svg.setAttribute('aria-hidden','true');
@@ -1146,109 +1128,28 @@
     return row;
   }
 
-  function arrangeMobileOptions(){
-    if(!mobileLayoutQuery.matches || optionsBar.classList.contains("hidden")) return;
+  // PC·모바일 공통: 설정창을 항상 같은 두 줄(1줄 종류 선택, 2줄 조절)로 묶는다.
+  function arrangeOptions(){
+    if(optionsBar.classList.contains("hidden")) return;
     const nodes=Array.from(optionsBar.children);
-    const isEffect=optionsBar.dataset.layout==="effect";
-    const isDrawing=optionsBar.dataset.layout==="drawing";
-    const isSelection=optionsBar.dataset.layout==="selection";
-    if(!isEffect && !isDrawing && !isSelection) return;
-    const row1=createOptionRow(isEffect?"effect-primary":"drawing-primary");
-    const row2=createOptionRow(isEffect?"effect-sliders":"drawing-secondary");
-    if(isEffect && nodes.length===4){
-      const modeLabel=document.createElement("span");
-      modeLabel.className="effect-current-label effect-mode-label";
-      modeLabel.textContent="가림";
-      const targetLabel=document.createElement("span");
-      targetLabel.className="effect-current-label effect-target-label";
-      targetLabel.textContent=blurShape==="rect"?"영역":"얼굴";
-      const controls=document.createElement("div");
-      controls.className="effect-controls";
-      controls.append(modeLabel,nodes[0],targetLabel,nodes[3]);
-      const grid=document.createElement("div");
-      grid.className="effect-unified-grid";
-      grid.append(controls);
-      for(const [group,name] of [[nodes[1],"강도"],[nodes[2],"페더"]]){
-        const sourceLabel=group.querySelector(".effect-value-label");
-        const label=document.createElement("span");
-        label.className="effect-slider-name";
-        label.textContent=name;
-        const value=document.createElement("span");
-        value.className="effect-slider-value";
-        const updateValue=()=>{
-          const match=(sourceLabel?.textContent||"").match(/(\d+)\s*$/);
-          value.textContent=match?match[1]:String(group.querySelector('input[type="range"]')?.value??50);
-        };
-        const range=group.querySelector('input[type="range"]');
-        if(range)range.addEventListener("input",()=>requestAnimationFrame(updateValue));
-        updateValue();
-        grid.append(label,group,value);
-      }
-      optionsBar.append(grid);
-    } else if(isDrawing){
-      const shape=nodes.find(n=>n.classList.contains("option-shape"));
-      const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
-      const line=nodes.find(n=>n.classList.contains("option-line-style"));
-      const color=nodes.find(n=>n.classList.contains("option-color"));
-      const lock=nodes.find(n=>n.classList.contains("option-lock"));
-      if(stroke && line && color){
-        if(shape) row1.append(shape);
-        row1.append(stroke,line);
-        row2.append(color);
-        if(lock) row2.append(lock);
-        optionsBar.append(row1,row2);
-      }
-  } else if(isSelection){
-        const color=nodes.find(n=>n.classList.contains("option-color"));
-        const lock=nodes.find(n=>n.classList.contains("option-lock"));
-        const stroke=nodes.find(n=>n.classList.contains("option-stroke"));
-        const line=nodes.find(n=>n.classList.contains("option-line-style"));
-        const del=nodes.find(n=>n.classList.contains("selected-options"));
-        if(color && stroke && line){
-          row1.append(stroke,line);
-          row2.append(color); if(lock) row2.append(lock); if(del) row2.append(del);
-          optionsBar.append(row1,row2);
-        }
-  }
-  }
-
-  // Test-only: center labels in the ACTUAL visible gaps without changing button layout.
-  function alignMobileOptionLabels(){
-    if(!mobileLayoutQuery.matches || optionsBar.classList.contains("hidden"))return;
-    const panel=optionsBar.getBoundingClientRect();
-    const place=(label,leftEdge,rightEdge)=>{
-      if(!label||!Number.isFinite(leftEdge)||!Number.isFinite(rightEdge)||rightEdge<=leftEdge)return;
-      label.style.transform='none';
-      const labelRect=label.getBoundingClientRect();
-      const target=(leftEdge+rightEdge)/2;
-      const current=labelRect.left+labelRect.width/2;
-      label.style.transform='translateX('+(target-current)+'px)';
-    };
-    if(optionsBar.dataset.layout==='effect'){
-      const controls=optionsBar.querySelector('.effect-controls');
-      const groups=controls?.querySelectorAll(':scope > .opt-group');
-      if(!groups||groups.length!==2)return;
-      const a=groups[0].getBoundingClientRect(),b=groups[1].getBoundingClientRect();
-      const leftBoundary=panel.left+parseFloat(getComputedStyle(optionsBar).paddingLeft||0);
-      place(controls.querySelector('.effect-mode-label'),leftBoundary,a.left);
-      place(controls.querySelector('.effect-target-label'),a.right,b.left);
-    }else if(optionsBar.dataset.layout==='drawing'){
-      const stroke=optionsBar.querySelector('.drawing-primary .option-stroke');
-      const line=optionsBar.querySelector('.drawing-primary .option-line-style');
-      if(!stroke||!line)return;
-      const strokeButtons=stroke.querySelector('.seg')?.getBoundingClientRect();
-      const lineButton=line.querySelector('.seg')?.getBoundingClientRect();
-      if(!strokeButtons||!lineButton)return;
-      // The circle tool has a shape-selector before the stroke group.
-      // Using the panel's left edge centers '굵기' ON TOP of the shape buttons.
-      // Keep the label in its natural flex position for this layout.
-      const shape=optionsBar.querySelector('.drawing-primary .option-shape');
-      if(!shape){
-        const leftBoundary=panel.left+parseFloat(getComputedStyle(optionsBar).paddingLeft||0);
-        place(stroke.querySelector(':scope > span'),leftBoundary,strokeButtons.left);
-      }
-      place(line.querySelector('.line-style-current-label'),strokeButtons.right,lineButton.left);
+    const pick=cls=>nodes.find(n=>n.classList.contains(cls));
+    const layout=optionsBar.dataset.layout;
+    const row1=createOptionRow("option-row-primary");
+    const row2=createOptionRow("option-row-secondary");
+    const put=(row,...items)=>items.forEach(item=>{ if(item) row.append(item); });
+    if(layout==="effect"){
+      put(row1,pick("option-mode"),pick("option-target"));
+      put(row2,pick("option-intensity"),pick("option-feather"));
+    }else if(layout==="drawing"){
+      put(row1,pick("option-shape"),pick("option-stroke"),pick("option-line-style"));
+      put(row2,pick("option-color"),pick("option-lock"));
+    }else{
+      put(row1,pick("option-stroke"),pick("option-line-style"));
+      put(row2,pick("option-color"),pick("option-lock"),pick("selected-options"));
     }
+    nodes.forEach(n=>{ if(!n.parentNode || n.parentNode===optionsBar) row2.append(n); });
+    optionsBar.append(row1);
+    if(row2.childElementCount) optionsBar.append(row2);
   }
 
   function buildOptionsBar(){
@@ -1407,10 +1308,7 @@
     }
 
     decorateOptionIcons();
-    arrangeMobileOptions();
-    // Align synchronously before the browser paints the rebuilt option panel.
-    // This preserves measured final positions without a one-frame label jump.
-    if(mobileLayoutQuery.matches) alignMobileOptionLabels();
+    arrangeOptions();
   }
 
   // Rebuild the option wrappers when orientation crosses the mobile/desktop breakpoint.

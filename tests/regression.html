@@ -39,7 +39,7 @@ check('도형 설정창 표시',!panel.classList.contains('hidden')&&!!panel.que
 if(!panel.querySelector('.option-shape'))throw new Error('도형 설정창 없음: layout='+panel.dataset.layout);
 const shape=panel.querySelector('.option-shape');const buttons=[...shape.querySelectorAll('button')];
 const palette=()=>[...panel.querySelectorAll('.palette-swatch')].map(e=>rect(e).cx);
-const snapshot=()=>({p:rect(panel),colors:palette(),stroke:rect(panel.querySelector('.option-stroke>span')),shape:rect(shape)});
+const snapshot=()=>({p:rect(panel),colors:palette(),stroke:rect(panel.querySelector('.option-stroke .seg')),shape:rect(shape)});
 const circleButton=buttons.find(b=>b.textContent.includes('원'));
 if(!circleButton)throw new Error('원/타원 버튼 없음');
 circleButton.click();await sleep(80);const circle=snapshot();
@@ -57,21 +57,14 @@ if(Number(viewport.value)<=640)check('설정창 폭 변화 1px 이하',Math.abs(
 else check('PC 설정창 폭 유효',circle.p.w>0&&square.p.w>0,'폭 차이 '+Math.abs(circle.p.w-square.p.w).toFixed(2)+'px (정보)');
 d.querySelector('#btn-blur').click();await sleep(80);
 check('가림 설정창 표시',panel.dataset.layout==='effect'&&!panel.classList.contains('hidden'));
-const target=panel.querySelector('.effect-target-label');
-if(Number(viewport.value)<=640)check('얼굴 기본 라벨',target&&target.textContent==='얼굴');
 const rectBtn=[...panel.querySelectorAll('.option-target button')].find(b=>b.textContent==='사각형');
 check('영역 선택 버튼 존재',!!rectBtn);
 if(rectBtn){rectBtn.click();await sleep(80);}
-if(Number(viewport.value)<=640)check('영역 전환 라벨',panel.querySelector('.effect-target-label')?.textContent==='영역');
-if(Number(viewport.value)<=640){
-const controls=panel.querySelector('.effect-controls');const groups=controls?[...controls.querySelectorAll(':scope > .opt-group')]:[];
-const label=panel.querySelector('.effect-target-label');
-if(label&&groups.length===2){
-const lr=rect(label),left=rect(groups[0]),right=rect(groups[1]);
-const gapCenter=(left.x+left.w+right.x)/2;
-check('얼굴·영역 라벨 중앙 정렬 오차 2px 이하',Math.abs(lr.cx-gapCenter)<=2,'오차 '+Math.abs(lr.cx-gapCenter).toFixed(2)+'px');
-}else check('얼굴·영역 라벨 측정 요소 존재',false);
-}else{check('PC에서 모바일 전용 정렬 검사 생략',true);}
+check('영역 전환 반영',!!panel.querySelector('.option-target button.active')&&panel.querySelector('.option-target button.active').textContent==='사각형');
+const rows=[...panel.querySelectorAll(':scope > .option-row')];
+check('가림 설정창 두 줄 (PC·모바일 공통)',rows.length===2&&!!rows[0].querySelector('.option-mode')&&!!rows[0].querySelector('.option-target')&&!!rows[1].querySelector('.option-intensity'),'rows='+rows.length);
+const card=d.querySelector('#chrome').getBoundingClientRect(),vw=w.innerWidth;
+check('도크가 화면 안에 들어감',card.left>=0&&card.right<=vw+0.5,Math.round(card.left)+'~'+Math.round(card.right)+' / '+vw);
 }catch(e){check('검사 실행 중 오류',false,String(e.stack||e));}
 report.textContent+='\n\n완료: '+lines.filter(x=>x.startsWith('PASS')).length+'/'+lines.length+' 통과';
 report.dataset.runCompleted=String(thisRun);
