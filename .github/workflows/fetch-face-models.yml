@@ -2,9 +2,6 @@ name: 얼굴 인식 모델 받기
 
 on:
   workflow_dispatch:
-  push:
-    branches: [design/coral-flat]
-    paths: ['.github/workflows/fetch-face-models.yml']
 
 permissions:
   contents: write
