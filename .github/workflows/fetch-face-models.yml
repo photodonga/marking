@@ -1,0 +1,29 @@
+name: 얼굴 인식 모델 받기
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [design/coral-flat]
+    paths: ['.github/workflows/fetch-face-models.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 모델 내려받기
+        run: |
+          mkdir -p vendor/mediapipe/models
+          curl -fsSL -o vendor/mediapipe/models/blaze_face_full_range.tflite https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite
+          curl -fsSL -o vendor/mediapipe/models/face_landmarker.task https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task
+          ls -la vendor/mediapipe/models
+      - name: 저장소에 반영
+        run: |
+          git config user.name "Eunsuk Song"
+          git config user.email "331175269+photodonga@users.noreply.github.com"
+          git add vendor/mediapipe/models
+          git diff --cached --quiet || git commit -m "얼굴 인식 모델 파일 추가"
+          git push
