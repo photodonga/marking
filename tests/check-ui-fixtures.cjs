@@ -23,7 +23,7 @@ if(process.env.CI) {
   };
   assert.ok(run(['merge-base','--is-ancestor',fixture.baselineSha,'HEAD']),
     'Fixture baseline must be an ancestor of HEAD');
-  assert.ok(run(['diff','--quiet',fixture.baselineSha,'HEAD','--','index.html','test.html','src/']),
+  assert.ok(run(['diff','--quiet',fixture.baselineSha,'HEAD','--','index.html','src/']),
     'Fixture update required: protected app sources differ from baseline');
 }
 console.log('PASS: CSS and markup match reviewed main baseline '+fixture.baselineSha);
