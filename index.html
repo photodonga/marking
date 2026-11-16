@@ -1872,6 +1872,14 @@ html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
 }
 /* 설정 아이콘 21px (칸 크기는 그대로) */
 html:root body #chrome #options-bar .seg button .option-vector-icon{width:21px!important; height:21px!important; flex-basis:21px!important;}
+/* PC 메인 툴바: 아래 설정 알약과 같은 크기(버튼 36px, 아이콘 21px). 휴대폰은 그대로 */
+@media (min-width:641px){
+  html:root body #chrome #toolbar :is(.tool-btn,.icon-btn){width:calc(var(--dock-btn) + 4px)!important; height:calc(var(--dock-btn) + 4px)!important;}
+  html:root body #chrome #toolbar :is(.tool-btn .glyph, .icon-btn) svg{width:21px!important; height:21px!important;}
+  html:root body #chrome #toolbar .line-tool-chevron{height:calc(var(--dock-btn) + 4px)!important;}
+  html:root body #chrome #toolbar .save-btn, html:root body #chrome #toolbar .save-group .save-format-wrap{height:calc(var(--dock-btn) + 4px)!important;}
+  html:root body #chrome #toolbar .save-btn{font-size:14px!important;}
+}
 </style>
 </head>
 <body>
