@@ -81,10 +81,10 @@
   // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
   // PC: 하단 도구바와 그 위 보조 도구(설정창) 자리를 항상 비워 사진이 그 아래로 들어가지 않게 한다.
   // 설정창이 열리고 닫혀도 사진 크기가 흔들리지 않도록, 설정창이 닫혀 있을 때도 같은 높이를 예약한다.
-  const DESKTOP_OPTIONS_MIN_RESERVE = 112; // 도크 설정 부분(두 줄 + 여백) 실측 최대 높이 + 여유
+  const DESKTOP_OPTIONS_MIN_RESERVE = 108; // 도크 설정 부분(두 줄 + 여백) 실측 최대 높이 + 여유
   const DESKTOP_DOCK_GAP = 8;             // #chrome의 PC gap
   let desktopOptionsReserve = DESKTOP_OPTIONS_MIN_RESERVE;
-  const MOBILE_OPTIONS_MIN_RESERVE = 128; // 모바일 도크 설정 부분 실측 최대 높이 + 여유
+  const MOBILE_OPTIONS_MIN_RESERVE = 118; // 모바일 도크 설정 부분 실측 최대 높이 + 여유
   let desktopDockReserve = 0;              // 작업 영역 하단에서 비워둔 높이(px)
   // 도크는 툴바가 위에 고정되고, 세부 설정은 그 아래로 펼쳐진다.
   // 설정 부분의 최대 높이만큼 자리를 미리 잡아 두어, 설정을 열고 닫아도 툴바와 사진이 움직이지 않는다.
@@ -1143,28 +1143,63 @@
     return row;
   }
 
-  // PC·모바일 공통: 설정창을 항상 같은 두 줄(1줄 종류 선택, 2줄 조절)로 묶는다.
+  // PC·모바일 공통: 설정은 한 줄 알약(1줄). 강도·페더·색상은 값 버튼을 누르면 그 아래 알약(2줄)에 펼쳐진다.
+  let optionsPopover = null, optionsPopoverLayout = null;
+  function makeChip(key, render){
+    const chip=document.createElement("button"); chip.type="button"; chip.className="opt-chip"; chip.dataset.pop=key;
+    render(chip);
+    chip.onclick=(e)=>{ e.stopPropagation(); optionsPopover = optionsPopover===key ? null : key; syncOptionsPopover(); };
+    return chip;
+  }
+  function syncOptionsPopover(){
+    optionsBar.dataset.popover = optionsPopover || "";
+    optionsBar.querySelectorAll(".opt-chip").forEach(c=>c.classList.toggle("active", c.dataset.pop===optionsPopover));
+    requestAnimationFrame(syncEditorInsets);
+  }
   function arrangeOptions(){
     if(optionsBar.classList.contains("hidden")) return;
+    const layout=optionsBar.dataset.layout;
+    if(optionsPopoverLayout!==layout){ optionsPopover=null; optionsPopoverLayout=layout; }
     const nodes=Array.from(optionsBar.children);
     const pick=cls=>nodes.find(n=>n.classList.contains(cls));
-    const layout=optionsBar.dataset.layout;
     const row1=createOptionRow("option-row-primary");
     const row2=createOptionRow("option-row-secondary");
     const put=(row,...items)=>items.forEach(item=>{ if(item) row.append(item); });
+    const sliderChip=(group,key)=>{
+      if(!group) return null;
+      group.dataset.pop=key;
+      const label=group.querySelector(".effect-value-label");
+      return makeChip(key, chip=>{
+        const update=()=>{ chip.textContent=label?label.textContent:key; };
+        update();
+        group.querySelector('input[type="range"]')?.addEventListener("input",()=>requestAnimationFrame(update));
+      });
+    };
+    const colorChip=(group)=>{
+      if(!group) return null;
+      group.dataset.pop="color";
+      return makeChip("color", chip=>{
+        const dot=document.createElement("span"); dot.className="opt-chip-dot";
+        const text=document.createElement("span"); text.textContent="색상";
+        const update=()=>{ const sel=group.querySelector(".palette-swatch.selected"); dot.style.background=sel?sel.style.getPropertyValue("--swatch"):"#E5332A"; };
+        update(); group.addEventListener("click",()=>requestAnimationFrame(update));
+        chip.append(dot,text);
+      });
+    };
     if(layout==="effect"){
-      put(row1,pick("option-mode"),pick("option-target"),pick("option-lock"));
-      put(row2,pick("option-intensity"),pick("option-feather"));
-    }else if(layout==="drawing"){
-      put(row1,pick("option-shape"),pick("option-stroke"),pick("option-line-style"));
-      put(row2,pick("option-color"),pick("option-lock"));
+      const inten=pick("option-intensity"), feath=pick("option-feather");
+      put(row1,pick("option-mode"),pick("option-target"),pick("option-lock"),sliderChip(inten,"intensity"),sliderChip(feath,"feather"));
+      put(row2,inten,feath);
     }else{
-      put(row1,pick("option-stroke"),pick("option-line-style"));
-      put(row2,pick("option-color"),pick("option-lock"),pick("selected-options"));
+      const color=pick("option-color"), lock=pick("option-lock");
+      if(lock) lock.dataset.pop="color";
+      if(layout==="drawing") put(row1,pick("option-shape"));
+      put(row1,pick("option-stroke"),pick("option-line-style"),colorChip(color),pick("selected-options"));
+      put(row2,color,lock);
     }
-    nodes.forEach(n=>{ if(!n.parentNode || n.parentNode===optionsBar) row2.append(n); });
-    optionsBar.append(row1);
-    if(row2.childElementCount) optionsBar.append(row2);
+    nodes.forEach(n=>{ if(n.parentNode===optionsBar) row1.append(n); });
+    optionsBar.append(row1,row2);
+    syncOptionsPopover();
   }
 
   function buildOptionsBar(){
@@ -1265,7 +1300,7 @@
             const checkbox=lock.querySelector('input[type="checkbox"]');
             const label=lock.querySelector("span");
             if(checkbox)checkbox.checked=k==="rect"?rectLocked:circleLocked;
-            if(label)label.textContent=k==="rect"?"정사각형 유지":"정원 유지";
+            if(label)label.textContent=k==="rect"?"정사각형":"정원";
           }
         }; segs.appendChild(b); });
         gs.appendChild(segs); optionsBar.appendChild(gs);
@@ -1293,7 +1328,7 @@
         const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
         const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=shapeKind==="rect"?rectLocked:circleLocked;
         lockCheck.onchange=()=>{ if(shapeKind==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
-        const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지"; lockText.style.minWidth="7em";
+        const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형":"정원";
         gl.appendChild(lockCheck); gl.appendChild(lockText);
         optionsBar.appendChild(gl);
       }
@@ -1323,7 +1358,7 @@
           const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
           const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=sel.type==="rect"?rectLocked:circleLocked;
           lockCheck.onchange=()=>{ if(sel.type==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
-          const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형 유지":"정원 유지";
+          const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형":"정원";
           gl.appendChild(lockCheck); gl.appendChild(lockText);
           optionsBar.appendChild(gl);
         }
