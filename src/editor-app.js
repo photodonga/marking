@@ -1190,7 +1190,9 @@
       const inten=pick("option-intensity"), feath=pick("option-feather");
       // 가림: 강도·페더 슬라이더는 값 버튼 없이 아래 알약에 늘 보인다.
       put(row1,pick("option-mode"),pick("option-target"),pick("option-lock"));
-      put(row2,inten,feath);
+      // PC는 한 줄(버튼 + 강도·페더), 휴대폰은 슬라이더를 아래 알약으로.
+      if(window.matchMedia("(max-width:640px)").matches) put(row2,inten,feath);
+      else put(row1,inten,feath);
     }else{
       const color=pick("option-color"), lock=pick("option-lock");
       if(lock) lock.dataset.pop="color";

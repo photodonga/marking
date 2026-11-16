@@ -88,9 +88,9 @@ for (const name of ['src/editor-helpers.js', 'src/editor-canvas.js', 'src/editor
   new vm.Script(fs.readFileSync(name, 'utf8'), { filename: name });
 }
 const html = fs.readFileSync('index.html', 'utf8');
-assert.match(html, /src="\.\/src\/editor-helpers\.js"/);
-assert.match(html, /src="\.\/src\/editor-app\.js"/);
-assert.ok(html.includes('src="./src/editor-canvas.js"'));
-assert.ok(html.indexOf('src="./src/editor-helpers.js"') < html.indexOf('src="./src/editor-canvas.js"'));
-assert.ok(html.indexOf('src="./src/editor-canvas.js"') < html.indexOf('src="./src/editor-app.js"'));
+// 캐시 방지용 ?v= 버전 번호를 허용한다.
+const at = name => html.search(new RegExp('src="\\./src/' + name.replace('.', '\\.') + '(\\?v=[\\w.-]+)?"'));
+for (const name of ['editor-helpers.js', 'editor-canvas.js', 'editor-app.js']) assert.ok(at(name) >= 0, name + ' script tag missing');
+assert.ok(at('editor-helpers.js') < at('editor-canvas.js'));
+assert.ok(at('editor-canvas.js') < at('editor-app.js'));
 console.log('PASS: pure helpers, script syntax and dependency order');
