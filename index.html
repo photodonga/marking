@@ -1753,6 +1753,18 @@ html:root body #chrome #toolbar .line-tool-chevron[aria-expanded="true"]{backgro
 html:root #line-tool-menu button[aria-checked="true"]{background:var(--accent-soft)!important; color:var(--ink)!important;}
 html:root #line-tool-menu button[aria-checked="true"] .line-menu-check, html:root #line-tool-menu button[aria-checked="true"] svg{color:var(--accent)!important; stroke:var(--accent)!important;}
 html:root #line-tool-menu button:hover{background:var(--panel-hi)!important;}
+/* 도크 분리: 툴바는 늘 같은 알약, 설정은 그 아래 별도 카드 */
+html:root body #app #chrome, html:root body #app #chrome:has(#options-bar:not(.hidden)){
+  background:transparent!important; border:0!important; box-shadow:none!important; padding:0!important; border-radius:0!important; gap:6px!important;
+}
+html:root body #chrome #toolbar{
+  background:var(--panel)!important; border:1px solid var(--panel-border)!important; border-radius:999px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.35)!important; padding:5px!important;
+}
+html:root body #chrome #options-bar:not(.hidden){
+  background:var(--panel)!important; border:1px solid var(--panel-border)!important; border-radius:22px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.35)!important; margin:0!important; padding:12px 10px!important;
+}
 </style>
 </head>
 <body>
@@ -1808,8 +1820,8 @@ html:root #line-tool-menu button:hover{background:var(--panel-hi)!important;}
   <input accept="image/*" hidden id="fileInput" multiple type="file">
 </div>
 
-<script src="./src/editor-helpers.js"></script>
-<script src="./src/editor-canvas.js"></script>
-<script src="./src/editor-app.js"></script>
+<script src="./src/editor-helpers.js?v=20261116b"></script>
+<script src="./src/editor-canvas.js?v=20261116b"></script>
+<script src="./src/editor-app.js?v=20261116b"></script>
 </body>
 </html>

@@ -89,16 +89,20 @@
   // 도크는 툴바가 위에 고정되고, 세부 설정은 그 아래로 펼쳐진다.
   // 설정 부분의 최대 높이만큼 자리를 미리 잡아 두어, 설정을 열고 닫아도 툴바와 사진이 움직이지 않는다.
   let mobileOptionsReserve = MOBILE_OPTIONS_MIN_RESERVE;
+  const DOCK_GAP = 6; // 툴바(알약)와 설정 카드 사이 간격
   function measureDockHeight(mobile){
     const toolbarRect = toolbarEl.getBoundingClientRect();
     if(!toolbarRect.height) return null;
-    const base = toolbarRect.height + 12; // 카드 위아래 여백 5px×2 + 테두리
     if(!optionsBar.classList.contains("hidden")){
-      const optionsHeight = Math.ceil(chromeEl.getBoundingClientRect().height - base);
+      const optionsRect = optionsBar.getBoundingClientRect();
+      const optionsHeight = Math.ceil(optionsRect.height);
       if(mobile){ if(optionsHeight > mobileOptionsReserve) mobileOptionsReserve = optionsHeight; }
       else if(optionsHeight > desktopOptionsReserve) desktopOptionsReserve = optionsHeight;
+      // 안전장치: 계산이 어긋나 설정 카드가 화면 밖으로 나가면 그만큼 자리를 더 잡는다.
+      const overflow = Math.ceil(optionsRect.bottom - (window.innerHeight - 8));
+      if(overflow > 0){ if(mobile) mobileOptionsReserve += overflow; else desktopOptionsReserve += overflow; }
     }
-    return Math.ceil(base + (mobile ? mobileOptionsReserve : desktopOptionsReserve));
+    return Math.ceil(toolbarRect.height + DOCK_GAP + (mobile ? mobileOptionsReserve : desktopOptionsReserve));
   }
   function measureDesktopDockReserve(){
     const dock = measureDockHeight(false);
