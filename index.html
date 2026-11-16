@@ -1861,6 +1861,9 @@ html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.3-5.6'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center/contain no-repeat!important;
   mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.3-5.6'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center/contain no-repeat!important;
 }
+/* 얼굴/원 아이콘은 네모와 같은 위치, 전환 표시는 오른쪽 아래에 작게 */
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode) .option-vector-icon{transform:none!important; margin:0!important;}
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{top:auto!important; bottom:4px!important; right:4px!important; width:8px!important; height:8px!important; opacity:.85!important;}
 </style>
 </head>
 <body>
