@@ -10,7 +10,7 @@ for(const id of ['app','toolbar','options-bar','workarea','view-canvas','fileInp
   if(!ids.includes(id)) fail('Missing essential control: '+id);
 }
 for(const name of ['editor-helpers','editor-canvas','editor-app']){
-  if(!html.includes('src="./src/'+name+'.js"')) fail('Missing module: '+name);
+  if(!new RegExp('src="\\./src/'+name+'\\.js(\\?v=[\\w.-]+)?"').test(html)) fail('Missing module: '+name);
   const code=readFileSync(new URL('../src/'+name+'.js',import.meta.url),'utf8');
   try{new Script(code,{filename:name+'.js'});}catch(error){fail('Syntax error in '+name+': '+error.message);}
   const selfReference=code.match(/\bconst\s+([A-Za-z_$][\w$]*)\s*=\s*\1\s*;/);
