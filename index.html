@@ -1842,6 +1842,11 @@ html:root body > .face-shape-menu{
 }
 html:root body > .face-shape-menu button{height:34px!important; border:0!important; border-radius:10px!important; background:transparent!important; color:var(--ink)!important; font:inherit; font-size:13px!important; text-align:left; padding:0 12px!important;}
 html:root body > .face-shape-menu button.active{background:var(--accent-soft)!important; color:var(--accent)!important;}
+/* PC 가림: 한 줄 알약 안의 강도·페더 */
+html:root body #chrome #options-bar .option-row-primary .option-slider{display:flex!important; align-items:center!important; gap:8px!important; padding:0 6px!important; height:auto!important;}
+html:root body #chrome #options-bar .option-row-primary .option-slider .effect-value-label{min-width:50px!important; width:auto!important; flex:0 0 auto!important;}
+html:root body #chrome #options-bar .option-row-primary .option-slider input[type=range]{flex:0 0 110px!important; width:110px!important; min-width:0!important;}
+html:root body #options-bar[data-layout="effect"] .option-row-secondary:empty{display:none!important;}
 </style>
 </head>
 <body>
@@ -1897,8 +1902,8 @@ html:root body > .face-shape-menu button.active{background:var(--accent-soft)!im
   <input accept="image/*" hidden id="fileInput" multiple type="file">
 </div>
 
-<script src="./src/editor-helpers.js?v=20261116e"></script>
-<script src="./src/editor-canvas.js?v=20261116e"></script>
-<script src="./src/editor-app.js?v=20261116e"></script>
+<script src="./src/editor-helpers.js?v=20261116f"></script>
+<script src="./src/editor-canvas.js?v=20261116f"></script>
+<script src="./src/editor-app.js?v=20261116f"></script>
 </body>
 </html>
