@@ -1,4 +1,9 @@
 const { chromium, webkit } = require('playwright');
+// 검사 화면은 공개 페이지로 배포되지 않도록 .txt로 두고, 실행할 때만 잠깐 .html로 꺼낸다.
+const harnessSrc = require('node:path').join(__dirname, 'regression-harness.txt');
+const harnessHtml = require('node:path').join(__dirname, 'regression.html');
+require('node:fs').copyFileSync(harnessSrc, harnessHtml);
+process.on('exit', () => { try { require('node:fs').unlinkSync(harnessHtml); } catch (_) {} });
 const engine = process.env.MARKING_BROWSER || 'chromium';
 if (!['chromium', 'webkit'].includes(engine)) throw new Error('Unsupported browser engine: ' + engine);
 const browserType = engine === 'webkit' ? webkit : chromium;
@@ -21,7 +26,7 @@ if (collecting && process.platform !== 'linux') throw new Error('Collect baselin
   const results = [];
   let failures = 0;
   try {
-    for (const reference of ['index', 'test']) {
+    for (const reference of ['index']) {
     for (const width of [320, 375, 390, 1280]) {
       const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, deviceScaleFactor: 1 });
       const page = await context.newPage();

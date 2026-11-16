@@ -1,19 +1,16 @@
 # MARKING 유지보수용 코드 지도
 
-> 기준: main `5c05e979af54c1e1f4f3e58ea032163f2147f826` (2026-10-17). `index.html`과 `test.html`은 바이트 단위로 동일하며, 두 페이지 모두 모듈형 JavaScript를 불러옵니다. 이 문서는 코드 수정 없이 개발팀의 탐색 비용을 줄이기 위한 안내입니다.
 
 ## 1. 실행 경로와 의존 관계
 
 ```text
 정식 사용자: index.html (HTML + CSS + 외부 JS)
-PWA 시작 URL: test.html (index.html과 바이트 동일)
   두 페이지 모두 순서대로 로드:
     ├─ src/editor-helpers.js (순수 계산/히스토리)
     ├─ src/editor-canvas.js  (Canvas 합성)
     └─ src/editor-app.js     (상태/DOM/입력/파일)
 ```
 
-`marking-test.webmanifest`의 `start_url`이 `./test.html`이므로 현재는 `test.html`을 삭제하면 안 됩니다. `tests/production-parity.cjs`에서 두 파일의 바이트 동일성을 검증합니다. 서비스 워커 프리캐시 사용 여부는 저장소 검색상 확인되지 않았지만 기존 설치 환경은 별도 점검이 필요합니다.
 
 ## 2. 주요 함수별 탐색 지도
 
@@ -41,7 +38,6 @@ PWA 시작 URL: test.html (index.html과 바이트 동일)
 3. **편집 상태 정리:** 도구, 선택 객체, 효과, 히스토리 상태의 변경 경로를 일원화.
 4. **포인터 처리 분리:** 화면 좌표 ↔ 원본 좌표 변환, 선택/드래그/완료 이벤트를 분리.
 5. **UI 구성 분리:** `buildOptionsBar` 및 모바일 정렬 로직을 테스트 가능한 단위로 분해.
-6. **PWA 진입점 이전:** `marking-test.webmanifest`의 `start_url`을 `index.html`로 이전하고 설치/업데이트/기존 홈 화면 바로가기를 검증한 후에만 중복 `test.html` 삭제 검토.
 7. **CMS 적합성 평가:** DOM/CSS 충돌, CSP, 다운로드 권한, 이미지 파일 정책, 외부 모델 로딩 정책 확인.
 
 순서는 권장안입니다. 실제 CMS 통합 요구사항에 따라 개발팀이 조정할 수 있습니다.
@@ -49,8 +45,6 @@ PWA 시작 URL: test.html (index.html과 바이트 동일)
 ## 4. 검증 기준과 fixture 갱신 절차
 
 - 정적 검사: `scripts/check-test.mjs`가 핵심 컨트롤·함수 존재, JS 구문, CSS 중괄호 균형을 검사합니다. **중괄호 균형은 최소 구문 검사일 뿐 UI 불변의 증거가 아닙니다.**
-- 바이트 일치: `tests/production-parity.cjs`가 `index.html`과 `test.html`을 직접 비교합니다.
-- UI 기준: `tests/fixtures/ui-main.json`에는 main 커밋 SHA와 CSS·마크업 FNV-1a 64-bit 해시가 저장됩니다. `tests/check-ui-fixtures.cjs`는 변경 여부를 확인하고 CI에서 기준 SHA가 HEAD의 조상인지 확인하고, `git diff --quiet <baselineSha> HEAD -- index.html test.html src/`로 앱 소스 변경 여부를 검사합니다. 단순 병합 커밋 때문에 fixture 갱신을 요구하지 않습니다.
 - 브라우저 회귀: Chromium과 WebKit, 320·375·390·1280px에서 두 진입점의 동작, 캔버스 전체 RGBA SHA-256, 16×16 RGBA 샘플(진단용), 검사 항목의 이름·순서, 데스크톱 내보내기 파일 SHA-256을 대조합니다.
 - **화면별 픽셀 기준값과 검사 이름 목록은 `tests/fixtures/browser-main.json`에 보관합니다. 현재 기준값은 Linux GitHub Actions에서 main SHA를 별도 worktree로 체크아웃해 Playwright 1.56.1로 생성했으며, RGBA 샘플은 zlib+Base64로 무손실 압축되어 있습니다.** main과 동일한 Ubuntu runner 및 Playwright 1.56.1에서 수집해야 하며, 확보 전에는 별도 fixture 고정 검사가 완료됐다고 주장해서는 안 됩니다.
 - 픽셀 허용 오차: 동일 Linux runner·브라우저 버전·입력 이미지·viewport 기준에서는 **허용 오차 0(전체 캔버스 SHA-256 완전 일치)**을 적용합니다. 엔진/폰트 차이가 확인되면 원인 분석과 실제 이미지 품질 영향 검토 후 리뷰를 거쳐서만 허용 오차를 도입합니다. Chromium 기준값을 WebKit에 재사용하지 않습니다.
@@ -69,6 +63,9 @@ PWA 시작 URL: test.html (index.html과 바이트 동일)
 
 ## 5. 개발팀 첫 점검 제안
 
-`docs/DEVELOPER_HANDOFF.md`의 실행/검증 절차를 따라 로컬에서 테스트를 재현하고, `src/editor-app.js`를 중심으로 파일 입출력·상태·DOM·렌더링의 경계를 검토하세요. 현재 두 페이지가 이미 모듈형이므로 정식 `index.html`과 PWA `test.html`의 동작 및 출력 결과가 일치하는지 먼저 확인하세요.
 
 Copyright by 송은석. All Rights Reserved.
+
+## 2026-11 정리
+- 공식 페이지는 `index.html` 하나입니다. `test.html`·`backups/`는 삭제했고(필요하면 Git 기록에서 복원), PWA 매니페스트는 `marking.webmanifest`(시작 주소 `./`)입니다.
+- 검사 화면은 공개되지 않도록 `tests/regression-harness.txt`로 두고, `run-browser-regression.cjs`가 실행할 때만 `tests/regression.html`로 꺼냈다가 지웁니다.

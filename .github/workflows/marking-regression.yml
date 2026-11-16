@@ -4,7 +4,6 @@ on:
   push:
     paths:
       - 'index.html'
-      - 'test.html'
       - 'src/**'
       - 'tests/**'
       - 'package.json'
