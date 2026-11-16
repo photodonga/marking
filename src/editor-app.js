@@ -1270,25 +1270,10 @@
       bFace.title = isCircle?"원 (누르면 얼굴 인식)":"얼굴 인식 (다시 누르면 원)";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
       const setPlainShape=shape=>{ blurShape=shape; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace&&e.shape!==(shape==="rect"?"rect":"ellipse")){e.shape=shape==="rect"?"rect":"ellipse";if(effLocked(e))e.rect=squareAroundCenter(e.rect);pushHistory();} buildOptionsBar(); redraw(); };
-      // 얼굴/원 칸: 아래 화살표가 붙은 메뉴 버튼. 누르면 [얼굴 인식 | 원] 선택지가 아래로 뜬다.
-      bFace.onclick=(e)=>{
-        e.stopPropagation();
-        if(blurShape==="rect"){ blurShape="face"; buildOptionsBar(); redraw(); return; }
-        let menu=document.querySelector("body > .face-shape-menu");
-        if(menu){ menu.remove(); return; }
-        menu=document.createElement("div"); menu.className="face-shape-menu"; menu.setAttribute("role","menu");
-        [["face","얼굴 인식"],["ellipse","원"]].forEach(([k,n])=>{
-          const it=document.createElement("button"); it.type="button"; it.setAttribute("role","menuitemradio");
-          it.textContent=n; it.className=blurShape===k?"active":"";
-          it.onclick=(ev)=>{ ev.stopPropagation(); menu.remove(); if(k==="face"){ blurShape="face"; buildOptionsBar(); redraw(); } else setPlainShape("ellipse"); };
-          menu.appendChild(it);
-        });
-        document.body.appendChild(menu);
-        const br=bFace.getBoundingClientRect(), mh=menu.getBoundingClientRect().height;
-        menu.style.left=Math.max(8,br.left)+"px";
-        menu.style.top=(br.bottom+6+mh<=window.innerHeight-8 ? br.bottom+6 : br.top-6-mh)+"px";
-        const close=(ev)=>{ if(!menu.contains(ev.target)){ menu.remove(); document.removeEventListener("pointerdown",close,true); } };
-        document.addEventListener("pointerdown",close,true);
+      // 얼굴/원 칸: 누를 때마다 얼굴 인식 ↔ 원으로 바로 바뀐다(메뉴 없음). 네모 상태에서 누르면 얼굴 인식으로.
+      bFace.onclick=()=>{
+        if(blurShape==="face") setPlainShape("ellipse");
+        else { blurShape="face"; buildOptionsBar(); redraw(); }
       };
       bRect.onclick=()=>setPlainShape("rect");
       seg3.appendChild(bFace); seg3.appendChild(bRect);
