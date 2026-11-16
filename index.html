@@ -1697,6 +1697,20 @@ html:root body #options-bar .seg button.active, html:root body #options-bar .seg
 html:root body #options-bar .seg button:not(.active):hover{background:var(--panel-hi)!important; color:var(--ink)!important;}
 html:root body #options-bar .option-lock{min-height:calc(var(--dock-btn) + 4px)!important; padding:0 4px!important; cursor:pointer;}
 html:root body #options-bar .option-lock input{width:18px!important; height:18px!important; margin:0!important;}
+/* 얼굴↔원 칸: 다시 누르면 바뀐다는 표시(작은 전환 화살표) */
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode){position:relative!important;}
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
+  content:"⇄"; position:absolute; right:4px; bottom:2px; font-size:10px; line-height:1; font-weight:700;
+  color:currentColor; opacity:.85; pointer-events:none;
+}
+/* 정원 체크: 버튼 배치는 가운데 그대로 두고, 줄 오른쪽 끝에 작게 */
+html:root body #options-bar[data-layout="effect"] .option-row-primary{position:relative!important;}
+html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-lock{
+  position:absolute!important; right:0!important; top:50%!important; transform:translateY(-50%)!important;
+  min-height:0!important; padding:0!important; gap:4px!important; font-size:11px!important;
+}
+html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-lock input{width:14px!important; height:14px!important;}
+html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-lock span{min-width:0!important;}
 </style>
 </head>
 <body>
