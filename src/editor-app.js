@@ -1194,11 +1194,12 @@
       if(window.matchMedia("(max-width:640px)").matches) put(row2,inten,feath);
       else put(row1,inten,feath);
     }else{
+      // 색상은 누르지 않아도 늘 펼쳐 둔다. PC는 한 줄, 휴대폰은 아래 알약.
       const color=pick("option-color"), lock=pick("option-lock");
-      if(lock) lock.dataset.pop="color";
       if(layout==="drawing") put(row1,pick("option-shape"));
-      put(row1,pick("option-stroke"),pick("option-line-style"),colorChip(color),pick("selected-options"));
-      put(row2,color,lock);
+      put(row1,pick("option-stroke"),pick("option-line-style"));
+      if(window.matchMedia("(max-width:640px)").matches) put(row2,color,lock,pick("selected-options"));
+      else put(row1,color,lock,pick("selected-options"));
     }
     nodes.forEach(n=>{ if(n.parentNode===optionsBar) row1.append(n); });
     optionsBar.append(row1,row2);
