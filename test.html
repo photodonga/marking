@@ -1607,13 +1607,13 @@ html:root #toast{background:var(--panel)!important;border:1px solid var(--panel-
 html:root .save-format-menu, html:root #line-tool-menu{background:var(--panel)!important;border:1px solid var(--panel-border)!important;backdrop-filter:none!important;color:var(--ink)!important;}
 html:root .palette-swatch.selected, html:root #options-bar[data-layout="drawing"] .palette-swatch.selected::before{outline-color:#F4F5F7!important;}
 /* 얼굴 자동 맞춤을 못 쓸 때: 알림 대신 "얼굴" 옆에 조용히 표시 */
-html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button:first-child.active)::after{
+html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button.face-mode.active)::after{
   content:"자동 맞춤 안 됨"; align-self:center; margin-left:8px; white-space:nowrap;
   font-size:11px; color:var(--ink-faint);
 }
 @media (max-width:640px){
-  html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button:first-child.active)::after{content:none;}
-  html:root #options-bar[data-face-auto="off"][data-layout="effect"]:has(.option-target .seg > button:first-child.active)::after{
+  html:root #options-bar[data-face-auto="off"] .option-target:has(.seg > button.face-mode.active)::after{content:none;}
+  html:root #options-bar[data-face-auto="off"][data-layout="effect"]:has(.option-target .seg > button.face-mode.active)::after{
     content:"얼굴 자동 맞춤 안 됨"; display:block; width:100%; flex:0 0 100%;
     margin-top:6px; text-align:center; font-size:11px; color:var(--ink-faint);
   }

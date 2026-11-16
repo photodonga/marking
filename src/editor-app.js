@@ -1214,14 +1214,16 @@
 
       const g3 = document.createElement("div"); g3.className="opt-group option-target";
       const seg3 = document.createElement("div"); seg3.className="seg";
-      const bFace = document.createElement("button"); bFace.textContent="얼굴"; bFace.className = blurShape==="face"?"active":"";
-      const bCircle = document.createElement("button"); bCircle.textContent="원"; bCircle.className = blurShape==="ellipse"?"active":"";
+      // 첫 칸은 얼굴 ↔ 원 전환 버튼: 얼굴이 선택된 상태에서 다시 누르면 인식 없는 원으로 바뀐다.
+      const isCircle = blurShape==="ellipse";
+      const bFace = document.createElement("button"); bFace.textContent=isCircle?"원":"얼굴";
+      bFace.className = (blurShape==="rect"?"":"active ")+(isCircle?"circle-mode":"face-mode");
+      bFace.title = isCircle?"원 (누르면 얼굴 인식)":"얼굴 인식 (다시 누르면 원)";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
       const setPlainShape=shape=>{ blurShape=shape; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace&&e.shape!==(shape==="rect"?"rect":"ellipse")){e.shape=shape==="rect"?"rect":"ellipse";if(effLocked(e))e.rect=squareAroundCenter(e.rect);pushHistory();} buildOptionsBar(); redraw(); };
-      bFace.onclick=()=>{ blurShape="face"; buildOptionsBar(); redraw(); };
-      bCircle.onclick=()=>setPlainShape("ellipse");
+      bFace.onclick=()=>{ if(blurShape==="face") setPlainShape("ellipse"); else { blurShape="face"; buildOptionsBar(); redraw(); } };
       bRect.onclick=()=>setPlainShape("rect");
-      seg3.appendChild(bFace); seg3.appendChild(bCircle); seg3.appendChild(bRect);
+      seg3.appendChild(bFace); seg3.appendChild(bRect);
       g3.appendChild(seg3);
       var gLockEff=null;
       if(blurShape!=="face"){
