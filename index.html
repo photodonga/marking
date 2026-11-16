@@ -1738,6 +1738,21 @@ html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
   -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.3-5.6'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center/contain no-repeat!important;
   mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.3-5.6'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center/contain no-repeat!important;
 }
+/* 사진을 연 뒤에는 하단 안내·저작권 문구를 숨겨 도크와 겹치지 않게 */
+html:root body #app:has(#view-canvas.ready) #footer-note{display:none!important;}
+/* 도크 위치 고정: 툴바는 항상 같은 자리(위), 세부 설정은 그 아래로 펼쳐짐 */
+html:root body #app #chrome{bottom:auto!important; top:calc(100% - var(--dock-h, 64px) - 14px - var(--safe-b))!important;}
+/* 선 종류 메뉴를 열어도 세부 설정은 그대로 보이게(빈 칸 방지) */
+html:root body #options-bar.menu-replaced, html:root body #options-bar.mobile-menu-suspended{visibility:visible!important; pointer-events:auto!important;}
+html:root body #chrome #options-bar.mobile-menu-suspended:not(.hidden){display:flex!important;}
+/* 툴바 버튼: 마우스·터치로 눌렀을 때 생기던 테두리 제거 */
+html:root body #chrome :focus-visible, html:root body #chrome button:focus{outline:none!important;}
+html:root body #chrome #toolbar .line-tool-chevron, html:root body #chrome #toolbar .line-tool-chevron[aria-expanded="true"]{box-shadow:none!important; outline:none!important; border:0!important;}
+html:root body #chrome #toolbar .line-tool-chevron[aria-expanded="true"]{background:var(--panel-hi)!important; color:var(--ink)!important;}
+/* 선 종류 메뉴: 파란 선택 대신 같은 색 체계 */
+html:root #line-tool-menu button[aria-checked="true"]{background:var(--accent-soft)!important; color:var(--ink)!important;}
+html:root #line-tool-menu button[aria-checked="true"] .line-menu-check, html:root #line-tool-menu button[aria-checked="true"] svg{color:var(--accent)!important; stroke:var(--accent)!important;}
+html:root #line-tool-menu button:hover{background:var(--panel-hi)!important;}
 </style>
 </head>
 <body>
@@ -1787,7 +1802,7 @@ html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
 
   <div id="footer-note" aria-hidden="true">
     <div class="privacy">사진은 서버에 업로드되지 않고 이 기기에서만 처리됩니다.</div>
-    <div class="copyright">Copyright by 송은석. All Rights Reserved.</div>
+    <div class="copyright">© 2026 Eunseok Song. All rights reserved.</div>
   </div>
 
   <input accept="image/*" hidden id="fileInput" multiple type="file">

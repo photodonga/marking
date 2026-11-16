@@ -81,36 +81,41 @@
   // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
   // PC: 하단 도구바와 그 위 보조 도구(설정창) 자리를 항상 비워 사진이 그 아래로 들어가지 않게 한다.
   // 설정창이 열리고 닫혀도 사진 크기가 흔들리지 않도록, 설정창이 닫혀 있을 때도 같은 높이를 예약한다.
-  const DESKTOP_OPTIONS_MIN_RESERVE = 116; // 도크 설정 부분(두 줄 + 여백) 실측 최대 높이 + 여유
+  const DESKTOP_OPTIONS_MIN_RESERVE = 112; // 도크 설정 부분(두 줄 + 여백) 실측 최대 높이 + 여유
   const DESKTOP_DOCK_GAP = 8;             // #chrome의 PC gap
   let desktopOptionsReserve = DESKTOP_OPTIONS_MIN_RESERVE;
+  const MOBILE_OPTIONS_MIN_RESERVE = 128; // 모바일 도크 설정 부분 실측 최대 높이 + 여유
   let desktopDockReserve = 0;              // 작업 영역 하단에서 비워둔 높이(px)
-  function measureDesktopDockReserve(){
+  // 도크는 툴바가 위에 고정되고, 세부 설정은 그 아래로 펼쳐진다.
+  // 설정 부분의 최대 높이만큼 자리를 미리 잡아 두어, 설정을 열고 닫아도 툴바와 사진이 움직이지 않는다.
+  let mobileOptionsReserve = MOBILE_OPTIONS_MIN_RESERVE;
+  function measureDockHeight(mobile){
     const toolbarRect = toolbarEl.getBoundingClientRect();
-    if(!toolbarRect.height) return desktopDockReserve;
-    const chromeRect = chromeEl.getBoundingClientRect();
-    // 도크는 툴바(위) + 설정(아래) 한 장. 설정이 열려도 사진이 움직이지 않도록 설정 부분 최대 높이를 미리 비워 둔다.
+    if(!toolbarRect.height) return null;
+    const base = toolbarRect.height + 12; // 카드 위아래 여백 5px×2 + 테두리
     if(!optionsBar.classList.contains("hidden")){
-      const optionsHeight = chromeRect.height - toolbarRect.height;
-      if(optionsHeight > desktopOptionsReserve) desktopOptionsReserve = Math.ceil(optionsHeight);
+      const optionsHeight = Math.ceil(chromeEl.getBoundingClientRect().height - base);
+      if(mobile){ if(optionsHeight > mobileOptionsReserve) mobileOptionsReserve = optionsHeight; }
+      else if(optionsHeight > desktopOptionsReserve) desktopOptionsReserve = optionsHeight;
     }
-    const appBottom = workarea.parentElement ? workarea.parentElement.getBoundingClientRect().bottom : window.innerHeight;
-    return Math.max(0, Math.ceil(appBottom - chromeRect.bottom + toolbarRect.height + DESKTOP_DOCK_GAP + desktopOptionsReserve));
+    return Math.ceil(base + (mobile ? mobileOptionsReserve : desktopOptionsReserve));
+  }
+  function measureDesktopDockReserve(){
+    const dock = measureDockHeight(false);
+    return dock==null ? desktopDockReserve : dock + 14 + DESKTOP_DOCK_GAP;
   }
   function syncEditorInsets(){
     const mobile = window.matchMedia("(max-width: 640px)").matches;
-    const height = chromeEl.getBoundingClientRect().height;
-    const inset = Math.ceil(height + (mobile ? 24 : 24));
+    const dock = measureDockHeight(mobile);
     const root = document.documentElement;
+    if(dock!=null) root.style.setProperty("--dock-h", dock+"px");
     const top = "0px";
     const previousReserve = desktopDockReserve;
-    desktopDockReserve = mobile ? 0 : measureDesktopDockReserve();
-    const bottom = mobile ? inset + "px" : desktopDockReserve + "px";
+    desktopDockReserve = mobile ? 0 : (dock==null ? desktopDockReserve : dock + 14 + DESKTOP_DOCK_GAP);
+    const bottom = mobile ? Math.ceil((dock==null ? chromeEl.getBoundingClientRect().height : dock) + 24) + "px" : desktopDockReserve + "px";
     if(root.style.getPropertyValue("--editor-top")===top && root.style.getPropertyValue("--editor-bottom")===bottom) return;
     root.style.setProperty("--editor-top",top);
     root.style.setProperty("--editor-bottom",bottom);
-    // 예약 높이는 설정창 표시 여부와 무관하므로 도구 전환만으로는 바뀌지 않는다.
-    // 첫 측정이나 실제 높이 변화로 예약 공간이 바뀐 경우에만 PC 사진 크기를 다시 맞춘다.
     if(!mobile && previousReserve!==desktopDockReserve && naturalW){ fitCanvas(); redraw(); }
   }
   // 선 굵기·가림 강도의 기준 배율은 도구 영역 예약 전과 같은 작업 영역(창 전체)으로 계산한다.
