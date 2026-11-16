@@ -1819,6 +1819,29 @@ html:root body #options-bar[data-face-auto="off"]::after{content:none!important;
   html:root body #options-bar .opt-chip{padding:0 9px; font-size:12px;}
   html:root body #app #chrome{width:max-content!important; max-width:calc(100vw - 16px)!important;}
 }
+/* 가림: 강도·페더 슬라이더 알약은 항상 보이게 */
+html:root body #options-bar[data-layout="effect"] .option-row-secondary{display:flex!important;}
+html:root body #options-bar[data-layout="effect"] .option-row-secondary > [data-pop]{display:flex!important;}
+html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider{width:auto!important; padding:0 8px!important;}
+html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider input[type=range]{flex:0 0 130px!important; width:130px!important;}
+@media (max-width:640px){
+  html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider input[type=range]{flex:0 0 96px!important; width:96px!important;}
+  html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider .effect-value-label{min-width:46px!important;}
+}
+/* 얼굴/원 칸: 회전 화살표 대신 아래 화살표(누르면 메뉴) */
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
+  right:auto!important; left:50%!important; top:auto!important; bottom:2px!important; width:9px!important; height:6px!important; transform:translateX(-50%)!important;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat!important;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat!important;
+}
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode) .option-vector-icon{transform:translateY(-3px)!important;}
+html:root body #options-bar .option-target{position:relative!important;}
+html:root body > .face-shape-menu{
+  position:fixed; z-index:60; display:flex; flex-direction:column; gap:2px; padding:4px; min-width:112px;
+  background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,.4);
+}
+html:root body > .face-shape-menu button{height:34px!important; border:0!important; border-radius:10px!important; background:transparent!important; color:var(--ink)!important; font:inherit; font-size:13px!important; text-align:left; padding:0 12px!important;}
+html:root body > .face-shape-menu button.active{background:var(--accent-soft)!important; color:var(--accent)!important;}
 </style>
 </head>
 <body>
@@ -1874,8 +1897,8 @@ html:root body #options-bar[data-face-auto="off"]::after{content:none!important;
   <input accept="image/*" hidden id="fileInput" multiple type="file">
 </div>
 
-<script src="./src/editor-helpers.js?v=20261116c"></script>
-<script src="./src/editor-canvas.js?v=20261116c"></script>
-<script src="./src/editor-app.js?v=20261116c"></script>
+<script src="./src/editor-helpers.js?v=20261116e"></script>
+<script src="./src/editor-canvas.js?v=20261116e"></script>
+<script src="./src/editor-app.js?v=20261116e"></script>
 </body>
 </html>
