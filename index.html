@@ -1753,6 +1753,95 @@ html:root body #chrome #toolbar .line-tool-chevron[aria-expanded="true"]{backgro
 html:root #line-tool-menu button[aria-checked="true"]{background:var(--accent-soft)!important; color:var(--ink)!important;}
 html:root #line-tool-menu button[aria-checked="true"] .line-menu-check, html:root #line-tool-menu button[aria-checked="true"] svg{color:var(--accent)!important; stroke:var(--accent)!important;}
 html:root #line-tool-menu button:hover{background:var(--panel-hi)!important;}
+/* 도크 분리: 툴바는 늘 같은 알약, 설정은 그 아래 별도 카드 */
+html:root body #app #chrome, html:root body #app #chrome:has(#options-bar:not(.hidden)){
+  background:transparent!important; border:0!important; box-shadow:none!important; padding:0!important; border-radius:0!important; gap:6px!important;
+}
+html:root body #chrome #toolbar{
+  background:var(--panel)!important; border:1px solid var(--panel-border)!important; border-radius:999px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.35)!important; padding:5px!important;
+}
+html:root body #chrome #options-bar:not(.hidden){
+  background:var(--panel)!important; border:1px solid var(--panel-border)!important; border-radius:22px!important;
+  box-shadow:0 10px 28px rgba(0,0,0,.35)!important; margin:0!important; padding:12px 10px!important;
+}
+/* 툴바 알약: 내용 폭에 딱 맞게(빈 공간 없이), 설정 카드와 가운데 정렬 */
+html:root body #app #chrome{align-items:center!important; width:max-content!important;}
+html:root body #chrome #toolbar{width:max-content!important; justify-content:center!important; gap:4px!important;}
+html:root body #chrome #toolbar .save-group{margin-left:4px!important;}
+@media (max-width:640px){
+  html:root body #app #chrome{width:calc(100vw - 16px)!important;}
+  html:root body #chrome #toolbar{justify-content:center!important;}
+  html:root body #chrome #options-bar:not(.hidden){align-self:stretch!important;}
+}
+/* ===== 설정 = 한 줄 알약 + (값 버튼을 누르면) 아래 알약 ===== */
+html:root body #chrome #options-bar:not(.hidden){
+  background:transparent!important; border:0!important; box-shadow:none!important; padding:0!important; border-radius:0!important;
+  align-items:center!important; gap:6px!important; width:auto!important;
+}
+html:root body #options-bar .option-row{
+  width:max-content!important; max-width:calc(100vw - 16px)!important; background:var(--panel)!important; border:1px solid var(--panel-border)!important;
+  border-radius:999px!important; padding:5px!important; gap:4px!important; box-shadow:0 10px 28px rgba(0,0,0,.35)!important;
+  flex-direction:row!important; flex-wrap:nowrap!important; overflow-x:auto!important; scrollbar-width:none;
+}
+html:root body #options-bar .option-row::-webkit-scrollbar{display:none;}
+html:root body #options-bar .option-row-secondary{display:none!important;}
+html:root body #options-bar[data-popover="intensity"] .option-row-secondary,
+html:root body #options-bar[data-popover="feather"] .option-row-secondary,
+html:root body #options-bar[data-popover="color"] .option-row-secondary{display:flex!important;}
+html:root body #options-bar .option-row-secondary > [data-pop]{display:none!important;}
+html:root body #options-bar[data-popover="intensity"] .option-row-secondary > [data-pop="intensity"],
+html:root body #options-bar[data-popover="feather"] .option-row-secondary > [data-pop="feather"],
+html:root body #options-bar[data-popover="color"] .option-row-secondary > [data-pop="color"]{display:flex!important;}
+html:root body #options-bar[data-layout="effect"] .option-row-secondary{flex-direction:row!important; align-items:center!important;}
+html:root body #options-bar .option-row-secondary .option-slider{grid-template-columns:none!important; align-items:center!important; width:300px!important; max-width:calc(100vw - 40px)!important; padding:0 10px!important; gap:10px!important; height:34px!important; flex:none!important;}
+html:root body #chrome #options-bar .option-row-secondary .option-slider input[type=range]{flex:0 0 200px!important; width:200px!important; min-width:0!important; max-width:none!important; display:block!important;}
+html:root body #options-bar .option-row-secondary .annotation-palette{padding:0 4px!important;}
+html:root body #chrome #options-bar .option-row-secondary .option-slider .effect-value-label{flex:0 0 auto!important; width:auto!important; min-width:52px!important; max-width:none!important; display:inline-block!important;}
+/* 값 버튼(칩) */
+html:root body #options-bar .opt-chip{
+  height:calc(var(--dock-btn) + 4px); display:inline-flex; align-items:center; gap:6px; padding:0 12px; flex:0 0 auto;
+  border:1px solid var(--panel-border); border-radius:999px; background:transparent; color:var(--ink-soft);
+  font:inherit; font-size:12.5px; white-space:nowrap; cursor:pointer; font-variant-numeric:tabular-nums;
+}
+html:root body #options-bar button.opt-chip.active, html:root body #options-bar button.opt-chip.active:not(.color-swatch){background:transparent!important; border:1px solid var(--accent)!important; color:var(--ink)!important;}
+html:root body #options-bar .opt-chip-dot{width:14px; height:14px; border-radius:50%; border:1.5px solid rgba(255,255,255,.7);}
+/* 정원 체크: 한 줄 안에 작게 (가운데 밀지 않음) */
+html:root body #options-bar[data-layout="effect"] .option-row-primary{position:static!important;}
+html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-lock{position:static!important; transform:none!important; padding:0 4px!important; font-size:12px!important;}
+html:root body #options-bar .option-lock span{min-width:0!important;}
+/* 얼굴 자동 맞춤 안 됨 표시는 알약 안에 작게 */
+html:root body #options-bar[data-face-auto="off"]::after{content:none!important;}
+@media (max-width:640px){
+  html:root body #chrome #options-bar:not(.hidden){align-self:center!important;}
+  html:root body #options-bar .seg button.icon-option{width:var(--dock-btn)!important;}
+  html:root body #options-bar .seg button{padding:0 9px!important;}
+  html:root body #options-bar .opt-chip{padding:0 9px; font-size:12px;}
+  html:root body #app #chrome{width:max-content!important; max-width:calc(100vw - 16px)!important;}
+}
+/* 가림: 강도·페더 슬라이더 알약은 항상 보이게 */
+html:root body #options-bar[data-layout="effect"] .option-row-secondary{display:flex!important;}
+html:root body #options-bar[data-layout="effect"] .option-row-secondary > [data-pop]{display:flex!important;}
+html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider{width:auto!important; padding:0 8px!important;}
+html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider input[type=range]{flex:0 0 130px!important; width:130px!important;}
+@media (max-width:640px){
+  html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider input[type=range]{flex:0 0 96px!important; width:96px!important;}
+  html:root body #chrome #options-bar[data-layout="effect"] .option-row-secondary .option-slider .effect-value-label{min-width:46px!important;}
+}
+/* 얼굴/원 칸: 회전 화살표 대신 아래 화살표(누르면 메뉴) */
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
+  right:auto!important; left:50%!important; top:auto!important; bottom:2px!important; width:9px!important; height:6px!important; transform:translateX(-50%)!important;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat!important;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1.5 1.5 6 6l4.5-4.5' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat!important;
+}
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode) .option-vector-icon{transform:translateY(-3px)!important;}
+html:root body #options-bar .option-target{position:relative!important;}
+html:root body > .face-shape-menu{
+  position:fixed; z-index:60; display:flex; flex-direction:column; gap:2px; padding:4px; min-width:112px;
+  background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; box-shadow:0 10px 28px rgba(0,0,0,.4);
+}
+html:root body > .face-shape-menu button{height:34px!important; border:0!important; border-radius:10px!important; background:transparent!important; color:var(--ink)!important; font:inherit; font-size:13px!important; text-align:left; padding:0 12px!important;}
+html:root body > .face-shape-menu button.active{background:var(--accent-soft)!important; color:var(--accent)!important;}
 </style>
 </head>
 <body>
@@ -1808,8 +1897,8 @@ html:root #line-tool-menu button:hover{background:var(--panel-hi)!important;}
   <input accept="image/*" hidden id="fileInput" multiple type="file">
 </div>
 
-<script src="./src/editor-helpers.js"></script>
-<script src="./src/editor-canvas.js"></script>
-<script src="./src/editor-app.js"></script>
+<script src="./src/editor-helpers.js?v=20261116e"></script>
+<script src="./src/editor-canvas.js?v=20261116e"></script>
+<script src="./src/editor-app.js?v=20261116e"></script>
 </body>
 </html>

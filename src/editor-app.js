@@ -81,24 +81,28 @@
   // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
   // PC: 하단 도구바와 그 위 보조 도구(설정창) 자리를 항상 비워 사진이 그 아래로 들어가지 않게 한다.
   // 설정창이 열리고 닫혀도 사진 크기가 흔들리지 않도록, 설정창이 닫혀 있을 때도 같은 높이를 예약한다.
-  const DESKTOP_OPTIONS_MIN_RESERVE = 112; // 도크 설정 부분(두 줄 + 여백) 실측 최대 높이 + 여유
+  const DESKTOP_OPTIONS_MIN_RESERVE = 108; // 도크 설정 부분(두 줄 + 여백) 실측 최대 높이 + 여유
   const DESKTOP_DOCK_GAP = 8;             // #chrome의 PC gap
   let desktopOptionsReserve = DESKTOP_OPTIONS_MIN_RESERVE;
-  const MOBILE_OPTIONS_MIN_RESERVE = 128; // 모바일 도크 설정 부분 실측 최대 높이 + 여유
+  const MOBILE_OPTIONS_MIN_RESERVE = 118; // 모바일 도크 설정 부분 실측 최대 높이 + 여유
   let desktopDockReserve = 0;              // 작업 영역 하단에서 비워둔 높이(px)
   // 도크는 툴바가 위에 고정되고, 세부 설정은 그 아래로 펼쳐진다.
   // 설정 부분의 최대 높이만큼 자리를 미리 잡아 두어, 설정을 열고 닫아도 툴바와 사진이 움직이지 않는다.
   let mobileOptionsReserve = MOBILE_OPTIONS_MIN_RESERVE;
+  const DOCK_GAP = 6; // 툴바(알약)와 설정 카드 사이 간격
   function measureDockHeight(mobile){
     const toolbarRect = toolbarEl.getBoundingClientRect();
     if(!toolbarRect.height) return null;
-    const base = toolbarRect.height + 12; // 카드 위아래 여백 5px×2 + 테두리
     if(!optionsBar.classList.contains("hidden")){
-      const optionsHeight = Math.ceil(chromeEl.getBoundingClientRect().height - base);
+      const optionsRect = optionsBar.getBoundingClientRect();
+      const optionsHeight = Math.ceil(optionsRect.height);
       if(mobile){ if(optionsHeight > mobileOptionsReserve) mobileOptionsReserve = optionsHeight; }
       else if(optionsHeight > desktopOptionsReserve) desktopOptionsReserve = optionsHeight;
+      // 안전장치: 계산이 어긋나 설정 카드가 화면 밖으로 나가면 그만큼 자리를 더 잡는다.
+      const overflow = Math.ceil(optionsRect.bottom - (window.innerHeight - 8));
+      if(overflow > 0){ if(mobile) mobileOptionsReserve += overflow; else desktopOptionsReserve += overflow; }
     }
-    return Math.ceil(base + (mobile ? mobileOptionsReserve : desktopOptionsReserve));
+    return Math.ceil(toolbarRect.height + DOCK_GAP + (mobile ? mobileOptionsReserve : desktopOptionsReserve));
   }
   function measureDesktopDockReserve(){
     const dock = measureDockHeight(false);
@@ -1139,28 +1143,64 @@
     return row;
   }
 
-  // PC·모바일 공통: 설정창을 항상 같은 두 줄(1줄 종류 선택, 2줄 조절)로 묶는다.
+  // PC·모바일 공통: 설정은 한 줄 알약(1줄). 강도·페더·색상은 값 버튼을 누르면 그 아래 알약(2줄)에 펼쳐진다.
+  let optionsPopover = null, optionsPopoverLayout = null;
+  function makeChip(key, render){
+    const chip=document.createElement("button"); chip.type="button"; chip.className="opt-chip"; chip.dataset.pop=key;
+    render(chip);
+    chip.onclick=(e)=>{ e.stopPropagation(); optionsPopover = optionsPopover===key ? null : key; syncOptionsPopover(); };
+    return chip;
+  }
+  function syncOptionsPopover(){
+    optionsBar.dataset.popover = optionsPopover || "";
+    optionsBar.querySelectorAll(".opt-chip").forEach(c=>c.classList.toggle("active", c.dataset.pop===optionsPopover));
+    requestAnimationFrame(syncEditorInsets);
+  }
   function arrangeOptions(){
     if(optionsBar.classList.contains("hidden")) return;
+    const layout=optionsBar.dataset.layout;
+    if(optionsPopoverLayout!==layout){ optionsPopover=null; optionsPopoverLayout=layout; }
     const nodes=Array.from(optionsBar.children);
     const pick=cls=>nodes.find(n=>n.classList.contains(cls));
-    const layout=optionsBar.dataset.layout;
     const row1=createOptionRow("option-row-primary");
     const row2=createOptionRow("option-row-secondary");
     const put=(row,...items)=>items.forEach(item=>{ if(item) row.append(item); });
+    const sliderChip=(group,key)=>{
+      if(!group) return null;
+      group.dataset.pop=key;
+      const label=group.querySelector(".effect-value-label");
+      return makeChip(key, chip=>{
+        const update=()=>{ chip.textContent=label?label.textContent:key; };
+        update();
+        group.querySelector('input[type="range"]')?.addEventListener("input",()=>requestAnimationFrame(update));
+      });
+    };
+    const colorChip=(group)=>{
+      if(!group) return null;
+      group.dataset.pop="color";
+      return makeChip("color", chip=>{
+        const dot=document.createElement("span"); dot.className="opt-chip-dot";
+        const text=document.createElement("span"); text.textContent="색상";
+        const update=()=>{ const sel=group.querySelector(".palette-swatch.selected"); dot.style.background=sel?sel.style.getPropertyValue("--swatch"):"#E5332A"; };
+        update(); group.addEventListener("click",()=>requestAnimationFrame(update));
+        chip.append(dot,text);
+      });
+    };
     if(layout==="effect"){
+      const inten=pick("option-intensity"), feath=pick("option-feather");
+      // 가림: 강도·페더 슬라이더는 값 버튼 없이 아래 알약에 늘 보인다.
       put(row1,pick("option-mode"),pick("option-target"),pick("option-lock"));
-      put(row2,pick("option-intensity"),pick("option-feather"));
-    }else if(layout==="drawing"){
-      put(row1,pick("option-shape"),pick("option-stroke"),pick("option-line-style"));
-      put(row2,pick("option-color"),pick("option-lock"));
+      put(row2,inten,feath);
     }else{
-      put(row1,pick("option-stroke"),pick("option-line-style"));
-      put(row2,pick("option-color"),pick("option-lock"),pick("selected-options"));
+      const color=pick("option-color"), lock=pick("option-lock");
+      if(lock) lock.dataset.pop="color";
+      if(layout==="drawing") put(row1,pick("option-shape"));
+      put(row1,pick("option-stroke"),pick("option-line-style"),colorChip(color),pick("selected-options"));
+      put(row2,color,lock);
     }
-    nodes.forEach(n=>{ if(!n.parentNode || n.parentNode===optionsBar) row2.append(n); });
-    optionsBar.append(row1);
-    if(row2.childElementCount) optionsBar.append(row2);
+    nodes.forEach(n=>{ if(n.parentNode===optionsBar) row1.append(n); });
+    optionsBar.append(row1,row2);
+    syncOptionsPopover();
   }
 
   function buildOptionsBar(){
@@ -1227,7 +1267,26 @@
       bFace.title = isCircle?"원 (누르면 얼굴 인식)":"얼굴 인식 (다시 누르면 원)";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
       const setPlainShape=shape=>{ blurShape=shape; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace&&e.shape!==(shape==="rect"?"rect":"ellipse")){e.shape=shape==="rect"?"rect":"ellipse";if(effLocked(e))e.rect=squareAroundCenter(e.rect);pushHistory();} buildOptionsBar(); redraw(); };
-      bFace.onclick=()=>{ if(blurShape==="face") setPlainShape("ellipse"); else { blurShape="face"; buildOptionsBar(); redraw(); } };
+      // 얼굴/원 칸: 아래 화살표가 붙은 메뉴 버튼. 누르면 [얼굴 인식 | 원] 선택지가 아래로 뜬다.
+      bFace.onclick=(e)=>{
+        e.stopPropagation();
+        if(blurShape==="rect"){ blurShape="face"; buildOptionsBar(); redraw(); return; }
+        let menu=document.querySelector("body > .face-shape-menu");
+        if(menu){ menu.remove(); return; }
+        menu=document.createElement("div"); menu.className="face-shape-menu"; menu.setAttribute("role","menu");
+        [["face","얼굴 인식"],["ellipse","원"]].forEach(([k,n])=>{
+          const it=document.createElement("button"); it.type="button"; it.setAttribute("role","menuitemradio");
+          it.textContent=n; it.className=blurShape===k?"active":"";
+          it.onclick=(ev)=>{ ev.stopPropagation(); menu.remove(); if(k==="face"){ blurShape="face"; buildOptionsBar(); redraw(); } else setPlainShape("ellipse"); };
+          menu.appendChild(it);
+        });
+        document.body.appendChild(menu);
+        const br=bFace.getBoundingClientRect(), mh=menu.getBoundingClientRect().height;
+        menu.style.left=Math.max(8,br.left)+"px";
+        menu.style.top=(br.bottom+6+mh<=window.innerHeight-8 ? br.bottom+6 : br.top-6-mh)+"px";
+        const close=(ev)=>{ if(!menu.contains(ev.target)){ menu.remove(); document.removeEventListener("pointerdown",close,true); } };
+        document.addEventListener("pointerdown",close,true);
+      };
       bRect.onclick=()=>setPlainShape("rect");
       seg3.appendChild(bFace); seg3.appendChild(bRect);
       g3.appendChild(seg3);
@@ -1261,7 +1320,7 @@
             const checkbox=lock.querySelector('input[type="checkbox"]');
             const label=lock.querySelector("span");
             if(checkbox)checkbox.checked=k==="rect"?rectLocked:circleLocked;
-            if(label)label.textContent=k==="rect"?"정사각형 유지":"정원 유지";
+            if(label)label.textContent=k==="rect"?"정사각형":"정원";
           }
         }; segs.appendChild(b); });
         gs.appendChild(segs); optionsBar.appendChild(gs);
@@ -1289,7 +1348,7 @@
         const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
         const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=shapeKind==="rect"?rectLocked:circleLocked;
         lockCheck.onchange=()=>{ if(shapeKind==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
-        const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형 유지":"정원 유지"; lockText.style.minWidth="7em";
+        const lockText=document.createElement("span"); lockText.textContent=shapeKind==="rect"?"정사각형":"정원";
         gl.appendChild(lockCheck); gl.appendChild(lockText);
         optionsBar.appendChild(gl);
       }
@@ -1319,7 +1378,7 @@
           const gl = document.createElement("label"); gl.className="opt-group check-opt option-lock";
           const lockCheck = document.createElement("input"); lockCheck.type="checkbox"; lockCheck.checked=sel.type==="rect"?rectLocked:circleLocked;
           lockCheck.onchange=()=>{ if(sel.type==="rect") rectLocked=lockCheck.checked; else circleLocked=lockCheck.checked; };
-          const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형 유지":"정원 유지";
+          const lockText=document.createElement("span"); lockText.textContent=sel.type==="rect"?"정사각형":"정원";
           gl.appendChild(lockCheck); gl.appendChild(lockText);
           optionsBar.appendChild(gl);
         }
