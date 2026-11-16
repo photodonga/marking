@@ -1847,6 +1847,13 @@ html:root body #chrome #options-bar .option-row-primary .option-slider{display:f
 html:root body #chrome #options-bar .option-row-primary .option-slider .effect-value-label{min-width:50px!important; width:auto!important; flex:0 0 auto!important;}
 html:root body #chrome #options-bar .option-row-primary .option-slider input[type=range]{flex:0 0 110px!important; width:110px!important; min-width:0!important;}
 html:root body #options-bar[data-layout="effect"] .option-row-secondary:empty{display:none!important;}
+/* 색상 늘 펼침 */
+html:root body #options-bar:is([data-layout="drawing"],[data-layout="selection"]) .option-row-secondary{display:flex!important;}
+html:root body #options-bar:is([data-layout="drawing"],[data-layout="selection"]) .option-row-secondary:empty{display:none!important;}
+html:root body #options-bar .option-row-primary .option-color, html:root body #options-bar .option-row-secondary .option-color{display:flex!important; padding:0 4px!important;}
+html:root body #options-bar .option-row :is(.option-lock,.selected-options){display:flex!important;}
+/* 선택된 색상 동그라미가 강조색으로 덮이지 않게(빨강은 빨강 그대로) */
+html:root body #chrome #options-bar .palette-swatch, html:root body #chrome #options-bar .palette-swatch[aria-pressed="true"]{background:var(--swatch)!important; border-color:transparent!important;}
 </style>
 </head>
 <body>
@@ -1902,8 +1909,8 @@ html:root body #options-bar[data-layout="effect"] .option-row-secondary:empty{di
   <input accept="image/*" hidden id="fileInput" multiple type="file">
 </div>
 
-<script src="./src/editor-helpers.js?v=20261116f"></script>
-<script src="./src/editor-canvas.js?v=20261116f"></script>
-<script src="./src/editor-app.js?v=20261116f"></script>
+<script src="./src/editor-helpers.js?v=20261116g"></script>
+<script src="./src/editor-canvas.js?v=20261116g"></script>
+<script src="./src/editor-app.js?v=20261116g"></script>
 </body>
 </html>
