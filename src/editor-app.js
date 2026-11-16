@@ -81,20 +81,21 @@
   // 화면 크기에 따라 DOM을 이동시키면 툴바 폭과 스크롤 위치가 흔들릴 수 있다.
   // PC: 하단 도구바와 그 위 보조 도구(설정창) 자리를 항상 비워 사진이 그 아래로 들어가지 않게 한다.
   // 설정창이 열리고 닫혀도 사진 크기가 흔들리지 않도록, 설정창이 닫혀 있을 때도 같은 높이를 예약한다.
-  const DESKTOP_OPTIONS_MIN_RESERVE = 106; // 도크 설정 부분(두 줄) 실측 최대 높이 104px + 여유
+  const DESKTOP_OPTIONS_MIN_RESERVE = 116; // 도크 설정 부분(두 줄 + 여백) 실측 최대 높이 + 여유
   const DESKTOP_DOCK_GAP = 8;             // #chrome의 PC gap
   let desktopOptionsReserve = DESKTOP_OPTIONS_MIN_RESERVE;
   let desktopDockReserve = 0;              // 작업 영역 하단에서 비워둔 높이(px)
   function measureDesktopDockReserve(){
     const toolbarRect = toolbarEl.getBoundingClientRect();
     if(!toolbarRect.height) return desktopDockReserve;
+    const chromeRect = chromeEl.getBoundingClientRect();
+    // 도크는 툴바(위) + 설정(아래) 한 장. 설정이 열려도 사진이 움직이지 않도록 설정 부분 최대 높이를 미리 비워 둔다.
     if(!optionsBar.classList.contains("hidden")){
-      // 설정창과 툴바가 한 장의 도크라서, 설정 부분 높이 = 도크 윗변 ~ 툴바 윗변.
-      const optionsHeight = toolbarRect.top - chromeEl.getBoundingClientRect().top;
+      const optionsHeight = chromeRect.height - toolbarRect.height;
       if(optionsHeight > desktopOptionsReserve) desktopOptionsReserve = Math.ceil(optionsHeight);
     }
     const appBottom = workarea.parentElement ? workarea.parentElement.getBoundingClientRect().bottom : window.innerHeight;
-    return Math.max(0, Math.ceil(appBottom - toolbarRect.top + DESKTOP_DOCK_GAP + desktopOptionsReserve));
+    return Math.max(0, Math.ceil(appBottom - chromeRect.bottom + toolbarRect.height + DESKTOP_DOCK_GAP + desktopOptionsReserve));
   }
   function syncEditorInsets(){
     const mobile = window.matchMedia("(max-width: 640px)").matches;

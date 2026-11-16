@@ -1711,6 +1711,33 @@ html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-
 }
 html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-lock input{width:14px!important; height:14px!important;}
 html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-lock span{min-width:0!important;}
+/* 도크 순서: 툴바(메인) 위, 세부 설정 아래 */
+html:root body #app #chrome{flex-direction:column!important;}
+html:root body #app #chrome:has(#options-bar:not(.hidden)){padding:5px 10px 12px!important;}
+html:root body #chrome #options-bar:not(.hidden){border-bottom:0!important; border-top:1px solid var(--panel-border)!important; margin:5px 0 0!important; padding:12px 2px 0!important; gap:10px!important;}
+/* 슬라이더: 트랙이 보이게, 두 개가 폭을 나눠 갖게 */
+@media (min-width:641px){html:root body #options-bar .option-row-secondary .option-slider{flex:1 1 0!important; min-width:0!important;}}
+html:root body #options-bar .option-slider input[type=range]{-webkit-appearance:none!important; appearance:none!important; flex:1 1 auto!important; width:auto!important; min-width:90px!important; height:20px!important; background:transparent!important; accent-color:var(--accent)!important;}
+html:root body #options-bar .option-slider input[type=range]::-webkit-slider-runnable-track{height:4px!important; border-radius:2px!important; background:#3a3f48!important; border:0!important;}
+html:root body #options-bar .option-slider input[type=range]::-moz-range-track{height:4px; border-radius:2px; background:#3a3f48; border:0;}
+html:root body #options-bar .option-slider input[type=range]::-webkit-slider-thumb{-webkit-appearance:none!important; width:16px!important; height:16px!important; margin-top:-6px!important; border-radius:50%!important; background:var(--accent)!important; border:2px solid #fff!important; box-shadow:none!important;}
+html:root body #options-bar .option-slider input[type=range]::-moz-range-thumb{width:14px; height:14px; border-radius:50%; background:var(--accent); border:2px solid #fff;}
+html:root body #options-bar .option-slider .effect-value-label{min-width:50px!important; text-align:left!important;}
+/* 체크박스: 기본 파란 체크 대신 같은 색 체계 */
+html:root body #options-bar .option-lock input[type=checkbox]{-webkit-appearance:none!important; appearance:none!important; width:16px!important; height:16px!important; border:1.5px solid rgba(184,193,207,.45)!important; border-radius:4px!important; background:transparent!important; display:grid!important; place-items:center!important; margin:0!important; outline:none!important;}
+html:root body #options-bar .option-lock input[type=checkbox]:checked{background:var(--accent)!important; border-color:var(--accent)!important;}
+html:root body #options-bar .option-lock input[type=checkbox]:checked::after{content:""; width:5px; height:9px; border:solid #fff; border-width:0 2px 2px 0; transform:translateY(-1px) rotate(45deg);}
+html:root body #options-bar[data-layout="effect"] .option-row-primary > .option-lock input{width:15px!important; height:15px!important;}
+/* 키보드 포커스 테두리도 파랑 대신 강조색 */
+html:root body #chrome :focus-visible{outline:2px solid var(--accent)!important; outline-offset:2px!important;}
+html:root body #chrome button:focus:not(:focus-visible){outline:none!important;}
+/* 얼굴↔원 전환 표시: 오른쪽 위 작은 순환 화살표 */
+html:root body #options-bar .seg button:is(.face-mode,.circle-mode)::after{
+  content:""!important; position:absolute!important; right:5px!important; top:5px!important; bottom:auto!important; width:10px!important; height:10px!important;
+  background:currentColor!important; opacity:.9!important; font-size:0!important;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.3-5.6'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center/contain no-repeat!important;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 12a8 8 0 1 1-2.3-5.6'/%3E%3Cpath d='M20 4v5h-5'/%3E%3C/svg%3E") center/contain no-repeat!important;
+}
 </style>
 </head>
 <body>
