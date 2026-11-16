@@ -24,7 +24,11 @@
 
   let activeTool = null;     // 'blur' | 'circle' | 'arrow' | null(선택모드)
   let blurMode = "blur";     // 'blur' | 'mosaic'
-  let blurShape = "face"; // 기본 가림은 얼굴 인식 + 얼굴 비율 타원
+  let blurShape = "face"; // "face"(얼굴 인식 타원) | "ellipse"(인식 없는 원) | "rect"(네모)
+  let effEllipseLocked = false; // 가림 원: 정원(1:1) 고정
+  let effRectLocked = false;    // 가림 네모: 정사각형(1:1) 고정
+  const effLocked = e => !e.autoFace && (e.shape==="rect" ? effRectLocked : effEllipseLocked);
+  const squareAroundCenter = r => { const sz=(r.w+r.h)/2; return {x:r.x+r.w/2-sz/2, y:r.y+r.h/2-sz/2, w:sz, h:sz}; };
   // 편집 UI의 중앙(50)은 실제 이미지 처리값과 별개로, 현장용 기준 강도를 뜻한다.
   // 효과 데이터에는 기존과 동일한 0~100 실제 강도/페더를 저장한다.
   const EFFECT_BASELINE = {blur:{intensity:22,feather:82},mosaic:{intensity:58,feather:87}};
@@ -692,7 +696,7 @@
         vctx.lineWidth = 1.5;
         vctx.strokeStyle = "#ffffff";
         vctx.fillStyle = "rgba(255,255,255,0.10)";
-        if(blurShape==="face"){
+        if(blurShape!=="rect"){
           vctx.beginPath();
           vctx.ellipse(r.x+r.w/2, r.y+r.h/2, r.w/2, r.h/2, 0,0,Math.PI*2);
           vctx.fill(); vctx.stroke();
@@ -1096,6 +1100,7 @@
       "모자이크":'<rect x="4" y="4" width="7" height="7" rx="1.1"/><rect x="13" y="4" width="7" height="7" rx="1.1"/><rect x="4" y="13" width="7" height="7" rx="1.1"/><rect x="13" y="13" width="7" height="7" rx="1.1"/>',
       "얼굴":'<circle cx="12" cy="12" r="8"/><path d="M9 10h.01M15 10h.01M9 15q3 3 6 0"/>',
       "사각형":'<rect x="5" y="5" width="14" height="14" rx="2"/>',
+      "원":'<circle cx="12" cy="12" r="7"/>',
       "원/타원":'<ellipse cx="12" cy="12" rx="8" ry="6"/>',
       "네모":'<rect x="4.5" y="4.5" width="15" height="15" rx="2"/>',
       "실선":'<path d="M4 12h16"/>',
@@ -1138,7 +1143,7 @@
     const row2=createOptionRow("option-row-secondary");
     const put=(row,...items)=>items.forEach(item=>{ if(item) row.append(item); });
     if(layout==="effect"){
-      put(row1,pick("option-mode"),pick("option-target"));
+      put(row1,pick("option-mode"),pick("option-target"),pick("option-lock"));
       put(row2,pick("option-intensity"),pick("option-feather"));
     }else if(layout==="drawing"){
       put(row1,pick("option-shape"),pick("option-stroke"),pick("option-line-style"));
@@ -1210,13 +1215,30 @@
       const g3 = document.createElement("div"); g3.className="opt-group option-target";
       const seg3 = document.createElement("div"); seg3.className="seg";
       const bFace = document.createElement("button"); bFace.textContent="얼굴"; bFace.className = blurShape==="face"?"active":"";
+      const bCircle = document.createElement("button"); bCircle.textContent="원"; bCircle.className = blurShape==="ellipse"?"active":"";
       const bRect = document.createElement("button"); bRect.textContent="사각형"; bRect.className = blurShape==="rect"?"active":"";
+      const setPlainShape=shape=>{ blurShape=shape; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace&&e.shape!==(shape==="rect"?"rect":"ellipse")){e.shape=shape==="rect"?"rect":"ellipse";if(effLocked(e))e.rect=squareAroundCenter(e.rect);pushHistory();} buildOptionsBar(); redraw(); };
       bFace.onclick=()=>{ blurShape="face"; buildOptionsBar(); redraw(); };
-      bRect.onclick=()=>{ blurShape="rect"; const e=effects.find(e=>e.id===selectedId); if(e&&!e.autoFace){e.shape="rect";pushHistory();} buildOptionsBar(); redraw(); };
-      seg3.appendChild(bFace); seg3.appendChild(bRect);
+      bCircle.onclick=()=>setPlainShape("ellipse");
+      bRect.onclick=()=>setPlainShape("rect");
+      seg3.appendChild(bFace); seg3.appendChild(bCircle); seg3.appendChild(bRect);
       g3.appendChild(seg3);
+      var gLockEff=null;
+      if(blurShape!=="face"){
+        // 원·네모 가림: 정원/정사각형(1:1) 고정. 선택한 가림이 있으면 중심을 지킨 채 바로 1:1로 바꾼다.
+        gLockEff=document.createElement("label"); gLockEff.className="opt-group check-opt option-lock";
+        const lockCheck=document.createElement("input"); lockCheck.type="checkbox";
+        lockCheck.checked=blurShape==="rect"?effRectLocked:effEllipseLocked;
+        lockCheck.onchange=()=>{
+          if(blurShape==="rect") effRectLocked=lockCheck.checked; else effEllipseLocked=lockCheck.checked;
+          const e=effects.find(e=>e.id===selectedId);
+          if(lockCheck.checked && e && !e.autoFace && Math.abs(e.rect.w-e.rect.h)>0.5){ e.rect=squareAroundCenter(e.rect); pushHistory(); redraw(); }
+        };
+        const lockText=document.createElement("span"); lockText.textContent=blurShape==="rect"?"정사각형":"정원";
+        gLockEff.appendChild(lockCheck); gLockEff.appendChild(lockText);
+      }
 
-      optionsBar.appendChild(g1); optionsBar.appendChild(g2); optionsBar.appendChild(gf); optionsBar.appendChild(g3);
+      optionsBar.appendChild(g1); optionsBar.appendChild(g2); optionsBar.appendChild(gf); optionsBar.appendChild(g3); if(gLockEff) optionsBar.appendChild(gLockEff);
     } else if(activeTool==="circle" || activeTool==="arrow" || activeTool==="line"){
       optionsBar.classList.remove("hidden");
       if(activeTool==="circle"){
@@ -1542,7 +1564,15 @@
       intensity=Number.isFinite(eh.intensity)?eh.intensity:intensity;
       feather=Number.isFinite(eh.feather)?eh.feather:feather;
       blurMode=eh.mode||blurMode;
-      blurShape = eh.autoFace || eh.shape==="ellipse" ? "face" : "rect";
+      if(eh.autoFace){
+        // 자동 인식된 얼굴을 탭하면 인식 없는 일반 원 가림으로 바꿔 자유롭게 옮기고 크기를 조절한다.
+        // 한 번에 여러 얼굴이 잡힌 경우 각 얼굴을 따로 떼어 다른 얼굴에는 영향이 없게 한다.
+        const rects=eh.faceRects&&eh.faceRects.length?eh.faceRects:[eh.rect];
+        eh.rect=Object.assign({},rects[0]); eh.faceRects=[]; eh.autoFace=false; eh.shape="ellipse";
+        rects.slice(1).forEach(r=>effects.push(Object.assign({},eh,{id:genId(),rect:Object.assign({},r),faceRects:[]})));
+        pushHistory();
+      }
+      blurShape = eh.shape==="ellipse" ? "ellipse" : "rect";
       // 블러/모자이크도 생성 후 영역 안을 드래그해 자유롭게 이동한다.
       drag={mode:"effectMove",effect:eh,last:dispToNat(dp)};
       buildOptionsBar(); redraw(); return;
@@ -1574,7 +1604,7 @@
     if(!drag) return;
     // 가장자리 밖 허용은 PC(마우스·펜)에만 적용한다. 모바일 터치 동작은 기존 그대로 유지한다.
     const edgeOverflow = e.pointerType!=="touch";
-    const dp = getDispPoint(e, edgeOverflow && drag.mode==="create" && activeTool==="blur" && blurShape==="face");
+    const dp = getDispPoint(e, edgeOverflow && drag.mode==="create" && activeTool==="blur" && blurShape!=="rect");
     if(drag.mode==="create"){
       drag.curDisp = dp;
       redraw();
@@ -1637,8 +1667,15 @@
         const rel={x:(srcCenter.x-c.x)*factor,y:(srcCenter.y-c.y)*factor};
         return {x:newCenter.x+rel.x-src.w*factor/2,y:newCenter.y+rel.y-src.h*factor/2,w:src.w*factor,h:src.h*factor};
       };
-      drag.effect.rect=scaleRect(snap.rect);
-      drag.effect.faceRects=(snap.faceRects||[]).map(scaleRect);
+      if(!drag.effect.autoFace && !effLocked(drag.effect)){
+        // 정원/정사각형을 끄면 잡은 쪽 방향으로만 늘리고 줄여 가로·세로 비율을 자유롭게 바꾼다.
+        const horiz=drag.handle==='e'||drag.handle==='w';
+        const w=horiz?b.w*factor:b.w, h=horiz?b.h:b.h*factor;
+        drag.effect.rect={x:newCenter.x-w/2,y:newCenter.y-h/2,w,h};
+      }else{
+        drag.effect.rect=scaleRect(snap.rect);
+        drag.effect.faceRects=(snap.faceRects||[]).map(scaleRect);
+      }
       redraw();
     } else if(drag.mode==="rotate"){
       const nat=dispToNat(dp), c=drag.center;
@@ -1702,14 +1739,16 @@
           if(r.w>2 && r.h>2){
             // 얼굴 모드는 얼굴을 찾아 비율에 맞는 타원으로 보정하고,
             // 사각형 모드는 사용자가 그린 영역을 그대로 즉시 가린다.
-            if(blurShape==="rect"){
+            if(blurShape==="rect" || blurShape==="ellipse"){
+              const shape=blurShape==="rect"?'rect':'ellipse';
+              const locked=shape==='rect'?effRectLocked:effEllipseLocked;
               const eff={
-                id:genId(), type:'effect', rect:Object.assign({},r), faceRects:[],
-                autoFace:false, mode:blurMode, shape:'rect', rotation:0, intensity:intensity, feather:feather
+                id:genId(), type:'effect', rect:locked?squareAroundCenter(r):Object.assign({},r), faceRects:[],
+                autoFace:false, mode:blurMode, shape, rotation:0, intensity:intensity, feather:feather
               };
               effects.push(eff); selectedId=eff.id;
               pushHistory(); buildOptionsBar(); redraw();
-              showToast("사각형 영역 가림",900);
+              if(shape==='rect') showToast("사각형 영역 가림",900);
               return;
             }
             const eff={id:genId(),type:'effect',rect:Object.assign({},r),faceRects:[],autoFace:false,
