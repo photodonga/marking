@@ -277,6 +277,7 @@
         resetView();
         fitCanvas();
         redraw();
+        warmUpFaceModels();
       };
       img.onerror = function(){
         showToast("이 사진 형식은 브라우저에서 열 수 없습니다.", 1800);
@@ -1993,6 +1994,26 @@
     return faceLandmarkerPromise;
   }
 
+  // 사진을 열면 화면이 그려진 뒤 얼굴 인식 엔진과 모델을 미리 불러 둔다(예열).
+  // 첫 얼굴 가림에서 기다리지 않게 하려는 것이며, 실패해도 실제 사용 때 다시 시도한다.
+  let faceWarmUpStarted=false;
+  function warmUpFaceModels(){
+    if(faceWarmUpStarted) return;
+    faceWarmUpStarted=true;
+    const start=()=>{
+      ensureFaceDetector().then(d=>{
+        if(!d){faceWarmUpStarted=false;return;}
+        // 첫 detect 호출의 내부 초기화까지 미리 끝내 둔다.
+        try{ const c=document.createElement("canvas"); c.width=c.height=128; d.detect(c); }catch(_){ }
+        return ensureFaceLandmarker().then(l=>{
+          try{ if(l){ const c=document.createElement("canvas"); c.width=c.height=128; l.detect(c); } }catch(_){ }
+        });
+      }).catch(()=>{faceWarmUpStarted=false;});
+    };
+    if(window.requestIdleCallback) window.requestIdleCallback(start,{timeout:800});
+    else setTimeout(start,200);
+  }
+
   async function detectFacesPrimary(crop){
     const detector = await ensureFaceDetector();
     if(!detector) return [];
@@ -2049,7 +2070,15 @@
     return {x:x1,y:y1,w:Math.max(4,x2-x1),h:Math.max(4,y2-y1),center:{x:best.cx,y:best.cy}};
   }
 
-  function runFaceDetectionInBox(natRect, cb){
+  // 인식이 잠깐(150ms) 안에 끝나지 않을 때만 "얼굴 인식 중"을 띄운다. 결과 알림이 오면 그대로 덮어쓴다.
+  const FACE_BUSY_TEXT="얼굴 인식 중";
+  function runFaceDetectionInBox(natRect, done){
+    const busyTimer=setTimeout(()=>showToast(FACE_BUSY_TEXT,15000),150);
+    const cb=(faces,points)=>{
+      clearTimeout(busyTimer);
+      if(toastEl.textContent===FACE_BUSY_TEXT){ clearTimeout(showToast._t); toastEl.classList.remove("show"); }
+      done(faces,points);
+    };
     (async()=>{
       // 얼굴 일부만 대충 둘러도 detector가 머리 전체를 볼 수 있게 탐지용 crop만 크게 확장한다.
       const marginX=natRect.w*0.55, marginY=natRect.h*0.55;
@@ -2104,8 +2133,19 @@
 
         // Detector는 얼굴 위치를 잡고, Landmarker는 얼굴형의 가로/세로 비율만 얻는다.
         // 외곽선을 따는 polygon은 사용하지 않는다. 결과는 언제나 단순한 타원형이다.
-        const landmarkFaces=await detectLandmarksFallback(crop);
-        const adaptive=adaptiveFaceEllipseFromLandmarks(landmarkFaces,sx,sy,cw,ch,f.cx,f.cy);
+        // Landmarker에는 Detector가 찾은 얼굴 주변만 잘라 넘긴다. 넓은 영역에서 얼굴을 다시 찾지 않아 빠르고,
+        // 옆 사람 얼굴을 잡을 가능성도 줄어든다.
+        const fm=Math.max(f.bw,f.bh)*0.75;
+        const lx=clamp(Math.floor(f.cx-f.bw/2-fm),0,naturalW), ly=clamp(Math.floor(f.cy-f.bh/2-fm),0,naturalH);
+        const lex=clamp(Math.ceil(f.cx+f.bw/2+fm),0,naturalW), ley=clamp(Math.ceil(f.cy+f.bh/2+fm),0,naturalH);
+        const lw=Math.max(1,lex-lx), lh=Math.max(1,ley-ly);
+        const ls=Math.min(4,512/Math.max(lw,lh));
+        const lcrop=document.createElement("canvas"); lcrop.width=Math.max(64,Math.round(lw*ls)); lcrop.height=Math.max(64,Math.round(lh*ls));
+        const lctx=lcrop.getContext("2d",{willReadFrequently:true});
+        lctx.imageSmoothingEnabled=true; lctx.imageSmoothingQuality="high";
+        lctx.drawImage(rasterCanvas,lx,ly,lw,lh,0,0,lcrop.width,lcrop.height);
+        const landmarkFaces=await detectLandmarksFallback(lcrop);
+        const adaptive=adaptiveFaceEllipseFromLandmarks(landmarkFaces,lx,ly,lw,lh,f.cx,f.cy);
         if(adaptive && adaptive.center && Math.hypot(adaptive.center.x-f.cx,adaptive.center.y-f.cy)<=Math.max(f.bw,f.bh)*0.65){
           cb([{x:adaptive.x,y:adaptive.y,w:adaptive.w,h:adaptive.h}],[{x:f.cx,y:f.cy}]);
           return;
